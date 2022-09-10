@@ -1,13 +1,19 @@
-from flask  import Flask, render_template, request, jsonify
+import datetime
+from flask  import Flask, jsonify
 import requests
 import json
+import time
+
 
 
 app = Flask(__name__)
 
 def get_cinema_income():
-    url = 'https://boxoffice.tfi.org.tw/api/export?start=2021/12/06&end=2021/12/12'
+    start_date = (datetime.datetime.now() - datetime.timedelta(80)).strftime("%Y/%m/%d") #前80日
+    end_date = datetime.datetime.now().strftime("%Y/%m/%d")
+    url = f'https://boxoffice.tfi.org.tw/api/export?start={str(start_date)}&end={str(end_date)}'
     res = requests.get(url)
+    # time.sleep(3)
     return res.json()
 
 def save_josn_data():
@@ -31,12 +37,14 @@ data = load_json_data()
 
 @app.route('/')
 def index():
+    save_josn_data()
     return '<h1>電影票房API</h1>'
 
 
 @app.route('/api/')
 def all():
     """取得全部影片"""
+    data = load_json_data()
     return jsonify(data)
 
 @app.route('/api/<search_key>')
@@ -52,19 +60,20 @@ def search_key(search_key):
     return jsonify(data)
 
 # 第2版API
-@app.route('/api/v2/GET/all')
+@app.route('/api/v2/GET/movies/all')
 def all_v2():
     """取得全部影片"""
+    data = load_json_data()
     return jsonify(data)
 
-@app.route('/api/v2/GET/country/<search_key>')
+@app.route('/api/v2/GET/movies/from_country/<search_key>')
 def country(search_key):
     """取得對應國家的票房資訊"""
     data = load_json_data()
     data = [ i for i in data['list'] for k,v in i.items() if v == search_key ]
     return jsonify(data)
 
-@app.route('/api/v2/GET/movie/<search_key>')
+@app.route('/api/v2/GET/movies/from_name/<search_key>')
 def movie(search_key):
     """取得對應電影名稱的票房資訊"""
     data = load_json_data()
@@ -73,3 +82,4 @@ def movie(search_key):
 if __name__ == '__main__':
     app.debug = True
     app.run()
+    # save_josn_data()
