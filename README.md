@@ -56,7 +56,7 @@
     cd flask-api
 
     #開虛擬環境
-    pipenv --python 3.9.9  
+    pipenv --python 3.10
 
     #同步安裝Pipfile.lock對應檔案
     pipenv sync 
