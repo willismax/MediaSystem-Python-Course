@@ -9,7 +9,7 @@
 
 - 啟動虛擬環境pipenv(需先`pip install pipenv`，並在本機安裝對應的python版本)
     ```
-    pipenv --python 3.9.9
+    pipenv --python 3.10
     ```
 
 - 安裝相依套件﹑YES!!
