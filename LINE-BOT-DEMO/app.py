@@ -1,4 +1,4 @@
-from flask import Flask, request, abort, jsonify
+from flask import Flask, request, abort, jsonify, render_template
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -32,10 +32,10 @@ CHANNEL_SECRET = os.getenv('CHANNEL_SECRET', 'Optional default value')
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-@app.route("/")
-def home():
-    """測試開啟web"""
-    return "TEST 200"
+@app.route('/')
+@app.route('/<name>')
+def hello(name=None):
+    return render_template('hello.html', name=name)
 
 @app.route("/callback", methods=['POST'])
 def callback():
