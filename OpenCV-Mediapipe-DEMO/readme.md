@@ -7,7 +7,7 @@
 - 建議使用pipenv虛擬環境，本案例採python 3.8，相依外部套件可透過`pipenv sync`將`Pipfile.lock`內鎖定的相依套件進行安裝。
 
     ```
-    pipenv --python 3.8
+    pipenv --python 3.10
     pipenv sync
     ```
 

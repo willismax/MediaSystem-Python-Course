@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-opencv-python = "4.5.4.60"
-mediapipe = "0.8.9.1"
+opencv-python = "*"
+mediapipe = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.8"
+python_version = "3.10"
