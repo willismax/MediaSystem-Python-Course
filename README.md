@@ -1,18 +1,28 @@
 # NUTC-CSIE-MS
 
-- 範例程式碼下載(需先安裝git)
+## 範例程式碼下載
+  - 用`git clone`(需先安裝[Git Cli](https://git-scm.com/))(建議)
 
     ```
     git clone https://github.com/willismax/NUTC-CSIE-MS.git
     cd NUTC-CSIE-MS
     ```
+  - 下載`zip`自己解壓縮也可以
+  
+## 啟動虛擬環境 (2 選 1)
 
-- 啟動虛擬環境pipenv(需先`pip install pipenv`，並在本機安裝對應的python版本)
+### pipenv 虛擬環境+套件管理
+  - pipenv(需先`pip install pipenv`，並在本機安裝對應的python版本)
     ```
     pipenv --python 3.10
     ```
-
-- 安裝相依套件﹑YES!!
+    
+  - 建立好資料夾要CD切換路徑
+    ```
+    cd NUTC-CSIE-MS
+    ```
+  
+  - 安裝相依套件，可以用`pipenv install -r requirements.txt`或`pipenv sync`等2種，就看檔案路徑裡有無`requirements.txt`或`Pipfile.lock`
 
     ```
     pipenv install -r requirements.txt
@@ -36,8 +46,28 @@
     ```
     pipenv --rm
     ```
+### 使用Python內建的虛擬機`venv`
 
-## LINE-BOT-DEMO
+- 建虛擬機venv
+  ```
+  python -m venv venv
+  ```
+- 啟動VM，windows為`source venv\Scripts\activate`，linux為`source openvino_env/bin/activate`
+  ```
+  # Windows
+  venv\Scripts\activate
+  
+  # Linux
+  source openvino_env/bin/activate
+  ```
+- 安裝相關套件
+  ```
+  pip install -r requirements.txt
+  ```
+
+## 相關專案摘要說明
+
+### LINE-BOT-DEMO
 
 - 提醒:
     - 請配合LINE MESSAGE API填入資訊於`config.py`
@@ -46,7 +76,7 @@
         CHANNEL_SERET = ''
         ```
 
-## flask-api-DEMO
+### flask-api-DEMO
 
 > 以開放資料台灣電影院票房統計示範
 
@@ -86,6 +116,6 @@
         - http://localhost:5000/json
         - http://localhost:5000/jsonify
 
-## about GitHub
+### about GitHub
 - 遠端 git push 需要設定個人PAT，push 時輸入git帳號，輸入git密碼時貼上PAT，參閱https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 - 另外如果是linux，可能push時需要管理者權限，使用sudo git push
