@@ -27,7 +27,7 @@
     ```
     pipenv install -r requirements.txt
     ```
-    如已經有Pipfile.lock檔，可執行:
+    如已經有Pipfile檔，可執行:
     ```
     pipenv sync
     ```
