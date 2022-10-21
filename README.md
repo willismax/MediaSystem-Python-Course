@@ -52,7 +52,7 @@
   ```
   python -m venv venv
   ```
-- 啟動VM，windows為`source venv\Scripts\activate`，linux為`source openvino_env/bin/activate`
+- 啟動VM，windows為`venv\Scripts\activate`，如果已經在venv資料夾，應為`\Scripts\activate`；linux為`source openvino_env/bin/activate`
   ```
   # Windows
   venv\Scripts\activate
