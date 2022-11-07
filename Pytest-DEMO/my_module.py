@@ -8,6 +8,8 @@ class MyModule:
     def bmi_2(w, h):
         return w/(h/100)**2
     
+    
+    
 if __name__ == "__main__":
     two_sum = MyModule.sum(1.5,2.5)
     print(two_sum) # 4.0
