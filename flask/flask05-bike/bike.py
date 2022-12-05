@@ -12,7 +12,7 @@ def index():
     return "<h1>台中iBike即時資訊</h1>"
 
 @app.route("/df")
-def get_all_bike_df():
+def get_bikes_df():
     """以DataFrame顯示台中iBike即時資訊"""
     url = "https://datacenter.taichung.gov.tw/swagger/OpenData/34c2aa94-7924-40cc-96aa-b8d090f0ab69"
     res = requests.get(url)
@@ -21,7 +21,7 @@ def get_all_bike_df():
     return df.to_html()
 
 @app.route("/df2json")
-def get_all_df2json():
+def get_bikes_df2json():
     """
     由df.to_json顯示台中iBike info
     Note: 觀察Response Headers

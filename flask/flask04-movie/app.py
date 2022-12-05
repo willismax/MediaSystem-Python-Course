@@ -13,7 +13,7 @@ def get_cinema_income():
     end_date = datetime.datetime.now().strftime("%Y/%m/%d")
     url = f'https://boxoffice.tfi.org.tw/api/export?start={str(start_date)}&end={str(end_date)}'
     res = requests.get(url)
-    # time.sleep(3)
+    time.sleep(3)
     return res.json()
 
 def save_josn_data():
@@ -37,7 +37,7 @@ data = load_json_data()
 
 @app.route('/')
 def index():
-    save_josn_data()
+    # save_josn_data()
     return '<h1>電影票房API</h1>'
 
 
@@ -60,26 +60,27 @@ def search_key(search_key):
     return jsonify(data)
 
 # 第2版API
-@app.route('/api/v2/GET/movies/all')
+@app.route('/api/v2/movies')
 def all_v2():
     """取得全部影片"""
     data = load_json_data()
     return jsonify(data)
 
-@app.route('/api/v2/GET/movies/from_country/<search_key>')
+@app.route('/api/v2/movies/country/<search_key>')
 def country(search_key):
     """取得對應國家的票房資訊"""
     data = load_json_data()
     data = [ i for i in data['list'] for k,v in i.items() if v == search_key ]
     return jsonify(data)
 
-@app.route('/api/v2/GET/movies/from_name/<search_key>')
+@app.route('/api/v2/movies/name/<search_key>')
 def movie(search_key):
     """取得對應電影名稱的票房資訊"""
     data = load_json_data()
     data = [ i for i in data['list'] for k,v in i.items() if v == search_key ]
     return jsonify(data)
+
 if __name__ == '__main__':
     app.debug = True
     app.run()
-    # save_josn_data()
+    save_josn_data()
