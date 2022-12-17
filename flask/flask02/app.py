@@ -9,7 +9,7 @@ def hello_world():
 
 @app.route("/<name>")
 def hello(name):
-    return f"Hello, {escape(name)}!"
+    return f"<h1>Hello, {escape(name)}!</h1>"
 
 if __name__ == '__main__':
     app.run(port=8000, debug=True)
