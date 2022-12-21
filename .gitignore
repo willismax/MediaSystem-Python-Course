@@ -1,5 +1,7 @@
 config.py
 chromedriver.exe
+venv
+fly.toml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
