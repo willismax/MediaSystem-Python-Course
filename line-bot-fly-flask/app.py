@@ -12,7 +12,7 @@ import my_moduls.my_functions as mf
 from my_moduls.openai_bot import OpenAIBot
 
 from config import (
-    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID
+    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID
 ) 
 
 import os
@@ -93,6 +93,10 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, message)
         elif event.message.text[:3] == "@職務":
             content = mf.search_jobbooks(event.message.text[3:])
+            message = TextSendMessage(text=content)
+            line_bot_api.reply_message(event.reply_token, message)
+        elif event.message.text[:3] == "@選單":
+            content = f"@翻英、@翻日、@翻中、@違法、@職務、@ai，或存https://hackmd.io/{TEMP_NOTE_ID}"
             message = TextSendMessage(text=content)
             line_bot_api.reply_message(event.reply_token, message)
         else: 
