@@ -2,5 +2,5 @@
 # web: gunicornapp-hellofly:app
 # web: gunicorn app_for_tools:app
 # web: gunicorn app_for_openaibot:app 
-# web: gunicorn app-for-hackmdbot:app
-web: gunicorn app-for-bot:app
+# web: gunicorn app_for_hackmdbot:app
+web: gunicorn app:app
