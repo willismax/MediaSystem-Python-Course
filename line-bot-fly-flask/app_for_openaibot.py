@@ -47,15 +47,11 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     # Get user's message
-    user_message = event.message.text
-    chatgpt.add_msg(f"HUMAN:{user_message}?\n")
-
+    content = event.message.text
+    chatgpt.add_msg(f"HUMAN:{content}?\n")
     reply_msg = chatgpt.get_response()
-
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_msg)
-    )
+    message = TextSendMessage(text=reply_msg)
+    line_bot_api.reply_message(event.reply_token, message)
 
 # if __name__ == "__main__":
     # Only for debugging while developing

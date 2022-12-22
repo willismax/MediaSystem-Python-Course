@@ -2,7 +2,7 @@ from PyHackMD import API
 import pyimgur
 import datetime
 from config import (
-    HACKMD_API_TOKEN, TODO_NOTE_ID, TEMP_NOTE_ID, IMGUR_CLIENT_ID, HACKMD_USER_NAME
+    HACKMD_API_TOKEN, TODO_NOTE_ID, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID
 ) 
 
 
@@ -48,4 +48,4 @@ def add_temp_note(content):
         note_id = TEMP_NOTE_ID,
         content = update_content
         )
-    return f"已新增至臨時筆記\n{content}  \n https://hackmd.io/@{HACKMD_USER_NAME}/temp-note/edit"
+    return f"已新增至臨時筆記\n{content}  \n https://hackmd.io/{TEMP_NOTE_ID}"
