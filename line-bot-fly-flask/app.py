@@ -1,4 +1,4 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, jsonify
 
 from linebot import LineBotApi, WebhookHandler
 
@@ -26,7 +26,7 @@ chatgpt = OpenAIBot()
 # Messages on start and restart
 line_bot_api.push_message(
     LINE_USER_ID, 
-    TextSendMessage(text='HackMD Bot Starting')
+    TextSendMessage(text='Bot Starting')
     )
 
 # Listen for all Post Requests from /callback
@@ -107,3 +107,56 @@ def handle_message(event):
 # if __name__ == "__main__":
 #     port = int(os.environ.get('PORT', 5000))
 #     app.run(host='0.0.0.0', port=port)
+
+########### API範例 ##############################
+
+
+
+# 建立一個名為 `tasks` 的資料表，用來儲存待辦事項
+tasks = [
+    {
+        'task': 'Python程式設計備課'
+    }
+]
+
+
+@app.route('/', methods=['GET'])
+def helloworld():
+    return "<h1>Hello World</h1>"
+
+@app.route('/tasks', methods=['GET'])
+def list_tasks():
+    return jsonify(tasks)
+
+@app.route('/tasks', methods=['POST'])
+def add_task():
+    # 取得使用者傳送的待辦事項
+    task = request.json
+    tasks.append(task)
+    return jsonify(tasks), 201
+
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    # 取得使用者傳送的更新資料
+    task = request.json
+
+    # 檢查待辦事項是否存在
+    if task_id < 0 or task_id >= len(tasks):
+        return jsonify({'message': 'task not found'}), 404
+
+    # 更新待辦事項
+    tasks[task_id] = task
+    return jsonify({'message': f'task_id: {task_id} updated'}), 200
+
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    # 檢查待辦事項是否存在
+    if task_id < 0 or task_id >= len(tasks):
+        return jsonify({'message': 'task not found'}), 404
+
+    # 刪除待辦事項
+    tasks.pop(task_id)
+    return jsonify({'message': 'task deleted'}), 200
+
+
+#################################################
