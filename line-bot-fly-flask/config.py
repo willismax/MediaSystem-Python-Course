@@ -7,4 +7,8 @@ HACKMD_USER_NAME = ''
 IMGUR_CLIENT_ID = ''
 HACKMD_API_TOKEN = ''
 TODO_NOTE_ID = '' #  paste your fixed TODO note id
+<<<<<<< HEAD
 TEMP_NOTE_ID = '' # paste your fixed TEMP note id
+=======
+TEMP_NOTE_ID = '' # paste your fixed TEMP note id
+>>>>>>> 6e5fcfd00ba5052e3f1805169fc269811dcc2c85
