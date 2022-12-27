@@ -2,7 +2,7 @@ from PyHackMD import API
 import pyimgur
 import datetime
 from config import (
-    HACKMD_API_TOKEN, TODO_NOTE_ID, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID
+    HACKMD_API_TOKEN, TODO_NOTE_ID, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID, AI_NOTE_ID
 ) 
 
 
@@ -24,6 +24,18 @@ def update_todo_note(content):
         content = update_content
         )
     return f"已新增代辦事項{content}\n {note['publishLink']}"
+
+def update_ai_note(question,response):
+    api = API(HACKMD_API_TOKEN)
+    note = api.get_note(note_id = AI_NOTE_ID)
+    ori_content = note['content']
+    update_content = f"{ori_content}\n---\n> {question}\n\n{response}"
+    api.update_note(
+        note_id = AI_NOTE_ID,
+        content = update_content
+        )
+    return f"已備份至 {note['publishLink']}"
+
 
 def get_user_image(image_content):
     path = './temp.png'

@@ -12,7 +12,7 @@ import my_moduls.my_functions as mf
 from my_moduls.openai_bot import OpenAIBot
 
 from config import (
-    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID
+    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID, AI_NOTE_ID
 ) 
 
 import os
@@ -73,6 +73,7 @@ def handle_message(event):
             content = event.message.text
             chatgpt.add_msg(f"HUMAN:{content}?\n")
             reply_msg = chatgpt.get_response()
+            hb.update_ai_note(content,reply_msg)
             message = TextSendMessage(text=reply_msg)
             line_bot_api.reply_message(event.reply_token, message)
         elif event.message.text[:3] == "@翻英":
