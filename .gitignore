@@ -3,6 +3,7 @@ line-bot-fly-flask/config.py
 chromedriver.exe
 venv
 fly.toml
+data.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,21 +1,20 @@
-from flask import Flask, request, abort, jsonify
-
+from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
-
 from linebot.exceptions import InvalidSignatureError
-
 from linebot.models import (
     MessageEvent, TextMessage, ImageMessage, TextSendMessage
 )
+
+# 使用自訂的模組(資料夾-檔案)
 import my_moduls.hackmd_bot as hb
 import my_moduls.my_functions as mf
 from my_moduls.openai_bot import OpenAIBot
 
+# 使用自訂的檔案-變數
 from config import (
     CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID, AI_NOTE_ID
 ) 
 
-import os
 
 app = Flask(__name__)
 
@@ -51,6 +50,7 @@ def handle_message(event):
     if event.source.user_id =='Udeadbeefdeadbeefdeadbeefdeadbeef':
         return 'OK'
 
+    # 處裡圖片的方式: 上傳圖床、存HackMD暫存筆記
     if event.message.type=='image':
         image = line_bot_api.get_message_content(event.message.id)
         path = hb.get_user_image(image)
@@ -61,21 +61,22 @@ def handle_message(event):
 
     if event.message.type=='text':
         word =  str(event.message.text)
-        if word[:3] == "@fletting":
-            content = hb.creat_fletting_note(word[3:])
-            message = TextSendMessage(text=content)
+
+        # 測試API回傳內容
+        if word[:5] == "@test":
+            message = TextSendMessage(text=str(event))
             line_bot_api.reply_message(event.reply_token, message)
-        elif word[:5] == "@todo":
-            content = hb.update_todo_note(word[5:])
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
+        
+        # OpenAI API回應
         elif word[:3] == "@ai":
             content = event.message.text
             chatgpt.add_msg(f"HUMAN:{content}?\n")
             reply_msg = chatgpt.get_response()
-            hb.update_ai_note(content,reply_msg)
+            hb.update_ai_note(content,reply_msg)  #將回應紀錄於HackMD
             message = TextSendMessage(text=reply_msg)
             line_bot_api.reply_message(event.reply_token, message)
+
+        # Google翻譯    
         elif event.message.text[:3] == "@翻英":
             content = mf.translate_text(event.message.text[3:], "en")
             message = TextSendMessage(text=content)
@@ -88,26 +89,20 @@ def handle_message(event):
             content = mf.translate_text(event.message.text[3:] , "zh-tw")
             message = TextSendMessage(text=content)
             line_bot_api.reply_message(event.reply_token, message)
-        elif event.message.text[:3] == "@違法":
-            content = mf.query_illegal_announcement(event.message.text[3:])
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
-        elif event.message.text[:3] == "@職務":
-            content = mf.search_jobbooks(event.message.text[3:])
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
+
+        # 呼叫選單
         elif event.message.text[:3] == "@選單":
-            content = f"@翻英、@翻日、@翻中、@違法、@職務、@ai，或存https://hackmd.io/{TEMP_NOTE_ID}"
+            content = f"使用說明:\n- 功能: @test、@翻日、@翻中、@ai\n無關鍵字則存: https://hackmd.io/{TEMP_NOTE_ID}"
             message = TextSendMessage(text=content)
             line_bot_api.reply_message(event.reply_token, message)
+        
+        # 無關鍵字則增至HackMD暫存筆記
         else: 
             content = hb.add_temp_note(word)
             message = TextSendMessage(text=content)
             line_bot_api.reply_message(event.reply_token, message)
 
-# if __name__ == "__main__":
-#     port = int(os.environ.get('PORT', 5000))
-#     app.run(host='0.0.0.0', port=port)
+
 
 ########### API範例 ##############################
 
@@ -161,3 +156,6 @@ def delete_task(task_id):
 
 
 #################################################
+
+if __name__ == "__main__":
+    app.run(port=5000, debug=True)

@@ -36,7 +36,6 @@ def update_ai_note(question,response):
         )
     return f"已備份至 {note['publishLink']}"
 
-
 def get_user_image(image_content):
     path = './temp.png'
     with open(path, 'wb') as fd:
