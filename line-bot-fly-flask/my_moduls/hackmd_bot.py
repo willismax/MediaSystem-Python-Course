@@ -60,3 +60,111 @@ def add_temp_note(content):
         content = update_content
         )
     return f"已新增至臨時筆記\n{content}  \n https://hackmd.io/{TEMP_NOTE_ID}"
+
+
+def flex_reply_image(image):
+    path = get_user_image(image)
+    link = upload_img_link(path)
+    add_temp_note(content=f"![]({link})")
+    return {
+        "type": "carousel",
+        "contents": [
+            {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                {
+                    "type": "image",
+                    "url": link,
+                    "size": "full",
+                    "aspectMode": "cover",
+                    "aspectRatio": "1:1",
+                    "gravity": "top"
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                        {
+                            "type": "filler"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                            {
+                                "type": "filler"
+                            },
+                            {
+                                "type": "text",
+                                "text": "Open in HackMD",
+                                "color": "#ffffff",
+                                "flex": 0,
+                                "offsetTop": "-2px",
+                                "action": {
+                                "type": "uri",
+                                "label": "action",
+                                "uri": f"https://hackmd.io/{TEMP_NOTE_ID}"
+                                }
+                            },
+                            {
+                                "type": "filler"
+                            }
+                            ],
+                            "spacing": "sm"
+                        },
+                        {
+                            "type": "filler"
+                        }
+                        ],
+                        "borderWidth": "1px",
+                        "cornerRadius": "4px",
+                        "spacing": "sm",
+                        "borderColor": "#ffffff",
+                        "margin": "xxl",
+                        "height": "40px"
+                    }
+                    ],
+                    "position": "absolute",
+                    "offsetBottom": "0px",
+                    "offsetStart": "0px",
+                    "offsetEnd": "0px",
+                    "backgroundColor": "#03303Acc",
+                    "paddingAll": "20px",
+                    "paddingTop": "18px"
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                    {
+                        "type": "text",
+                        "text": "+1",
+                        "color": "#ffffff",
+                        "align": "center",
+                        "size": "xs",
+                        "offsetTop": "3px"
+                    }
+                    ],
+                    "position": "absolute",
+                    "cornerRadius": "20px",
+                    "offsetTop": "18px",
+                    "backgroundColor": "#ff334b",
+                    "offsetStart": "18px",
+                    "height": "25px",
+                    "width": "53px"
+                }
+                ],
+                "paddingAll": "0px"
+            }
+            }
+        ]
+        }
+    
+ 

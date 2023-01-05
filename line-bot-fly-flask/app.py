@@ -2,7 +2,7 @@ from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
-    MessageEvent, TextMessage, ImageMessage, TextSendMessage
+    MessageEvent, TextMessage, ImageMessage, TextSendMessage, FlexSendMessage
 )
 
 # 使用自訂的模組(資料夾-檔案)
@@ -53,10 +53,11 @@ def handle_message(event):
     # 處裡圖片的方式: 上傳圖床、存HackMD暫存筆記
     if event.message.type=='image':
         image = line_bot_api.get_message_content(event.message.id)
-        path = hb.get_user_image(image)
-        link = hb.upload_img_link(path)
-        content = hb.add_temp_note(content = f"![]({link})")
-        message = TextSendMessage(text=content)
+        content = hb.flex_reply_image(image)
+        message = FlexSendMessage(
+            alt_text = "圖片已上傳至HackMD",
+            contents = content
+        )
         line_bot_api.reply_message(event.reply_token, message)
 
     if event.message.type=='text':
