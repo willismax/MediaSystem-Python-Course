@@ -112,18 +112,15 @@ def handle_message(event):
 # 建立一個名為 `tasks` 的資料表，用來儲存待辦事項
 tasks = [
     {
-        'id': 1,
         'title': 'Python程式設計備課',
         'description': '撰寫 API DEMO',
-        'done': True
+        'done': False
 
     },
     {
-        'id': 2,
         'title': 'Pytest',
         'description': '增加程式單元測試',
         'done': False
-
     }
 ]
 
@@ -136,7 +133,7 @@ def helloworld():
 def get_tasks():
     return jsonify({'tasks':tasks})
 
-@app.route('/tasks/<int: task_id>', methods=['GET'])
+@app.route('/tasks/<int:task_id>', methods=['GET'])
 def get_task(task_id):
     task = [ task for task in tasks if task['id'] == task_id]
     if len(task) == 0:

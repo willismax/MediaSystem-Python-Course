@@ -83,6 +83,7 @@
 
 ### 06.LINE-Bot-on-Fly
 - 在 Fly.io 建立 LINE Bot ，服務以 Flask 框架實現，並包含 API 測試
+- 在`config.py`填入相關tocken
 - 服務包含:
   - LINE 訊息傳送 (需LINE Channel acess token、Channel secret、LINE user id)
   - LINE 文字與圖片訊息增加至 HackMD (需HackMD API、Imgure API)
