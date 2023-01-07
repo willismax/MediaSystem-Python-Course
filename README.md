@@ -93,7 +93,16 @@
   - [![Run in Postman](https://run.pstmn.io/button.svg)](https://god.gw.postman.com/run-collection/1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9?action=collection%2Ffork&collection-url=entityId%3D1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9%26entityType%3Dcollection%26workspaceId%3D9132735b-dff0-46b8-8852-839d022a2ac3)
   - Get, Post, Put, Delete測試
 
-
+### 07.Pytest-DEMO
+- 簡易的 pytest demo，寫好在終端機下`pytest`指令測試
+- 另外也裝`pytest-cov`套件的話，`pytest --cov=./`可以測試覆蓋率Coverage
+  ```
+  pytest --cov=./ 
+  或
+  pytest --cov-report=html
+  ```
+### 08.OpenCV-Mediapipe-DEMO
+- Mediapipe 簡易操作
 
 ## 注意事項
 - 請配合課程使用，歡迎 issue 討論或發 PR (Pull Request)
