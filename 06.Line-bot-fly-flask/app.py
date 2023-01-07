@@ -12,7 +12,7 @@ from my_moduls.openai_bot import OpenAIBot
 
 # 使用自訂的檔案-變數
 from config import (
-    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID, AI_NOTE_ID
+    CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, LINE_USER_ID, TEMP_NOTE_ID
 ) 
 
 
@@ -112,7 +112,18 @@ def handle_message(event):
 # 建立一個名為 `tasks` 的資料表，用來儲存待辦事項
 tasks = [
     {
-        'task': 'Python程式設計備課'
+        'id': 1,
+        'title': 'Python程式設計備課',
+        'description': '撰寫 API DEMO',
+        'done': True
+
+    },
+    {
+        'id': 2,
+        'title': 'Pytest',
+        'description': '增加程式單元測試',
+        'done': False
+
     }
 ]
 
@@ -122,15 +133,22 @@ def helloworld():
     return "<h1>Hello World</h1>"
 
 @app.route('/tasks', methods=['GET'])
-def list_tasks():
-    return jsonify(tasks)
+def get_tasks():
+    return jsonify({'tasks':tasks})
+
+@app.route('/tasks/<int: task_id>', methods=['GET'])
+def get_task(task_id):
+    task = [ task for task in tasks if task['id'] == task_id]
+    if len(task) == 0:
+        abort(404)
+    return jsonify({'task': task[0]})
 
 @app.route('/tasks', methods=['POST'])
 def add_task():
     # 取得使用者傳送的待辦事項
     task = request.json
     tasks.append(task)
-    return jsonify(tasks), 201
+    return jsonify({'tasks':tasks}), 201
 
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
