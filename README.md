@@ -1,16 +1,15 @@
 # NUTC-CSIE-MS
 
 ## 範例程式碼下載
-  - 用`git clone`(需先安裝[Git Cli](https://git-scm.com/))(建議)
-
-    ```
-    git clone https://github.com/willismax/NUTC-CSIE-MS.git
-    cd NUTC-CSIE-MS
-    ```
-  - 下載`zip`自己解壓縮也可以
+- 安裝[Git Cli](https://git-scm.com/)
+- 在終端機`git clone`專案  
+  ```
+  git clone https://github.com/willismax/NUTC-CSIE-MS.git
+  cd NUTC-CSIE-MS
+  ```
   
 ## 啟動虛擬環境 (2 選 1)
-
+- 虛擬環境能讓開發套件單純化
 ### pipenv 虛擬環境+套件管理
   - pipenv(需先`pip install pipenv`，並在本機安裝對應的python版本)
     ```
@@ -22,19 +21,18 @@
     cd NUTC-CSIE-MS
     ```
   
-  - 安裝相依套件，可以用`pipenv install -r requirements.txt`或`pipenv sync`等2種，就看檔案路徑裡有無`requirements.txt`或`Pipfile.lock`
-
+  - 在pipenv安裝相依套件
+    以 requirements.txt 裝:
     ```
     pipenv install -r requirements.txt
     ```
-    如已經有Pipfile檔，可執行:
+    以 Pipfile 裝:
     ```
     pipenv sync
     ```
 
-- 執行服務
+- 進入環境執行服務
     ```
-    # 開啟虛擬環境並進入環境執行
     pipenv shell
     python app.py
     
@@ -46,6 +44,7 @@
     ```
     pipenv --rm
     ```
+
 ### 使用Python內建的虛擬機`venv`
 
 - 建虛擬機venv
@@ -67,55 +66,35 @@
 
 ## 相關專案摘要說明
 
-### LINE-BOT-DEMO
+### 01.Intro-Python
+- 課程使用到的ipynb檔，在Colab執行
 
-- 提醒:
-    - 請配合LINE MESSAGE API填入資訊於`config.py`
-        ```
-        CHANNEL_ACCESS_TOKEN = ''
-        CHANNEL_SERET = ''
-        ```
+### 02.Gradio
+- 可在Colab建立GUI，輔助課程使用
 
-### flask-api-DEMO
+### 03.Selenium
+- 需自行下載 webkit 等 Driver 測試，為進階爬蟲教學
 
-> 以開放資料台灣電影院票房統計示範
+### 04.Playwright
+- 可錄製腳本抓html，再自己客製化
 
-- 依前述方式執行
-    ```
-    #進入目錄
-    cd flask-api
+### 05.Flask
+- 從基本網站服務到建立基本API
 
-    #開虛擬環境
-    pipenv --python 3.10
+### 06.LINE-Bot-on-Fly
+- 在 Fly.io 建立 LINE Bot ，服務以 Flask 框架實現，並包含 API 測試
+- 服務包含:
+  - LINE 訊息傳送 (需LINE Channel acess token、Channel secret、LINE user id)
+  - LINE 文字與圖片訊息增加至 HackMD (需HackMD API、Imgure API)
+  - LINE 文字訊息翻譯
+  - LINE 文字訊息由 OpenAI 回應，並且記錄於 HhackMD (需OpenAI API) 
 
-    #同步安裝Pipfile.lock對應檔案
-    pipenv sync 
+- 建立 Tasks API 測試:
+  - [![Run in Postman](https://run.pstmn.io/button.svg)](https://god.gw.postman.com/run-collection/1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9?action=collection%2Ffork&collection-url=entityId%3D1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9%26entityType%3Dcollection%26workspaceId%3D9132735b-dff0-46b8-8852-839d022a2ac3)
+  - Get, Post, Put, Delete測試
 
-    #進入虛擬環境
-    pipenv shell 
-    
-    #執行程式
-    python app.py 
-    ```
-- 執行`app.py`後可以觀察的網址
-    - v1
-        - http://localhost:5000
-        - http://localhost:5000/api/all
-        - http://localhost:5000/api/美國
-        - http://localhost:5000/api/尚氣與十環傳奇
-    - v2
-        - http://localhost:5000/api/v2/GET/all
-        - http://localhost:5000/api/v2/GET/country/美國
-        - http://localhost:5000/api/v2/GET/movie/期末考
 
-- 執行`bike.py`後可以觀察的網址
-    - 請觀察Http Response Headers
-        - http://localhost:5000
-        - http://localhost:5000/df
-        - http://localhost:5000/df2json
-        - http://localhost:5000/json
-        - http://localhost:5000/jsonify
 
-### about GitHub
-- 遠端 git push 需要設定個人PAT，push 時輸入git帳號，輸入git密碼時貼上PAT，參閱https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-- 另外如果是linux，可能push時需要管理者權限，使用sudo git push
+## 注意事項
+- 請配合課程使用，歡迎 issue 討論或發 PR (Pull Request)
+- [如何發PR | W3HexSchool](https://w3c.hexschool.com/git/cc7d70b7)
