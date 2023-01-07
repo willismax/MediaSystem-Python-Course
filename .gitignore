@@ -1,5 +1,4 @@
-config.py
-line-bot-fly-flask/config.py
+# config.py
 chromedriver.exe
 venv
 fly.toml
