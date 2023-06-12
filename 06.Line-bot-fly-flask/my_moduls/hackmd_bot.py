@@ -29,7 +29,7 @@ def update_ai_note(question,response):
     api = API(HACKMD_API_TOKEN)
     note = api.get_note(note_id = AI_NOTE_ID)
     ori_content = note['content']
-    update_content = f"{ori_content}\n---\n> {question}\n\n{response}"
+    update_content = f"{ori_content}\n---\n**Q: {question[3:]}**\n\n```\n{response}\n```\n"
     api.update_note(
         note_id = AI_NOTE_ID,
         content = update_content

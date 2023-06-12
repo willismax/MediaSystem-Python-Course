@@ -1,10 +1,11 @@
-CHANNEL_ACCESS_TOKEN = ""
-CHANNEL_SECRET = ""
-LINE_USER_ID = ''
-OPENAI_API_KEY = ''
-IMGUR_CLIENT_ID = ''
-HACKMD_USER_NAME = ''
-HACKMD_API_TOKEN = ''
-TODO_NOTE_ID = '' #  paste your fixed TODO note id
-TEMP_NOTE_ID = '' # paste your fixed TEMP note id
-AI_NOTE_ID = '' # paste your fixed OpenAI note id
+CHANNEL_ACCESS_TOKEN = "4Jj7sIVlzPz7sMnVtgCVX01qpel+T8MHexxqwGU9ayaNOPpTanW654qid9vP69+cfAMMxCg+k8epsPL1/Tbo4iOVIPKLbz5+5pIyoeVw2a2H/bFr9Z9O68qfPMD5OJ+W4aJ5nCrQLF8mNbDw19CZyAdB04t89/1O/w1cDnyilFU="
+CHANNEL_SECRET = "34fcf6ad4ae9b51f2725c48075e2e502"
+LINE_USER_ID = 'U854afe050100e71ddf668f87f30710b7'
+OPENAI_API_KEY = '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'
+
+HACKMD_USER_NAME = 'wiimax'
+IMGUR_CLIENT_ID = 'af6436d217dd8d9'
+HACKMD_API_TOKEN = '4111464HX6W1PD0DRQKMDPA3061R0L95A9FT4O5L9T86W9NL6J'
+TODO_NOTE_ID = 'qlC-t7f_TAmcvkwoVczFrg' #  paste your fixed TODO note id
+TEMP_NOTE_ID = 'wOzZJvvaRjyySpPYwPlXOg' # paste your fixed TEMP note id
+AI_NOTE_ID = 'exjlN4sPT7e1fqVX_OyoLw' # paste your fixed AI note id
