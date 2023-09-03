@@ -4,8 +4,8 @@
 - 安裝[Git Cli](https://git-scm.com/)
 - 在終端機`git clone`專案  
   ```
-  git clone https://github.com/willismax/NUTC-CSIE-MS.git
-  cd NUTC-CSIE-MS
+  git clone MediaSystem-Python-Course
+  cd MediaSystem-Python-Course
   ```
   
 ## 啟動虛擬環境 (2 選 1)
