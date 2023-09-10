@@ -1,4 +1,4 @@
-# NUTC-CSIE-MS
+# MediaSystem-Python-Course
 
 ## 範例程式碼下載
 - 安裝[Git Cli](https://git-scm.com/)
@@ -7,9 +7,33 @@
   git clone MediaSystem-Python-Course
   cd MediaSystem-Python-Course
   ```
-  
+
 ## 啟動虛擬環境 (2 選 1)
 - 虛擬環境能讓開發套件單純化
+- 無論採venv或pipenv，都是好方法
+
+## 使用Python內建的虛擬機`venv`
+- [官方說明](https://docs.python.org/zh-tw/3.10/tutorial/venv.html)
+- 建虛擬機venv
+  ```
+  python -m venv venv
+  ```
+- 啟動VM，windows為`venv\Scripts\activate`，如果已經在venv資料夾，應為`\Scripts\activate`；linux為`source openvino_env/bin/activate`
+  ```
+  # Windows
+  .\venv\Scripts\activate
+  
+  # Linux
+  source openvino_env/bin/activate
+  ```
+- 安裝相關套件
+  ```
+  pip install -r requirements.txt
+  ```
+
+- 離開VM，`deactivate`
+
+
 ### pipenv 虛擬環境+套件管理
   - pipenv(需先`pip install pipenv`，並在本機安裝對應的python版本)
     ```
@@ -45,25 +69,7 @@
     pipenv --rm
     ```
 
-### 使用Python內建的虛擬機`venv`
-
-- 建虛擬機venv
-  ```
-  python -m venv venv
-  ```
-- 啟動VM，windows為`venv\Scripts\activate`，如果已經在venv資料夾，應為`\Scripts\activate`；linux為`source openvino_env/bin/activate`
-  ```
-  # Windows
-  venv\Scripts\activate
-  
-  # Linux
-  source openvino_env/bin/activate
-  ```
-- 安裝相關套件
-  ```
-  pip install -r requirements.txt
-  ```
-
+#
 ## 相關專案摘要說明
 
 ### 01.Intro-Python
