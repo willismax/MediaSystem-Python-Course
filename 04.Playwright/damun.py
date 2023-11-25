@@ -19,7 +19,7 @@ def run(playwright: Playwright, sn) -> None:
     page.screenshot(path='ani.jpg', full_page = True)
     
     # use Beautiful to get damun
-    soup = BeautifulSoup(page.content(), 'lxml')
+    soup = BeautifulSoup(page.content(), 'html.parser')
 
 
     # for-loops
