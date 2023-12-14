@@ -2,7 +2,7 @@ from PyHackMD import API
 import pyimgur
 import datetime
 from config import (
-    HACKMD_API_TOKEN, TODO_NOTE_ID, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID, AI_NOTE_ID
+    HACKMD_API_TOKEN, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID
 ) 
 
 
@@ -12,29 +12,6 @@ def creat_fletting_note(message):
         content = f"# 靈感筆記: {message.split()[0]}\n\n  ###### tags:`靈感筆記`\n\n {message}")
     link = f"https://hackmd.io/{data['id']}"
     return link
-
-def update_todo_note(content):
-    api = API(HACKMD_API_TOKEN)
-    note = api.get_note(note_id = TODO_NOTE_ID)
-    ori_content = note['content']
-    now = datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).strftime("%a, %b %d, %Y %I:%M %p")
-    update_content = f"{ori_content}\n- [ ] {content} [time={now}]"
-    api.update_note(
-        note_id = TODO_NOTE_ID,
-        content = update_content
-        )
-    return f"已新增代辦事項{content}\n {note['publishLink']}"
-
-def update_ai_note(question,response):
-    api = API(HACKMD_API_TOKEN)
-    note = api.get_note(note_id = AI_NOTE_ID)
-    ori_content = note['content']
-    update_content = f"{ori_content}\n---\n**Q: {question[3:]}**\n\n```\n{response}\n```\n"
-    api.update_note(
-        note_id = AI_NOTE_ID,
-        content = update_content
-        )
-    return f"已備份至 {note['publishLink']}"
 
 def get_user_image(image_content):
     path = './temp.png'

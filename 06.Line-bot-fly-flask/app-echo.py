@@ -1,5 +1,5 @@
 # https://github.com/line/line-bot-sdk-python
-from flask import Flask, request, abort
+from flask import Flask, request, abort, render_template
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -12,6 +12,8 @@ from linebot.models import (
 )
 
 
+
+
 from config import CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET
 
 app = Flask(__name__)
@@ -19,6 +21,10 @@ app = Flask(__name__)
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
+
+@app.route('/')
+def hello():
+    return "<h1>Hello Flask!</h1>"
 
 @app.route("/callback", methods=['POST'])
 def callback():
