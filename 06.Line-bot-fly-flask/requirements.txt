@@ -1,12 +1,7 @@
-click
 Flask
-gunicorn
-itsdangerous
-Jinja2
-MarkupSafe
-Werkzeug
-
-googletrans==3.1.0a0
+ngrok-api
+# googletrans==3.1.0a0
+# googletrans==4.0.0rc1
 line-bot-sdk
 requests
 pandas

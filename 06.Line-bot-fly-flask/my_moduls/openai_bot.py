@@ -1,51 +1,55 @@
-import openai
-from config import OPENAI_API_KEY
+# import openai
+from openai import OpenAI
 
-openai.api_key = OPENAI_API_KEY
+from config import OPENAI_API_KEY
+import os
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+# client.api_key = OPENAI_API_KEY
 chat_language = "zh" 
 MSG_LIST_LIMIT = 20
 LANGUAGE_TABLE = {
 	  "zh": "哈囉！",
 	  "en": "Hello!"
 	}
+
+AI_GUIDELINES = '你是一個極為熱誠鼓勵學習的AI助教，善於用鼓勵的口吻激發學習動機，回答問題'
+
+
+
 class Prompt:
     def __init__(self):
         self.msg_list = []
-        self.msg_list.append(f"AI:{LANGUAGE_TABLE[chat_language]}")
+        self.msg_list.append(
+            {
+                "role": "system", 
+                "content": f"{LANGUAGE_TABLE[chat_language]}, {AI_GUIDELINES})"
+             }) 
 	    
     def add_msg(self, new_msg):
         if len(self.msg_list) >= MSG_LIST_LIMIT:
-            self.remove_msg()
-        self.msg_list.append(new_msg)
+            self.msg_list.pop(0)
+        self.msg_list.append({"role": "user", "content": new_msg})
 
     def remove_msg(self):
         self.msg_list.pop(0)
 
     def generate_prompt(self):
-        return '\n'.join(self.msg_list)	
+        return self.msg_list
 	
 class OpenAIBot:
     def __init__(self):
         self.prompt = Prompt()
-        # self.model = "text-davinci-003" #os.getenv("OPENAI_MODEL", default = "text-davinci-003")
-        self.model = "gpt-3.5-turbo" #os.getenv("OPENAI_MODEL", default = "text-davinci-003")
-        self.temperature = 0.9 #float(os.getenv("OPENAI_TEMPERATURE", default = 0))
-        self.frequency_penalty = 0 #float(os.getenv("OPENAI_FREQUENCY_PENALTY", default = 0))
-        self.presence_penalty = 0.6 #float(os.getenv("OPENAI_PRESENCE_PENALTY", default = 0.6))
-        self.max_tokens = 240 #int(os.getenv("OPENAI_MAX_TOKENS", default = 240))
+        self.model = os.getenv("OPENAI_MODEL", default = "gpt-4-1106-preview")
+        self.temperature = 0.6
+        self.max_tokens = 500
 	
     def get_response(self):
-        response = openai.Completion.create(
-	            model=self.model,
-	            prompt=self.prompt.generate_prompt(),
-	            temperature=self.temperature,
-	            frequency_penalty=self.frequency_penalty,
-	            presence_penalty=self.presence_penalty,
-	            max_tokens=self.max_tokens
-	        )
-        print(response['choices'][0]['text'].strip())
-        print(response)
-        return response['choices'][0]['text'].strip()
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=self.prompt.generate_prompt(),
+        )
+        return response.choices[0].message.content
 	
     def add_msg(self, text):
         self.prompt.add_msg(text)

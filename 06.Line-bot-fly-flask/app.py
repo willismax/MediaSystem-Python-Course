@@ -69,27 +69,27 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, message)
         
         # OpenAI API回應
-        elif word[:3] == "@ai":
-            content = event.message.text
-            chatgpt.add_msg(f"HUMAN:{content}?\n")
-            reply_msg = chatgpt.get_response()
-            hb.update_ai_note(content,reply_msg)  #將回應紀錄於HackMD
-            message = TextSendMessage(text=reply_msg)
-            line_bot_api.reply_message(event.reply_token, message)
+        # elif word[:3] == "@ai":
+        #     content = event.message.text
+        #     chatgpt.add_msg(f"HUMAN:{content}?\n")
+        #     reply_msg = chatgpt.get_response()
+        #     hb.add_temp_note(content,reply_msg)  #將回應紀錄於HackMD
+        #     message = TextSendMessage(text=reply_msg)
+        #     line_bot_api.reply_message(event.reply_token, message)
 
         # Google翻譯    
-        elif event.message.text[:3] == "@翻英":
-            content = mf.translate_text(event.message.text[3:], "en")
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
-        elif event.message.text[:3] == "@翻日":
-            content = mf.translate_text(event.message.text[3:] , "ja")
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
-        elif event.message.text[:3] == "@翻中":
-            content = mf.translate_text(event.message.text[3:] , "zh-tw")
-            message = TextSendMessage(text=content)
-            line_bot_api.reply_message(event.reply_token, message)
+        # elif event.message.text[:3] == "@翻英":
+        #     content = mf.translate_text(event.message.text[3:], "en")
+        #     message = TextSendMessage(text=content)
+        #     line_bot_api.reply_message(event.reply_token, message)
+        # elif event.message.text[:3] == "@翻日":
+        #     content = mf.translate_text(event.message.text[3:] , "ja")
+        #     message = TextSendMessage(text=content)
+        #     line_bot_api.reply_message(event.reply_token, message)
+        # elif event.message.text[:3] == "@翻中":
+        #     content = mf.translate_text(event.message.text[3:] , "zh-tw")
+        #     message = TextSendMessage(text=content)
+        #     line_bot_api.reply_message(event.reply_token, message)
 
         # 呼叫選單
         elif event.message.text[:3] == "@選單":
