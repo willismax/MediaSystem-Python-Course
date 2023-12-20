@@ -1,13 +1,13 @@
-Flask
+flask
 ngrok-api
 # googletrans==3.1.0a0
-# googletrans==4.0.0rc1
-line-bot-sdk
+googletrans==4.0.0rc1
+line-bot-sdk==2.*
 requests
 pandas
 lxml
 bs4
 
-PyHackMD
+pyhackMD
 pyimgur
 openai
