@@ -1,17 +1,7 @@
 from PyHackMD import API
 import pyimgur
 import datetime
-from config import (
-    HACKMD_API_TOKEN, TEMP_NOTE_ID, IMGUR_CLIENT_ID, TEMP_NOTE_ID
-) 
-
-
-def creat_fletting_note(message):
-    api = API(HACKMD_API_TOKEN)
-    data = api.create_note(
-        content = f"# 靈感筆記: {message.split()[0]}\n\n  ###### tags:`靈感筆記`\n\n {message}")
-    link = f"https://hackmd.io/{data['id']}"
-    return link
+from config import ( HACKMD_API_TOKEN, TEMP_NOTE_ID, IMGUR_CLIENT_ID ) 
 
 def get_user_image(image_content):
     path = './temp.png'
