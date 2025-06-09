@@ -78,12 +78,14 @@ def handle_message(event):
 # 建立一個名為 `tasks` 的資料表，用來儲存待辦事項
 tasks = [
     {
+        'id': 0,
         'title': 'Python程式設計備課',
         'description': '撰寫 API DEMO',
         'done': False
 
     },
     {
+        'id': 1,
         'title': 'Pytest',
         'description': '增加程式單元測試',
         'done': False
@@ -110,6 +112,8 @@ def get_task(task_id):
 def add_task():
     # 取得使用者傳送的待辦事項
     task = request.json
+    new_id = max([t['id'] for t in tasks]) + 1 if tasks else 0
+    task['id'] = new_id
     tasks.append(task)
     return jsonify({'tasks':tasks}), 201
 
@@ -118,23 +122,22 @@ def update_task(task_id):
     # 取得使用者傳送的更新資料
     task = request.json
 
-    # 檢查待辦事項是否存在
-    if task_id < 0 or task_id >= len(tasks):
-        return jsonify({'message': 'task not found'}), 404
+    for index, t in enumerate(tasks):
+        if t['id'] == task_id:
+            tasks[index].update(task)
+            tasks[index]['id'] = task_id
+            return jsonify({'message': f'task_id: {task_id} updated'}), 200
 
-    # 更新待辦事項
-    tasks[task_id] = task
-    return jsonify({'message': f'task_id: {task_id} updated'}), 200
+    return jsonify({'message': 'task not found'}), 404
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    # 檢查待辦事項是否存在
-    if task_id < 0 or task_id >= len(tasks):
-        return jsonify({'message': 'task not found'}), 404
+    for index, t in enumerate(tasks):
+        if t['id'] == task_id:
+            tasks.pop(index)
+            return jsonify({'message': 'task deleted'}), 200
 
-    # 刪除待辦事項
-    tasks.pop(task_id)
-    return jsonify({'message': 'task deleted'}), 200
+    return jsonify({'message': 'task not found'}), 404
 
 
 #################################################
