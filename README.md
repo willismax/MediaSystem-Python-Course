@@ -1,5 +1,7 @@
 # MediaSystem-Python-Course
 
+這是一個完整的 Python 程式設計課程資源庫，涵蓋從基礎到進階的各種主題，包括網頁爬蟲、API 開發、資料庫操作、電腦視覺、AI 應用等多元內容。每個主題都附有實作範例，適合配合課程學習使用。
+
 ## 範例程式碼下載
 - 安裝[Git Cli](https://git-scm.com/)
 - 在終端機`git clone`專案  
@@ -78,11 +80,22 @@
 ### 02.Gradio
 - 可在Colab建立GUI，輔助課程使用
 
-### 03.Selenium
+### 03.Request
+- 網頁擷取與 API 資料存取教學
+- 包含使用 Requests 函式庫進行網頁擷取
+- 介紹如何存取開放資料 (Open Data) API
+- 範例檔案包括:
+  - `網頁擷取_Request.ipynb`: 基礎網頁擷取
+  - `擷取API資料.ipynb`: API 資料存取
+  - `RequestsOpenData_HW.ipynb`: 開放資料實作練習
+
+### 04.Selenium
 - 需自行下載 webkit 等 Driver 測試，為進階爬蟲教學
+- 適用於需要執行 JavaScript 的動態網頁爬蟲
 
 ### 04.Playwright
-- 可錄製腳本抓html，再自己客製化
+- 可錄製腳本抓 HTML，再自己客製化
+- 新一代的網頁自動化工具，支援多種瀏覽器
 
 ### 05.Flask
 - 從基本網站服務到建立基本API
@@ -110,6 +123,30 @@
   ```
 ### 08.OpenCV-Mediapipe-DEMO
 - Mediapipe 簡易操作
+- 電腦視覺應用示範
+- 建議使用 pipenv 虛擬環境，Python 3.8 以上版本
+
+### 09.Apps
+- 實用應用程式範例
+- 包含 QRCode 產生器等工具
+- `QRCode.ipynb`: 在 Colab 上製作 QR Code
+  - 可製作純黑白 QR Code
+  - 可加入背景圖片製作彩色或黑白 QR Code
+  - 支援 GIF 動態背景
+
+### 10.sql
+- SQLite 資料庫基礎教學
+- `SQLite資料庫CRUD.ipynb`: 涵蓋資料庫的建立、查詢、更新、刪除等基本操作
+- 適合初學者學習資料庫概念與 SQL 語法
+
+### 11.AI
+- AI 與大型語言模型 (LLM) 相關教學
+- Gemini API 串接實作
+- 範例檔案:
+  - `動手串接_LLM_API_入門教學(Gemini_).ipynb`: Gemini API 入門教學
+  - `在_Colab_終端機使用_Gemini_CLI.ipynb`: 在 Colab 環境使用 Gemini CLI
+  - `gemini_cli_colab_tutorial.ipynb`: Gemini CLI 完整教學
+- OpenAI API 應用範例
 
 ## 注意事項
 - 請配合課程使用，歡迎 issue 討論或發 PR (Pull Request)
