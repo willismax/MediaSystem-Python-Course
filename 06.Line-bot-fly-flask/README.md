@@ -1,6 +1,60 @@
-# 使用 GitHub Codespaces 建立 Python LINEBOT 教學
+# 使用 GitHub Codespaces / Fly.io 建立 Python LINEBOT 教學
 
 在這個教學中，我們將學習如何使用 Python 建立 LINEBOT。我們將使用 Flask 這個流行的網頁框架來處理 HTTP 請求和回應。
+
+## 🚀 快速開始
+
+### 使用 uv (推薦)
+
+```bash
+# 安裝依賴並執行
+uv venv
+uv pip install -r requirements.txt
+
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
+# 設定環境變數後執行
+python app.py
+```
+
+### 使用傳統 pip
+
+```bash
+python -m venv venv
+# Windows: .\venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+## ⚙️ 配置說明
+
+在 `config.py` 填入相關 token：
+
+- **LINE Channel access token**: LINE Messaging API 的頻道存取權杖
+- **LINE Channel secret**: LINE Messaging API 的頻道密鑰  
+- **LINE user id**: 接收訊息的使用者 ID
+- **HackMD API**: HackMD 筆記服務 API (選填)
+- **Imgur API**: 圖片上傳服務 API (選填)
+- **OpenAI API**: OpenAI GPT 服務 API (選填)
+
+## 功能特色
+
+✅ LINE 訊息傳送  
+✅ LINE 文字與圖片訊息增加至 HackMD  
+✅ LINE 文字訊息翻譯  
+✅ LINE 文字訊息由 OpenAI 回應，並記錄於 HackMD  
+✅ Tasks API 測試 (Get, Post, Put, Delete)
+
+## API 測試
+
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://god.gw.postman.com/run-collection/1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9?action=collection%2Ffork&collection-url=entityId%3D1745585-89afac06-ad51-4fc8-83c0-c26ccf8db7b9%26entityType%3Dcollection%26workspaceId%3D9132735b-dff0-46b8-8852-839d022a2ac3)
+
+---
 
 ## 前置作業
 
