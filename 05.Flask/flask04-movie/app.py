@@ -1,23 +1,8 @@
-import datetime
 from flask import Flask, jsonify
-import requests
 import json
-import time
 
 app = Flask(__name__)
 
-def get_cinema_income():
-    start_date = (datetime.datetime.now() - datetime.timedelta(80)).strftime("%Y/%m/%d") # 前80日
-    end_date = datetime.datetime.now().strftime("%Y/%m/%d")
-    url = f'https://boxoffice.tfi.org.tw/api/export?start={start_date}&end={end_date}'
-    res = requests.get(url)
-    time.sleep(3)
-    return res.json()
-
-def save_json_data(): 
-    data = get_cinema_income()
-    with open('./static/data.json', 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def load_json_data():
     try:
@@ -27,6 +12,7 @@ def load_json_data():
     except Exception as e:  
         print('load json data error:', e)
         return None
+
 
 def filter_data(data, key, value):  
     if not data:

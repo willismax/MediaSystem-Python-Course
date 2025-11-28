@@ -13,7 +13,7 @@ tasks = [
 @app.route('/', methods=['GET'])
 def helloworld():
     # 回傳目前資料表中的所有待辦事項
-    return "<h1>Hello World</h1>"
+    return "<h1>目前資料表中的所有待辦事項</h1>"
 
 @app.route('/tasks', methods=['GET'])
 def list_tasks():
