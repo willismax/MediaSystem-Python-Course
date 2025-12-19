@@ -1,0 +1,462 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, Layers, Activity, MessageSquare, Upload, Play, RefreshCw, Eye, Image as ImageIcon, Video, User } from 'lucide-react';
+
+// --- Components ---
+
+// 1. Image Processing Lab (OpenCV Concepts)
+const ImageProcessingLab = () => {
+  const [originalImage, setOriginalImage] = useState(null);
+  const [processedImage, setProcessedImage] = useState(null);
+  const [mode, setMode] = useState('original'); // original, grayscale, threshold, edge
+  const canvasRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          setOriginalImage(img);
+          processImage(img, mode);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const processImage = (img, currentMode) => {
+    if (!img || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Resize for display
+    const maxWidth = 600;
+    const scale = Math.min(1, maxWidth / img.width);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    
+    // Draw original first
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    if (currentMode === 'original') return;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      // Grayscale formula (Standard OpenCV approach)
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      if (currentMode === 'grayscale') {
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+      } else if (currentMode === 'threshold') {
+        // Binary Thresholding
+        const threshold = 128;
+        const val = gray > threshold ? 255 : 0;
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+      } else if (currentMode === 'edge') {
+        // Simple distinct simulation (real edge detection needs convolution matrix)
+        // Here we just threshold aggressively for visual effect
+         const val = gray > 100 && gray < 150 ? 255 : 0; 
+         data[i] = val;
+         data[i + 1] = val;
+         data[i + 2] = val;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  };
+
+  useEffect(() => {
+    if (originalImage) {
+      processImage(originalImage, mode);
+    }
+  }, [mode, originalImage]);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 border border-blue-200">
+        <h3 className="font-bold flex items-center gap-2"><ImageIcon size={16}/> 教學重點：電腦如何「讀」圖片？</h3>
+        <p>在 OpenCV 或任何視覺庫中，圖片只是一個數字矩陣 (Matrix)。基礎辨識的第一步通常是將圖片簡化：</p>
+        <ul className="list-disc list-inside mt-2 space-y-1">
+          <li><strong>灰階 (Grayscale)：</strong> 去除色彩干擾，專注於亮度資訊。</li>
+          <li><strong>二值化 (Thresholding)：</strong> 將圖片變為只有黑與白，這是車牌辨識(OCR)分割字元的關鍵步驟。</li>
+        </ul>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="md:col-span-1 space-y-2">
+          <label className="block w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:bg-gray-50 transition">
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            <div className="flex flex-col items-center">
+              <Upload className="text-gray-400 mb-1" />
+              <span className="text-sm text-gray-500">上傳圖片測試</span>
+            </div>
+          </label>
+          
+          <div className="flex flex-col gap-2">
+            <button onClick={() => setMode('original')} className={`p-2 text-sm rounded ${mode === 'original' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>原始影像 (RGB)</button>
+            <button onClick={() => setMode('grayscale')} className={`p-2 text-sm rounded ${mode === 'grayscale' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>灰階化 (Gray)</button>
+            <button onClick={() => setMode('threshold')} className={`p-2 text-sm rounded ${mode === 'threshold' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>二值化 (Binary)</button>
+            <button onClick={() => setMode('edge')} className={`p-2 text-sm rounded ${mode === 'edge' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>邊緣特徵 (Simulated)</button>
+          </div>
+        </div>
+
+        <div className="md:col-span-3 bg-gray-900 rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden">
+          {!originalImage && <p className="text-gray-500">請上傳圖片以開始實驗</p>}
+          <canvas ref={canvasRef} className="max-w-full rounded shadow-lg" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 2. Traffic Flow Simulation (Object Detection Logic)
+const TrafficSimulation = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [count, setCount] = useState(0);
+  const canvasRef = useRef(null);
+  const requestRef = useRef();
+  
+  // Cars state
+  const cars = useRef([]);
+
+  const spawnCar = () => {
+    return {
+      x: -100,
+      y: 100 + Math.random() * 100, // Lane simulation
+      speed: 2 + Math.random() * 3,
+      width: 60,
+      height: 30,
+      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+      detected: false,
+      id: Math.random()
+    };
+  };
+
+  const animate = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw Road
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, 100, canvas.width, 150);
+    ctx.strokeStyle = '#fff';
+    ctx.setLineDash([20, 20]);
+    ctx.beginPath();
+    ctx.moveTo(0, 175);
+    ctx.lineTo(canvas.width, 175);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Detection Line
+    const detectionLineX = 400;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(detectionLineX, 100);
+    ctx.lineTo(detectionLineX, 250);
+    ctx.stroke();
+    ctx.fillStyle = '#00ff00';
+    ctx.font = '12px sans-serif';
+    ctx.fillText("虛擬偵測線 (Counting Line)", detectionLineX + 5, 120);
+
+    // Manage Cars
+    if (Math.random() < 0.02) {
+      cars.current.push(spawnCar());
+    }
+
+    cars.current.forEach((car, index) => {
+      car.x += car.speed;
+      
+      // Draw Car
+      ctx.fillStyle = car.color;
+      ctx.fillRect(car.x, car.y, car.width, car.height);
+
+      // Detection Logic (Simplified YOLO Bounding Box)
+      ctx.strokeStyle = 'yellow';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(car.x - 5, car.y - 5, car.width + 10, car.height + 10);
+      
+      // Label
+      ctx.fillStyle = 'yellow';
+      ctx.fillText(`Car: ${(car.speed * 10).toFixed(0)}km/h`, car.x, car.y - 10);
+
+      // Counting Logic
+      if (!car.detected && car.x > detectionLineX) {
+        setCount(c => c + 1);
+        car.detected = true;
+      }
+    });
+
+    // Remove off-screen cars
+    cars.current = cars.current.filter(car => car.x < canvas.width + 100);
+
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animate);
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animate);
+    } else {
+      cancelAnimationFrame(requestRef.current);
+    }
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [isPlaying]);
+
+  return (
+    <div className="space-y-4">
+       <div className="bg-green-50 p-4 rounded-lg text-sm text-green-800 border border-green-200">
+        <h3 className="font-bold flex items-center gap-2"><Video size={16}/> 教學重點：物件追蹤與計數 (Object Tracking)</h3>
+        <p>在 OpenCV 進行車流分析時，通常包含兩個步驟：</p>
+        <ol className="list-decimal list-inside mt-2 space-y-1">
+          <li><strong>偵測 (Detection)：</strong> 每一幀都找出車子在哪裡 (黃色框框)。</li>
+          <li><strong>邏輯判斷 (Logic)：</strong> 當物件的中心點穿過特定的虛擬線 (綠色線) 時，計數器 +1。</li>
+        </ol>
+      </div>
+
+      <div className="flex justify-between items-center bg-gray-100 p-3 rounded">
+        <button 
+          onClick={() => setIsPlaying(!isPlaying)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          {isPlaying ? '暫停模擬' : '開始模擬車流'}
+          <Play size={16} />
+        </button>
+        <div className="text-2xl font-mono font-bold text-gray-700">
+          車流量: <span className="text-red-600">{count}</span> 輛
+        </div>
+      </div>
+
+      <canvas 
+        ref={canvasRef} 
+        width={800} 
+        height={300} 
+        className="w-full bg-gray-800 rounded-lg shadow-inner"
+      />
+    </div>
+  );
+};
+
+// 3. MediaPipe Pose Concept
+const PoseConcept = () => {
+  const [activePoint, setActivePoint] = useState(null);
+
+  // Simplified landmarks for demo
+  const landmarks = [
+    { id: 0, name: "Nose", x: 50, y: 20 },
+    { id: 11, name: "Left Shoulder", x: 70, y: 40 },
+    { id: 12, name: "Right Shoulder", x: 30, y: 40 },
+    { id: 13, name: "Left Elbow", x: 80, y: 60 },
+    { id: 14, name: "Right Elbow", x: 20, y: 60 },
+    { id: 15, name: "Left Wrist", x: 90, y: 50 },
+    { id: 16, name: "Right Wrist", x: 10, y: 50 },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-purple-50 p-4 rounded-lg text-sm text-purple-800 border border-purple-200">
+        <h3 className="font-bold flex items-center gap-2"><Activity size={16}/> 教學重點：MediaPipe 姿態辨識</h3>
+        <p>MediaPipe 不只看見「人」，它看見的是 **33 個關鍵點 (Landmarks)** 的座標。透過計算點與點之間的向量角度，我們可以判斷動作。</p>
+        <p className="mt-2 text-xs opacity-75">互動方式：將滑鼠游標移到下方火柴人的節點上，查看電腦讀取到的數據。</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div className="relative bg-white p-8 rounded-lg border shadow-sm aspect-square flex items-center justify-center">
+            {/* SVG Stickman */}
+            <svg viewBox="0 0 100 100" className="w-full h-full pointer-events-auto">
+              {/* Connections */}
+              <line x1="50" y1="20" x2="50" y2="40" stroke="#aaa" strokeWidth="2" /> {/* Neck */}
+              <line x1="50" y1="40" x2="70" y2="40" stroke="#aaa" strokeWidth="2" /> {/* L Shoulder */}
+              <line x1="50" y1="40" x2="30" y2="40" stroke="#aaa" strokeWidth="2" /> {/* R Shoulder */}
+              <line x1="70" y1="40" x2="80" y2="60" stroke="#aaa" strokeWidth="2" /> {/* L Arm */}
+              <line x1="30" y1="40" x2="20" y2="60" stroke="#aaa" strokeWidth="2" /> {/* R Arm */}
+              <line x1="80" y1="60" x2="90" y2="50" stroke="#aaa" strokeWidth="2" /> {/* L Forearm */}
+              <line x1="20" y1="60" x2="10" y2="50" stroke="#aaa" strokeWidth="2" /> {/* R Forearm */}
+
+              {/* Points */}
+              {landmarks.map(lm => (
+                <circle 
+                  key={lm.id}
+                  cx={lm.x} 
+                  cy={lm.y} 
+                  r="3" 
+                  fill={activePoint?.id === lm.id ? "#ff0000" : "#0066ff"}
+                  className="cursor-pointer hover:r-4 transition-all"
+                  onMouseEnter={() => setActivePoint(lm)}
+                  onMouseLeave={() => setActivePoint(null)}
+                />
+              ))}
+            </svg>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-gray-800 text-green-400 p-4 rounded-lg font-mono text-sm min-h-[150px]">
+            <p className="border-b border-gray-600 mb-2 pb-1 text-gray-400"># MediaPipe Output Stream</p>
+            {activePoint ? (
+              <>
+                <p>Landmark Index: {activePoint.id}</p>
+                <p>Name: "{activePoint.name}"</p>
+                <p>x: {(activePoint.x / 100).toFixed(4)} <span className="text-gray-500">// Normalized 0-1</span></p>
+                <p>y: {(activePoint.y / 100).toFixed(4)}</p>
+                <p>z: -0.1542 <span className="text-gray-500">// Depth estimation</span></p>
+                <p>visibility: 0.99</p>
+              </>
+            ) : (
+              <p className="animate-pulse">Waiting for detection data...</p>
+            )}
+          </div>
+          <div className="bg-white p-4 rounded border text-sm">
+             <h4 className="font-bold mb-2">應用案例：AI 健身教練</h4>
+             <p>如何判斷舉手動作？</p>
+             <code className="block bg-gray-100 p-2 mt-1 rounded text-xs text-gray-700">
+               if (Wrist.y &lt; Shoulder.y) {'{'}<br/>
+               &nbsp;&nbsp;return "Hands Up!";<br/>
+               {'}'}
+             </code>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 4. Multimodal LLM Mock
+const LLMConcept = () => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const mockAnalysis = () => {
+    setAnalyzing(true);
+    setResult(null);
+    setTimeout(() => {
+      setAnalyzing(false);
+      setResult("這是一張繁忙的城市街道圖。畫面左側有一輛紅色轎車正在違規停車，可能會影響後方機車通行。建議警示系統標註該區域並發出提醒。");
+    }, 2000);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-orange-50 p-4 rounded-lg text-sm text-orange-800 border border-orange-200">
+        <h3 className="font-bold flex items-center gap-2"><MessageSquare size={16}/> 教學重點：多模態 LLM (Vision Models)</h3>
+        <p>新一代的 AI (如 GPT-4o, Gemini) 不只做辨識，還能「理解」內容。我們不再只訓練它認出「車子」，而是問它「這張圖發生什麼危險？」。</p>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="w-full md:w-1/2 bg-gray-200 rounded-lg flex items-center justify-center h-64 relative group">
+          <img 
+            src="/api/placeholder/400/300" 
+            alt="City Street Demo" 
+            className="w-full h-full object-cover rounded-lg opacity-80" 
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <button 
+              onClick={mockAnalysis}
+              disabled={analyzing}
+              className="bg-white/90 hover:bg-white text-gray-800 px-6 py-3 rounded-full font-bold shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
+            >
+              {analyzing ? <RefreshCw className="animate-spin" /> : <Eye />}
+              {analyzing ? 'AI 分析中...' : '詢問 AI 這張圖'}
+            </button>
+          </div>
+        </div>
+
+        <div className="w-full md:w-1/2 bg-white border p-4 rounded-lg shadow-sm flex flex-col">
+          <div className="flex items-center gap-2 mb-4 border-b pb-2">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
+            <span className="font-bold text-gray-700">Vision Agent</span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+             {!result && !analyzing && <p className="text-gray-400 text-sm italic">請點擊左側圖片按鈕，傳送影像給大型語言模型...</p>}
+             
+             {analyzing && (
+               <div className="space-y-2 animate-pulse">
+                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                 <div className="h-4 bg-gray-200 rounded w-full"></div>
+                 <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+               </div>
+             )}
+
+             {result && (
+               <div className="bg-blue-50 p-3 rounded-lg text-gray-800 text-sm leading-relaxed">
+                 {result}
+               </div>
+             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// Main App
+const App = () => {
+  const [activeTab, setActiveTab] = useState('processing');
+
+  const tabs = [
+    { id: 'processing', label: '1. 影像前處理 (OpenCV)', icon: Layers },
+    { id: 'traffic', label: '2. 車流辨識 (Detection)', icon: Video },
+    { id: 'pose', label: '3. 姿態辨識 (MediaPipe)', icon: User },
+    { id: 'llm', label: '4. 大型模型 (Multimodal)', icon: MessageSquare },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
+      <header className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 flex items-center gap-2">
+            <Camera className="text-blue-600" /> AI 視覺教學實驗室
+          </h1>
+          <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-500">
+            Interactive Curriculum Demo
+          </span>
+        </div>
+        
+        <div className="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto p-6">
+        <div className="bg-white rounded-xl shadow-sm border p-6 min-h-[500px]">
+          {activeTab === 'processing' && <ImageProcessingLab />}
+          {activeTab === 'traffic' && <TrafficSimulation />}
+          {activeTab === 'pose' && <PoseConcept />}
+          {activeTab === 'llm' && <LLMConcept />}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default App;
