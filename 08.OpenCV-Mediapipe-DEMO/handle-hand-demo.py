@@ -140,7 +140,8 @@ def detect():
                             center_y = int(keypoint_pos[node][1])
                             frame = mosaic(frame, [center_x - 15 , center_y - 10], [center_x + 30, center_y + 50])
         cv2.imshow('MediaPipe Hands', frame)
-        if cv2.waitKey(1) & 0xFF == 27 or cv2.waitKey(1) == ord('q'):
+        key = cv2.waitKey(1)
+        if key & 0xFF == 27 or key == ord('q'):
             break
     cap.release()
     cv2.destroyAllWindows()

@@ -42,7 +42,8 @@ while True:
 
         cv2.imshow('img', img)
 
-    if cv2.waitKey(1) == ord('q') or cv2.waitKey(1) == 27:
+    key = cv2.waitKey(1)
+    if key == ord('q') or key == 27:
         break
 
 cap.release()

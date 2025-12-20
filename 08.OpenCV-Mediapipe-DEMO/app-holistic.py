@@ -90,7 +90,8 @@ with mp_holistic.Holistic(
         .get_default_pose_landmarks_style())
     # Flip the image horizontally for a selfie-view display.
     cv2.imshow('MediaPipe Holistic', cv2.flip(image, 1))
-    if cv2.waitKey(5) & 0xFF == 27 or cv2.waitKey(5) == ord('q'):
+    key = cv2.waitKey(5)
+    if key & 0xFF == 27 or key == ord('q'):
       break
 cap.release()
 cv2.destroyAllWindows()
