@@ -2,7 +2,7 @@ import cv2
 import mediapipe as mp
 import time
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 mpHands = mp.solutions.hands
 
 hands = mpHands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
@@ -42,5 +42,8 @@ while True:
 
         cv2.imshow('img', img)
 
-    if cv2.waitKey(1) == ord('q'):
+    if cv2.waitKey(1) == ord('q') or cv2.waitKey(1) == 27:
         break
+
+cap.release()
+cv2.destroyAllWindows()
