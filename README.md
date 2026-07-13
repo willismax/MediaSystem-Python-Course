@@ -12,6 +12,23 @@
 - [環境設定](#-快速開始-推薦使用-uv)
 - [專案說明](#相關專案摘要說明)
 
+## 📂 章節導覽
+
+| 章節 | 主題 | 說明 |
+|------|------|------|
+| [01.Intro-Python](01.Intro-Python/README.md) | Python 入門與資料分析 | Python 基礎語法、NumPy、Pandas、資料視覺化 |
+| [02.Gradio](02.Gradio/README.md) | 互動式 AI 介面 | 使用 Gradio 快速建立 AI 示範介面 |
+| [03.Request](03.Request/README.md) | 網頁擷取與 API 存取 | Requests、BeautifulSoup、開放資料 API |
+| [04.Playwright](04.Playwright/README.md) | 瀏覽器自動化爬蟲 | Playwright 動態網頁爬蟲、腳本錄製 |
+| [04.Selenium](04.Selenium/README.md) | 動態網頁爬蟲 | Selenium WebDriver 進階爬蟲 |
+| [05.Flask](05.Flask/README.md) | Flask 網站開發 | 從基本網站到 RESTful API |
+| [06.Line-bot-fly-flask](06.Line-bot-fly-flask/README.md) | LINE Bot 部署 | 在 Fly.io 部署 LINE Bot |
+| [07.Pytest-DEMO](07.Pytest-DEMO/README.md) | 自動化測試 | pytest 單元測試與覆蓋率報告 |
+| [08.OpenCV-Mediapipe-DEMO](08.OpenCV-Mediapipe-DEMO/readme.md) | 電腦視覺 | OpenCV + MediaPipe 肢體辨識 |
+| [09.Apps](09.Apps/README.md) | 實用應用程式 | QR Code 產生器、OpenAI 應用 |
+| [10.sql](10.sql/README.md) | SQLite 資料庫 | Python 資料庫 CRUD 操作 |
+| [11.AI](11.AI/README.md) | AI 與大型語言模型 | Gemini API 串接與 LLM 應用 |
+
 ## 範例程式碼下載
 - 安裝[Git Cli](https://git-scm.com/)
 - 在終端機`git clone`專案  
