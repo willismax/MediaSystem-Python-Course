@@ -41,9 +41,11 @@
 
 ## 開課前待補教材
 
-- `media/image`：色彩、解析度、格式、壓縮與 metadata 的小型實驗。
-- `media/audio`：取樣、量化、波形與常見格式比較。
-- `media/video`：frame、fps、container／codec 與基本剪輯／轉碼。
-- `media/ethics`：著作權、Creative Commons、個資、肖像與生成式媒體標示。
+以下教材已採用 Colab 友善的 `.ipynb` 格式；每份依序提供目標、環境設定、分格實作、檢查與延伸挑戰。學生先完成基礎必做，再視能力進行標準實作或進階挑戰。
 
-這些模組完成前，可先將概念放在 HackMD、實作沿用現有 OpenCV／Apps；完成後再由本頁連入，避免一次搬動舊教材。
+- [`media/image`](../../media/image/README.md)：色彩、解析度、格式、壓縮與 metadata 的小型實驗。
+- [`media/audio`](../../media/audio/README.md)：取樣、量化、波形與常見格式比較。
+- [`media/video`](../../media/video/README.md)：frame、fps、container／codec 與基本剪輯／轉碼。
+- [`media/ethics`](../../media/ethics/README.md)：著作權、Creative Commons、個資、肖像與生成式媒體標示。
+
+日間部主線仍以影像處理與視覺安全為核心：`media/image` 與 `media/ethics` 可直接對應主要週次；音訊與視訊作為導論或專題延伸活動，避免分散核心進度。
