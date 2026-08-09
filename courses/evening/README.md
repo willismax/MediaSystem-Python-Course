@@ -5,7 +5,10 @@
 承接學生可能具備但程度不一的 Python 經驗，以「程式如何和網路服務合作」為主線，從 HTTP／JSON、開放資料、API 與 Web service，走到可展示的雲端應用及分組專題。
 
 - [前一學年課程主頁（HackMD 書本模式）](https://hackmd.io/@wiimax/Hy4cF6OOgx)
+- [HackMD 每週教學講義母稿（18 週完整教案）](../../docs/HACKMD_WEEKLY_GUIDE.md)
 - [repository 快速開始](../../docs/QUICKSTART.md)
+
+> 每週的目標、課前任務、150 分鐘課堂流程、分層挑戰、作業與 exit ticket 已整理在教學講義母稿。HackMD 保留公告與課堂互動，程式碼及作業規格以 repository 版本為準。
 
 ## 建議單元順序
 

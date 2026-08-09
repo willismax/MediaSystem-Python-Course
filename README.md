@@ -19,6 +19,7 @@
 - [🧭 雙軌課程架構](courses/) - 日間部／進修部入口與共用原則
 - [🚀 快速啟動指南](docs/QUICKSTART.md) - 各專案快速啟動
 - [📖 學習路徑規劃](docs/LEARNING_PATH.md) - 課程學習建議
+- [🗓️ HackMD 每週教學講義](docs/HACKMD_WEEKLY_GUIDE.md) - 18 週完整教案與 GitHub 教材連結
 - [📝 更新日誌](docs/CHANGELOG.md) - 專案更新記錄
 - [範例程式碼下載](#範例程式碼下載)
 - [環境設定](#-快速開始-推薦使用-uv)

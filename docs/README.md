@@ -9,6 +9,7 @@
 | [🧭 雙軌課程架構](../courses/README.md) | 多媒體系統日間部／進修部入口、共用教材與維護策略 | 教師、助教、兩班學生 |
 | [☀️ 日間部課程地圖](../courses/day/README.md) | 影像、音訊、視訊與互動媒體路徑 | 日間部四技一年級 |
 | [🌙 進修部課程地圖](../courses/evening/README.md) | Python、API 與雲端應用路徑 | 進修部一年級 |
+| [🗓️ HackMD 每週教學講義](HACKMD_WEEKLY_GUIDE.md) | 18 週課前、課中、課後活動、檢核與專題 rubric | 教師、助教、進修部學生 |
 | [🚀 快速開始](QUICKSTART.md) | 各專案快速啟動指令 | 所有使用者 |
 | [📚 學習路徑](LEARNING_PATH.md) | 完整課程規劃與建議 | 初學者、課程學習者 |
 | [📝 更新日誌](CHANGELOG.md) | 專案更新記錄 | 開發者、維護者 |
