@@ -26,6 +26,7 @@
 
 - `common-syllabus.md`：18 週共同課程地圖、日夜間分流與評量方式。
 - `week-01-hackmd-markdown.md`：第一週可直接貼入 HackMD 的學生版教材。
+- `hackmd-homepage-snippets.md`：日間部與進修部首頁可直接貼上的課程區塊。
 - `HACKMD_WORKFLOW.md`：HackMD 與 GitHub 的分工、同步流程及 API 採用條件。
 - `templates/weekly-note.md`：後續週次的共同教材模板。
 - `templates/ai-usage.md`：學生專題的 AI 使用紀錄模板。
