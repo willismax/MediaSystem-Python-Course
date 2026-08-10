@@ -1,0 +1,147 @@
+{
+  "notebook_id": "e7ba64b8-3945-4e47-95bd-b3d8c5e90388",
+  "notebook_title": "多媒體系統115｜影像、聲音與短影音",
+  "sources": [
+    {
+      "index": 1,
+      "id": "a65001bb-2997-4418-b397-54c8e9725c47",
+      "title": "W01_課程啟動與多媒體系統",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:10:38+00:00"
+    },
+    {
+      "index": 2,
+      "id": "13f0fbea-10e9-46eb-aa08-0839b1c21307",
+      "title": "W02_數位影像與像素.md",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:10:49+00:00"
+    },
+    {
+      "index": 3,
+      "id": "e284694b-4f74-4cda-a8ae-4177645fc2ab",
+      "title": "W03_卷積與影像處理.md",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:11:00+00:00"
+    },
+    {
+      "index": 4,
+      "id": "0f728cb0-59d9-4975-8342-c5e10c0655e3",
+      "title": "W04_擴散模型原理.md",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:11:12+00:00"
+    },
+    {
+      "index": 5,
+      "id": "5a41f935-4112-4509-b001-856f761c1c62",
+      "title": "W05_潛在擴散與提示控制",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:11:23+00:00"
+    },
+    {
+      "index": 6,
+      "id": "c5fc6436-aff4-42fd-b670-50bab026e3e4",
+      "title": "W08_期中影像展與技術答辯",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:13:59+00:00"
+    },
+    {
+      "index": 7,
+      "id": "6ef96a6d-e079-4b0e-90ba-1b9b6b951e84",
+      "title": "common-syllabus-2026",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:09:37+00:00"
+    },
+    {
+      "index": 8,
+      "id": "017a941b-9973-4ff1-ae51-f32b7b6eca12",
+      "title": "references.md",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:09:49+00:00"
+    },
+    {
+      "index": 9,
+      "id": "1d7cd929-f7a2-4ca7-820c-e255eefeb9b2",
+      "title": "課程講義補充｜W06–W07",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:14:53+00:00"
+    },
+    {
+      "index": 10,
+      "id": "2db14730-869f-4bf0-b7b5-d82745ab84bd",
+      "title": "課程講義補充｜W09–W10",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:15:01+00:00"
+    },
+    {
+      "index": 11,
+      "id": "10217a2f-8a54-4f4e-b104-a229264d9650",
+      "title": "課程講義補充｜W11–W12",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:15:09+00:00"
+    },
+    {
+      "index": 12,
+      "id": "0c1f5327-1fa6-4b85-ac3d-dfcad596d6a0",
+      "title": "課程講義補充｜W13–W14",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:15:16+00:00"
+    },
+    {
+      "index": 13,
+      "id": "e72f20db-bdd6-4796-847a-bcc1f987989a",
+      "title": "課程講義補充｜W15–W16",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:15:23+00:00"
+    },
+    {
+      "index": 14,
+      "id": "f573242e-d065-480d-8701-39b1525c7178",
+      "title": "課程講義補充｜W17–W18",
+      "type": "markdown",
+      "url": null,
+      "status": "ready",
+      "status_id": 2,
+      "created_at": "2026-08-10T15:15:30+00:00"
+    }
+  ],
+  "count": 14
+}
