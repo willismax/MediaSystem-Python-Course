@@ -22,7 +22,7 @@
 uv run --with pillow python image_lab.py sample.jpg
 ```
 
-沒有 `sample.jpg` 時，先使用自己拍攝、可公開使用或教師提供的素材。不要使用未取得授權的網路圖片。
+沒有 `sample.jpg` 時，先使用自己拍攝、可公開使用或課程提供的素材。不要使用未取得授權的網路圖片。
 
 ## 實驗任務
 
