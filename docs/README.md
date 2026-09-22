@@ -22,6 +22,7 @@
 | Requests 與 API | [`03.Request`](../03.Request/) |
 | Selenium／Playwright | [`04.Selenium`](../04.Selenium/)、[`04.Playwright`](../04.Playwright/) |
 | Flask 與 Web API | [`05.Flask`](../05.Flask/) |
+| FastAPI 與 Web API | [`14.FastAPI`](../14.FastAPI/) |
 | LINE Bot | [`06.Line-bot-fly-flask`](../06.Line-bot-fly-flask/) |
 | pytest | [`07.Pytest-DEMO`](../07.Pytest-DEMO/) |
 | OpenCV／MediaPipe | [`08.OpenCV-Mediapipe-DEMO`](../08.OpenCV-Mediapipe-DEMO/) |

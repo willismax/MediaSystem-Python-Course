@@ -40,6 +40,15 @@ source .venv/bin/activate  # macOS/Linux
 python app.py
 ```
 
+### FastAPI 專案 (14.FastAPI)
+
+```bash
+cd 14.FastAPI
+uv venv
+uv pip install -r requirements.txt
+fastapi dev media_api.py
+```
+
 ### LINE Bot 專案 (06.Line-bot-fly-flask)
 
 ```bash
@@ -122,6 +131,7 @@ uv pip uninstall package-name
 | 04.Selenium | 進階爬蟲 | 需下載 WebDriver |
 | 04.Playwright | 新一代爬蟲 | `uv pip install playwright && playwright install` |
 | 05.Flask | Web 框架 | `uv run app.py` |
+| 14.FastAPI | 型別化 Web API | `fastapi dev media_api.py` |
 | 06.Line-bot-fly-flask | LINE Bot | 需設定 config.py |
 | 07.Pytest-DEMO | 單元測試 | `pytest` |
 | 08.OpenCV-Mediapipe-DEMO | 電腦視覺 | 需 Python 3.8+ |

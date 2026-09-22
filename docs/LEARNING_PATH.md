@@ -84,7 +84,25 @@
    - 設計 RESTful API
    - 整合前端與後端
 
-7. **06.Line-bot-fly-flask** - LINE Bot 開發
+7. **14.FastAPI** - 現代 Web API
+   - 型別註記與請求資料驗證
+   - 自動產生 OpenAPI 與互動式 API 文件
+   - 使用 `TestClient` 測試 API 端點
+
+   **快速啟動**：
+   ```bash
+   cd 14.FastAPI
+   uv venv
+   uv pip install -r requirements.txt
+   fastapi dev media_api.py
+   ```
+
+   **學習成果**：
+   - 建立可驗證輸入資料的 RESTful API
+   - 使用 `/docs` 探索與測試端點
+   - 為 API 行為撰寫自動化測試
+
+8. **06.Line-bot-fly-flask** - LINE Bot 開發
    - LINE Messaging API
    - Webhook 處理
    - 第三方 API 整合
@@ -108,7 +126,7 @@
 ### 第四階段：軟體測試 (Week 7)
 **目標：撰寫可靠的程式碼**
 
-8. **07.Pytest-DEMO** - 單元測試
+9. **07.Pytest-DEMO** - 單元測試
    - pytest 基礎
    - 測試案例撰寫
    - 測試覆蓋率分析
@@ -135,7 +153,7 @@
 ### 第五階段：電腦視覺 (Week 8-9)
 **目標：處理圖像與視訊資料**
 
-9. **08.OpenCV-Mediapipe-DEMO** - 電腦視覺
+10. **08.OpenCV-Mediapipe-DEMO** - 電腦視覺
    - OpenCV 影像處理
    - Mediapipe 機器學習
    - 臉部辨識
@@ -166,7 +184,7 @@
 ### 第六階段：實用工具開發 (Week 10)
 **目標：製作日常實用工具**
 
-10. **09.Apps** - 應用程式範例
+11. **09.Apps** - 應用程式範例
     - QR Code 產生器
     - 圖片處理工具
     - 資料轉換工具
@@ -189,7 +207,7 @@
 ### 第七階段：資料庫操作 (Week 11)
 **目標：資料持久化與管理**
 
-11. **10.sql** - SQLite 資料庫
+12. **10.sql** - SQLite 資料庫
     - SQL 基礎語法
     - CRUD 操作
     - 資料庫設計
@@ -208,7 +226,7 @@
 ### 第八階段：AI 應用開發 (Week 12)
 **目標：整合大型語言模型**
 
-12. **11.AI** - AI 與 LLM 應用
+13. **11.AI** - AI 與 LLM 應用
     - Gemini API 使用
     - OpenAI API 整合
     - Prompt Engineering
@@ -235,7 +253,7 @@
 ```
 Week 1-2:  Python 基礎 + Gradio GUI
 Week 3-4:  網頁爬蟲（Requests → Selenium → Playwright）
-Week 5-6:  Web 開發（Flask → LINE Bot）
+Week 5-6:  Web 開發（Flask → FastAPI → LINE Bot）
 Week 7:    軟體測試（Pytest）
 Week 8-9:  電腦視覺（OpenCV + Mediapipe）
 Week 10:   實用工具開發
@@ -247,14 +265,14 @@ Week 12:   AI 應用開發
 ```
 Week 1:  01+02 (Python 基礎)
 Week 2:  03 (網頁擷取與 API)
-Week 3:  05 (Flask Web 開發)
+Week 3:  05 + 14（Flask／FastAPI Web 開發）
 Week 4:  06 (LINE Bot 開發)
 Week 5:  10 (資料庫) + 09 (實用工具)
 Week 6:  11 (AI 應用)
 ```
 
 ### 專題導向路徑（依興趣選擇）
-- **Web 開發專題**：01 → 05 → 06 → 10 → 11
+- **Web 開發專題**：01 → 05 → 14 → 06 → 10 → 11
 - **資料科學專題**：01 → 03 → 10 → 11
 - **電腦視覺專題**：01 → 08 → 11
 - **自動化專題**：01 → 03 → 04.Selenium → 04.Playwright → 09
@@ -295,6 +313,7 @@ Week 6:  11 (AI 應用)
 ### 官方文檔
 - [Python 官方教學](https://docs.python.org/zh-tw/3/)
 - [Flask 文檔](https://flask.palletsprojects.com/)
+- [FastAPI 官方文件](https://fastapi.tiangolo.com/)
 - [LINE Messaging API](https://developers.line.biz/en/docs/messaging-api/)
 - [OpenCV 文檔](https://docs.opencv.org/)
 - [Mediapipe 文檔](https://google.github.io/mediapipe/)
