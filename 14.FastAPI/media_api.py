@@ -22,11 +22,17 @@ def create_app() -> FastAPI:
 
     @app.get("/media", response_model=list[Media])
     def list_media(
-        media_type: Literal["image", "audio", "video"] | None = Query(default=None),
+        media_type: Literal["image", "audio", "video"] | None = Query(
+            default=None
+        ),
     ) -> list[Media]:
         if media_type is None:
             return list(media_items.values())
-        return [item for item in media_items.values() if item.media_type == media_type]
+        return [
+            item
+            for item in media_items.values()
+            if item.media_type == media_type
+        ]
 
     @app.get("/media/{media_id}", response_model=Media)
     def read_media(media_id: int) -> Media:
