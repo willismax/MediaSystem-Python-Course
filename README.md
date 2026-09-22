@@ -30,6 +30,7 @@
 | Requests 與 API | [`03.Request/`](03.Request/) | HTTP、網頁資料與開放資料 API |
 | Selenium／Playwright | [`04.Selenium/`](04.Selenium/)、[`04.Playwright/`](04.Playwright/) | 動態網頁與瀏覽器自動化 |
 | Flask | [`05.Flask/`](05.Flask/) | Web 應用與 RESTful API |
+| FastAPI | [`14.FastAPI/`](14.FastAPI/) | 型別驗證、自動 API 文件與 RESTful API |
 | LINE Bot | [`06.Line-bot-fly-flask/`](06.Line-bot-fly-flask/) | 訊息服務與雲端部署 |
 | pytest | [`07.Pytest-DEMO/`](07.Pytest-DEMO/) | 單元測試與覆蓋率 |
 | OpenCV／MediaPipe | [`08.OpenCV-Mediapipe-DEMO/`](08.OpenCV-Mediapipe-DEMO/) | 電腦視覺、手勢與姿態辨識 |
