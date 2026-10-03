@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>多媒體系統｜互動教材</title>
+<meta name="description" content="多媒體系統課程的互動教材與示範網站。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='19' r='17' fill='%23F7F9F5' stroke='%2316302A' stroke-width='2'/%3E%3Cpath d='M19 5 L23 19 L19 33 L15 19 Z' fill='%23F3BE4B' stroke='%2316302A' stroke-width='1.5' stroke-linejoin='round'/%3E%3Ccircle cx='19' cy='19' r='2' fill='%2316302A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{--paper:#EAEFE9;--surface:#F7F9F5;--line:#C4D0C7;--grid:rgba(22,48,42,.05);--ink:#16302A;--ink2:#51665F;--accent:#A96300;--accent-bg:#F3BE4B;--accent-ink:#342100;--remote:#2B5DAE;
+  --f-display:"LXGW WenKai TC","BiauKai","DFKai-SB","Kaiti TC",serif;--f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;--f-mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--paper:#0E1A17;--surface:#15241F;--line:#2E433B;--grid:rgba(228,238,231,.035);--ink:#E4EEE7;--ink2:#9CB2A8;--accent:#F0B24A;--accent-bg:#F0B24A;--accent-ink:#2B1C00;--remote:#86AEF2;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background-color:var(--paper);color:var(--ink);font:400 16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px}
+main{max-width:760px;margin-inline:auto;padding-inline:20px;padding-block:56px 72px}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.14em;color:var(--accent)}
+h1{font:700 40px/1.2 var(--f-display);margin:6px 0 10px;text-wrap:balance}
+.lead{margin:0 0 36px;color:var(--ink2);max-width:34em}
+h2{font:700 12px/1.6 var(--f-body);letter-spacing:.14em;color:var(--ink2);margin:0 0 10px}
+.demo{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px 22px;text-decoration:none;color:inherit}
+.demo:hover{border-color:var(--ink2)}
+.demo:focus-visible,a:focus-visible{outline:2px solid var(--remote);outline-offset:2px}
+.demo div{flex:1 1 300px;min-width:0}
+.demo h3{font:700 24px/1.3 var(--f-display);margin:0 0 4px}
+.demo p{margin:0;color:var(--ink2);font-size:14.5px}
+.go{flex:none;background:var(--accent-bg);color:var(--accent-ink);font-weight:700;font-size:14px;border-radius:6px;padding:8px 16px}
+ul{margin:0;padding-left:1.2em}
+li{margin:4px 0}
+a{color:var(--remote)}
+section{margin-bottom:36px}
+code{font-family:var(--f-mono);font-size:.9em}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">MEDIASYSTEM-PYTHON-COURSE</p>
+  <h1>多媒體系統｜互動教材</h1>
+  <p class="lead">這裡放的是可以直接在瀏覽器操作的課程示範。同一個 <code>docs/</code> 資料夾同時部署在 GitHub Pages 與 Cloudflare Pages。</p>
+  <section>
+    <h2>互動示範</h2>
+    <a class="demo" href="git-quest/">
+      <div><h3>Git 尋寶隊</h3><p>在模擬終端機裡從 git init 一路練到 Pull Request 與衝突解決，共 12 關，即時顯示檔案三區與 commit 圖。</p></div>
+      <span class="go">開始闖關</span>
+    </a>
+  </section>
+  <section>
+    <h2>課程教材</h2>
+    <ul>
+      <li><a href="https://github.com/willismax/MediaSystem-Python-Course/blob/main/course-115-v2/README.md">多媒體系統 V2 學生教材包</a></li>
+      <li><a href="https://github.com/willismax/MediaSystem-Python-Course/blob/main/docs/QUICKSTART.md">快速開始</a></li>
+      <li><a href="https://github.com/willismax/MediaSystem-Python-Course/blob/main/docs/git-quest/README.md">這個網站是怎麼部署的（GitHub Pages＋Cloudflare Pages）</a></li>
+      <li><a href="https://github.com/willismax/MediaSystem-Python-Course">GitHub repo</a></li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
