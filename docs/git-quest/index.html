@@ -1,0 +1,1177 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Git 尋寶隊</title>
+<meta name="description" content="互動式 Git 教學：在模擬終端機裡從 git init 一路練到 Pull Request 與衝突解決，共 12 關。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 38'%3E%3Ccircle cx='19' cy='19' r='17' fill='%23F7F9F5' stroke='%2316302A' stroke-width='2'/%3E%3Cpath d='M19 5 L23 19 L19 33 L15 19 Z' fill='%23F3BE4B' stroke='%2316302A' stroke-width='1.5' stroke-linejoin='round'/%3E%3Ccircle cx='19' cy='19' r='2' fill='%2316302A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+/* 基本重設（獨立頁面用） */
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* 版面：一張探勘工作桌。頂部是一條有站點的路線（12 關，終點是 ✕），
+   下面三欄：任務簿｜終端機｜即時地圖（三區、commit 圖、GitHub）。窄螢幕依序堆疊。 */
+:root{
+  --paper:#EAEFE9; --surface:#F7F9F5; --sunk:#E0E7E0; --line:#C4D0C7; --grid:rgba(22,48,42,.05);
+  --ink:#16302A; --ink2:#51665F;
+  --accent:#A96300; --accent-bg:#F3BE4B; --accent-ink:#342100; --accent-soft:rgba(184,110,0,.14);
+  --remote:#2B5DAE; --on-remote:#FFFFFF;
+  --ok:#1C7F54; --on-ok:#FFFFFF; --ok-soft:rgba(28,127,84,.12);
+  --danger:#B93A27; --danger-soft:rgba(185,58,39,.10);
+  --lane0:#1C7F54; --lane1:#B86E00; --lane2:#2B5DAE; --lane3:#8E44A8; --lane4:#B93A27;
+  --term:#0F1E1B; --term-line:#263B34; --term-fg:#D6E3DB; --term-dim:#86A094;
+  --t-g:#7FD6A4; --t-r:#F29480; --t-y:#F2C35B; --t-b:#8DB6F5;
+  --scrim:rgba(8,18,15,.6);
+  --f-display:"LXGW WenKai TC","BiauKai","DFKai-SB","Kaiti TC",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono","SFMono-Regular",Consolas,"Noto Sans TC",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1A17; --surface:#15241F; --sunk:#1C2F29; --line:#2E433B; --grid:rgba(228,238,231,.035);
+    --ink:#E4EEE7; --ink2:#9CB2A8;
+    --accent:#F0B24A; --accent-bg:#F0B24A; --accent-ink:#2B1C00; --accent-soft:rgba(240,178,74,.16);
+    --remote:#86AEF2; --on-remote:#0B1830;
+    --ok:#56C592; --on-ok:#06281A; --ok-soft:rgba(86,197,146,.14);
+    --danger:#F08A75; --danger-soft:rgba(240,138,117,.12);
+    --lane0:#56C592; --lane1:#F0B24A; --lane2:#86AEF2; --lane3:#C99AE0; --lane4:#F08A75;
+    --term:#081310; --term-line:#20332D;
+    --scrim:rgba(0,0,0,.62);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1A17; --surface:#15241F; --sunk:#1C2F29; --line:#2E433B; --grid:rgba(228,238,231,.035);
+  --ink:#E4EEE7; --ink2:#9CB2A8;
+  --accent:#F0B24A; --accent-bg:#F0B24A; --accent-ink:#2B1C00; --accent-soft:rgba(240,178,74,.16);
+  --remote:#86AEF2; --on-remote:#0B1830;
+  --ok:#56C592; --on-ok:#06281A; --ok-soft:rgba(86,197,146,.14);
+  --danger:#F08A75; --danger-soft:rgba(240,138,117,.12);
+  --lane0:#56C592; --lane1:#F0B24A; --lane2:#86AEF2; --lane3:#C99AE0; --lane4:#F08A75;
+  --term:#081310; --term-line:#20332D;
+  --scrim:rgba(0,0,0,.62);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background-color:var(--paper);color:var(--ink);font:400 15px/1.7 var(--f-body);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid var(--remote);outline-offset:2px}
+code,.mono{font-family:var(--f-mono)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+.app{display:flex;flex-direction:column;gap:12px;padding-inline:16px;padding-block:12px;max-width:1760px;margin-inline:auto}
+
+/* 頂部路線 */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:none}
+.brand h1{font:700 23px/1.1 var(--f-display);margin:0}
+.brand p{margin:2px 0 0;font-size:12px;color:var(--ink2)}
+.route{display:flex;flex-wrap:wrap;gap:8px 18px;flex:1 1 330px;min-width:0}
+.leg{display:flex;flex-direction:column;gap:3px}
+.leg-name{font-size:11px;letter-spacing:.1em;color:var(--ink2)}
+.stops{display:flex;gap:9px;position:relative}
+.stops::before{content:"";position:absolute;left:6px;right:6px;top:50%;border-top:2px dashed var(--line)}
+.stop{position:relative;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink2);font:600 12px/1 var(--f-mono);padding:0}
+.stop:hover{border-color:var(--ink2)}
+.stop.done{background:var(--ok);border-color:var(--ok);color:var(--on-ok)}
+.stop.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);color:var(--ink);background:var(--surface)}
+.stop.now.done{background:var(--ok);color:var(--on-ok)}
+.stop.x{border-radius:7px;font-size:15px;color:var(--danger)}
+.stop.x.done{color:var(--on-ok)}
+.top-actions{display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:6px 12px;font:500 13px/1.4 var(--f-body)}
+.btn:hover{border-color:var(--ink2)}
+.btn.primary{background:var(--accent-bg);border-color:var(--accent-bg);color:var(--accent-ink);font-weight:700}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link{border:0;background:none;padding:0;color:var(--accent);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+/* 三欄 */
+.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.grid>section{min-width:0}
+@media (min-width:760px){
+  .grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);grid-template-areas:"lesson term" "lesson viz";align-items:start}
+  .lesson{grid-area:lesson}.term{grid-area:term}.viz{grid-area:viz}
+}
+@media (min-width:1180px) and (min-height:600px){
+  .app{height:100%}
+  .grid{flex:1;min-height:0;grid-template-columns:minmax(300px,.92fr) minmax(340px,1.04fr) minmax(360px,1.16fr);grid-template-areas:"lesson term viz";align-items:stretch}
+  .grid>section{min-height:0}
+  .lesson,.viz{overflow:auto}
+  .term{height:auto !important}
+}
+
+/* 任務簿 */
+.lesson{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 20px 26px}
+.eyebrow{display:flex;justify-content:space-between;gap:12px;margin:0;font-size:12px;letter-spacing:.1em;color:var(--accent)}
+.eyebrow span:last-child{color:var(--ink2);font-family:var(--f-mono);letter-spacing:0}
+.lesson h2{font:700 26px/1.3 var(--f-display);margin:6px 0 10px;text-wrap:balance}
+.story{font:400 17px/1.8 var(--f-display);margin:0 0 14px;max-width:34em}
+.concept{background:var(--sunk);border-radius:6px;padding:12px 14px;font-size:14px}
+.concept h3,.sec{margin:0 0 4px;font:700 12px/1.6 var(--f-body);letter-spacing:.14em;color:var(--ink2)}
+.concept p{margin:0 0 8px}.concept p:last-child{margin:0}
+.concept code,.tasks code,.final code,.cheat code{background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:.9em;white-space:nowrap}
+.concept pre{margin:8px 0;padding:8px 10px;background:var(--term);color:var(--term-fg);border-radius:4px;font:12.5px/1.6 var(--f-mono);overflow-x:auto}
+.sec{margin:18px 0 8px}
+.sec span{margin-left:8px;font-family:var(--f-mono);letter-spacing:0;color:var(--accent)}
+.tasks li.grp{display:block;padding:10px 2px 0;font:700 12.5px/1.6 var(--f-body);color:var(--accent)}
+.tasks li.grp:first-child{padding-top:0}
+.skip .box{background:transparent;border-style:dashed;border-color:var(--ink2)}
+.skip .box::after{content:none}
+.skipped{margin-left:8px;font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 4px;white-space:nowrap}
+.warn{margin-top:8px;padding:8px 10px;border-radius:6px;background:var(--surface);border:1.5px solid var(--danger);display:flex;flex-direction:column;align-items:flex-start;gap:6px;font-size:13.5px}
+.warn p{margin:0}.warn b:first-child{color:var(--danger)}
+.undo{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--ink2)}
+.undo .link{font-size:12.5px}
+.link:disabled{color:var(--ink2);text-decoration:none;opacity:.55;cursor:default}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tasks li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:8px 10px;border-radius:6px;border:1px solid transparent}
+.tasks li.now{background:var(--accent-soft);border-color:var(--accent)}
+.tasks p{margin:0}
+.tasks li.done p{color:var(--ink2)}
+.box{width:18px;height:18px;margin-top:4px;border:1.5px solid var(--ink2);border-radius:4px;position:relative}
+.done .box{background:var(--ok);border-color:var(--ok)}
+.done .box::after{content:"";position:absolute;left:5px;top:1.5px;width:5px;height:9px;border:solid var(--on-ok);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.hint{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-top:6px}
+.cmd{max-width:100%;text-align:left;border:1px solid var(--term-line);background:var(--term);color:var(--term-fg);border-radius:4px;padding:4px 9px;font:12.5px/1.5 var(--f-mono);overflow-wrap:anywhere}
+.cmd::after{content:"填入";margin-left:10px;font:11px var(--f-body);color:var(--t-y)}
+.ui-hint,.hn{font-size:13px;color:var(--ink2);margin:0}
+.passed{margin-top:16px;padding:12px 14px;border-radius:6px;background:var(--ok-soft);border:1px solid var(--ok);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.passed p{margin:0;flex:1 1 220px;min-width:0;font-size:14px}
+.passed strong{color:var(--ok)}
+.final{margin-top:16px;padding:16px;border-radius:8px;background:var(--accent-bg);color:var(--accent-ink)}
+.final h3{font:700 28px/1.2 var(--f-display);margin:0 0 6px}
+.final p{margin:0 0 8px}
+.final ol{margin:0 0 10px;padding-left:1.4em}
+.final code{background:rgba(255,255,255,.45);border-color:rgba(0,0,0,.18);color:var(--accent-ink)}
+.flow{display:flex;flex-wrap:wrap;gap:4px 6px;font:600 12.5px var(--f-mono);margin:0 0 12px}
+.flow span::after{content:"→";margin-left:6px;opacity:.6}.flow span:last-child::after{content:""}
+
+/* 終端機 */
+.term{display:flex;flex-direction:column;height:400px;background:var(--term);color:var(--term-fg);border:1px solid var(--term-line);border-radius:8px;font:13px/1.65 var(--f-mono);overflow:hidden}
+.term-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--term-line);color:var(--term-dim);font-size:12px}
+.term-head button{border:1px solid var(--term-line);background:transparent;color:var(--term-dim);border-radius:4px;padding:1px 8px;font:12px var(--f-body)}
+.term-out{flex:1;min-height:0;overflow:auto;padding:10px 14px;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:8}
+.term-out .ln{min-height:1.65em}
+.term-in{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;padding:9px 14px;border-top:1px solid var(--term-line)}
+.term-in:focus-within{box-shadow:inset 0 0 0 1.5px var(--t-y)}
+.term-in label{flex:none;max-width:100%}
+.term-in input{flex:1 1 14ch;min-width:0;border:0;outline:0;background:transparent;color:var(--term-fg);font:inherit;padding:2px 0;caret-color:var(--t-y)}
+@media (max-width:759px){.term-in input{font-size:16px}}
+.c-g{color:var(--t-g)}.c-r{color:var(--t-r)}.c-y{color:var(--t-y)}.c-b{color:var(--t-b)}.c-d{color:var(--term-dim)}.c-w{font-weight:600}
+.c-n{color:var(--t-y);font-family:var(--f-body)}
+.p-path{color:var(--t-b)}.p-br{color:var(--t-g)}.p-usd{color:var(--term-dim)}
+
+/* 即時地圖 */
+.viz{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.card>h3{margin:0 0 8px;font:700 14px/1.4 var(--f-body);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.card>h3 small{font:400 12px var(--f-mono);color:var(--ink2)}
+.zones{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:6px}
+.zone{border:1.5px dashed var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.zone h4{margin:0;font:700 13px/1.3 var(--f-body)}
+.zone h4 small{display:block;font:400 11px var(--f-mono);color:var(--ink2)}
+.arrow{align-self:center;text-align:center;font:600 11px/1.3 var(--f-mono);color:var(--ink2)}
+.arrow b{display:block;font-size:16px;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px;max-width:100%;font:12px/1.5 var(--f-mono);border:1px solid var(--line);border-radius:4px;padding:1px 6px;background:var(--paper);color:var(--ink);overflow-wrap:anywhere;text-align:left}
+button.chip:hover{border-color:var(--ink)}
+.chip .tag{font:11px var(--f-body);white-space:nowrap}
+.s-clean{color:var(--ink2)}
+.s-new{border-color:var(--ok)}.s-new .tag{color:var(--ok)}
+.s-mod{border-color:var(--accent)}.s-mod .tag{color:var(--accent)}
+.s-conf,.s-del{border-color:var(--danger)}.s-conf .tag,.s-del .tag{color:var(--danger)}
+.s-conf{background:var(--danger-soft)}
+.empty{font-size:12px;color:var(--ink2);margin:0}
+.last{font-size:12px;margin:0;overflow-wrap:anywhere}
+.last code{color:var(--accent)}
+@keyframes pop{from{transform:scale(.8);background:var(--accent-bg)}to{transform:none}}
+.chip.fresh{animation:pop .45s ease-out}
+@media (prefers-reduced-motion:reduce){.chip.fresh{animation:none}}
+@media (max-width:520px){
+  .zones{grid-template-columns:minmax(0,1fr)}
+  .arrow b{display:inline;margin-left:6px}
+  .arrow b::before{content:"↓"}.arrow b{font-size:0}.arrow b::before{font-size:16px}
+}
+
+.graph{position:relative;max-height:250px;overflow:auto}
+.graph svg{position:absolute;left:0;top:0}
+.row{height:30px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;font-size:12.5px}
+.row code{font-size:12px;color:var(--ink2)}
+.row .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.row .who{font-size:11px;color:var(--remote);border:1px solid currentColor;border-radius:3px;padding:0 4px}
+.row.ghost .msg,.row.ghost code{color:var(--ink2);font-style:italic}
+.pill{flex:none;font:600 11px/1.6 var(--f-mono);border-radius:999px;padding:0 8px;border:1.5px solid var(--ink2);color:var(--ink)}
+.pill.head{background:var(--accent-bg);border-color:var(--accent-bg);color:var(--accent-ink)}
+.pill.rb{border-style:dashed;border-color:var(--remote);color:var(--remote)}
+.pill.ghb{background:var(--remote);border-color:var(--remote);color:var(--on-remote)}
+.e{stroke-width:2}.e.gh{stroke-dasharray:3 4;opacity:.55}
+.e.l0{stroke:var(--lane0)}.e.l1{stroke:var(--lane1)}.e.l2{stroke:var(--lane2)}.e.l3{stroke:var(--lane3)}.e.l4{stroke:var(--lane4)}
+.n.l0{fill:var(--lane0);stroke:var(--lane0)}.n.l1{fill:var(--lane1);stroke:var(--lane1)}.n.l2{fill:var(--lane2);stroke:var(--lane2)}.n.l3{fill:var(--lane3);stroke:var(--lane3)}.n.l4{fill:var(--lane4);stroke:var(--lane4)}
+.n{stroke-width:2}
+.n.gh{fill:var(--surface);stroke-dasharray:2 2.5}
+.hd{fill:none;stroke:var(--accent-bg);stroke-width:2.5}
+
+.gh-url{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px;font-size:12px;color:var(--ink2)}
+.gh-url button{border:1px solid var(--line);background:var(--paper);border-radius:4px;padding:1px 6px;font:12px var(--f-mono);color:var(--remote);overflow-wrap:anywhere;text-align:left;max-width:100%}
+.gh-empty{border:1.5px dashed var(--line);border-radius:6px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.gh-empty p{margin:0;font-size:13px;color:var(--ink2);flex:1 1 200px;min-width:0}
+.prs{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.prs h4{margin:0;font:700 12px var(--f-body);letter-spacing:.12em;color:var(--ink2)}
+.pr-new{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;padding:8px 10px;font-size:13px}
+.pr{border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.pr-head{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.pr-head b{overflow-wrap:anywhere}
+.pr-head .mono{font-size:12px;color:var(--ink2)}
+.st{font:700 11px/1.7 var(--f-body);border-radius:999px;padding:0 8px;border:1.5px solid currentColor}
+.st-ok{color:var(--ok)}.st-wait{color:var(--accent)}.st-bad{color:var(--danger)}
+.st-merged{background:var(--lane3);border-color:var(--lane3);color:var(--surface)}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.tl li{background:var(--sunk);border-radius:4px;padding:4px 8px}
+.pr-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.pr-foot span{color:var(--ink2);flex:1 1 180px;min-width:0}
+
+/* 浮層 */
+.overlay{position:fixed;inset:0;z-index:20;background:var(--scrim);display:grid;place-items:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;width:min(700px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.sheet-head h3{margin:0;font:700 18px var(--f-display)}
+.sheet-body{padding:14px 16px;overflow:auto}
+.sheet-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--line)}
+.sheet-foot .dim{margin-right:auto;font-size:12px;color:var(--ink2)}
+.conf-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 16px;background:var(--danger-soft);border-bottom:1px solid var(--line);font-size:13px}
+#edText{display:block;width:100%;min-height:240px;border:0;resize:vertical;padding:12px 16px;background:var(--term);color:var(--term-fg);font:14px/1.7 var(--f-mono)}
+@media (max-width:759px){#edText{font-size:16px}}
+.cheat h4{margin:14px 0 4px;font:700 12px var(--f-body);letter-spacing:.14em;color:var(--accent)}
+.cheat h4:first-child{margin-top:0}
+.tw{overflow-x:auto}
+.cheat table{border-collapse:collapse;width:100%;font-size:13.5px}
+.cheat td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.cheat td:first-child{width:46%}
+.cheat a{color:var(--remote)}
+.cheat ul{margin:4px 0 0;padding-left:1.2em}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true">
+        <circle cx="19" cy="19" r="17" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+        <circle cx="19" cy="19" r="12" fill="none" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="2 3"/>
+        <path d="M19 5 L23 19 L19 33 L15 19 Z" fill="var(--accent-bg)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/>
+        <circle cx="19" cy="19" r="2" fill="var(--ink)"/>
+      </svg>
+      <div><h1>Git 尋寶隊</h1><p>從 git init 到 Pull Request，12 關走完一次團隊協作</p></div>
+    </div>
+    <nav class="route" id="route" aria-label="關卡路線"></nav>
+    <div class="top-actions">
+      <button type="button" class="btn" id="btnCheat">指令小抄</button>
+      <button type="button" class="btn" id="btnReset">重置本關</button>
+    </div>
+  </header>
+  <main class="grid" id="grid">
+    <section class="lesson" id="lesson" aria-label="任務簿"></section>
+    <section class="term" aria-label="終端機">
+      <div class="term-head"><span>終端機（模擬）</span><button type="button" id="btnClear">清除畫面</button></div>
+      <div class="term-out" id="out" role="log" aria-live="polite"></div>
+      <form class="term-in" id="tform" autocomplete="off" onsubmit="return false">
+        <label for="cmdInput" id="prompt"></label>
+        <input id="cmdInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="輸入指令" placeholder="在這裡輸入指令，按 Enter 執行">
+      </form>
+    </section>
+    <section class="viz" id="viz" aria-label="即時地圖">
+      <div class="card"><h3>檔案在哪一區 <small>working directory → staging → repository</small></h3><div id="zones"></div></div>
+      <div class="card"><h3>你的電腦 <small>本機的 commit 圖</small></h3><div id="gLocal"></div></div>
+      <div class="card"><h3>GitHub <small>遠端 origin</small></h3><div id="ghBody"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="editor" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+    <div class="sheet-head"><h3 id="edTitle">編輯檔案</h3></div>
+    <div class="conf-bar" id="confBar" hidden>
+      <span>這個檔案有衝突標記。可以直接改，或一鍵處理：</span>
+      <button type="button" class="btn" data-res="ours">留下 HEAD 的</button>
+      <button type="button" class="btn" data-res="theirs">留下合併進來的</button>
+      <button type="button" class="btn" data-res="both">兩邊都留</button>
+    </div>
+    <textarea id="edText" spellcheck="false" aria-label="檔案內容"></textarea>
+    <div class="sheet-foot"><span class="dim">Ctrl／⌘ + S 儲存，Esc 取消</span>
+      <button type="button" class="btn" id="edCancel">取消</button>
+      <button type="button" class="btn primary" id="edSave">儲存</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="cheat" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="chTitle">
+    <div class="sheet-head"><h3 id="chTitle">指令小抄</h3><button type="button" class="btn" id="chClose">關閉</button></div>
+    <div class="sheet-body cheat">
+      <h4>第一次使用</h4>
+      <div class="tw"><table>
+        <tr><td><code>git config --global user.name "名字"</code></td><td>設定作者名字</td></tr>
+        <tr><td><code>git config --global user.email "信箱"</code></td><td>設定作者 email</td></tr>
+        <tr><td><code>git init</code></td><td>把目前資料夾變成儲存庫</td></tr>
+        <tr><td><code>git clone 網址</code></td><td>把遠端專案整份複製下來</td></tr>
+      </table></div>
+      <h4>存檔</h4>
+      <div class="tw"><table>
+        <tr><td><code>git status</code></td><td>看現在的狀態，迷路時先打這個</td></tr>
+        <tr><td><code>git add 檔名</code>、<code>git add .</code></td><td>把修改放進暫存區</td></tr>
+        <tr><td><code>git commit -m "訊息"</code></td><td>把暫存區存成一個版本</td></tr>
+        <tr><td><code>git diff</code>、<code>git diff --staged</code></td><td>看還沒暫存／已暫存的修改</td></tr>
+        <tr><td><code>git log --oneline</code></td><td>看存檔歷史</td></tr>
+      </table></div>
+      <h4>復原</h4>
+      <div class="tw"><table>
+        <tr><td><code>git restore 檔名</code></td><td>丟掉工作目錄的修改（救不回來）</td></tr>
+        <tr><td><code>git restore --staged 檔名</code></td><td>從暫存區拿出來，修改保留</td></tr>
+        <tr><td><code>git merge --abort</code></td><td>放棄進行到一半的合併</td></tr>
+      </table></div>
+      <h4>分支</h4>
+      <div class="tw"><table>
+        <tr><td><code>git switch -c 名稱</code></td><td>建立分支並切換過去</td></tr>
+        <tr><td><code>git switch 名稱</code></td><td>切換分支</td></tr>
+        <tr><td><code>git branch</code></td><td>列出分支</td></tr>
+        <tr><td><code>git merge 名稱</code></td><td>把那個分支合併進目前分支</td></tr>
+        <tr><td><code>git branch -d 名稱</code></td><td>刪除已合併的分支</td></tr>
+      </table></div>
+      <h4>遠端</h4>
+      <div class="tw"><table>
+        <tr><td><code>git remote add origin 網址</code></td><td>連結遠端，取名 origin</td></tr>
+        <tr><td><code>git push -u origin 分支</code></td><td>第一次上傳並記住對應關係</td></tr>
+        <tr><td><code>git push</code></td><td>上傳目前分支</td></tr>
+        <tr><td><code>git fetch</code></td><td>下載遠端更新，不動你的分支</td></tr>
+        <tr><td><code>git pull</code></td><td>下載並合併</td></tr>
+      </table></div>
+      <h4>協作流程</h4>
+      <p style="margin:0">開分支 → 修改 → add → commit → push → 開 Pull Request → 隊友審核 → Merge → 切回 main 再 pull。</p>
+      <h4>延伸閱讀</h4>
+      <ul>
+        <li><a href="https://willismax.github.io/CS_Course/Git_Commands.html" target="_blank" rel="noopener">更多 Git 指令</a></li>
+        <li><a href="https://willismax.github.io/CS_Course/Pull_Request_Tutorial.html" target="_blank" rel="noopener">Pull Request 教學</a></li>
+        <li><a href="https://skills.github.com/" target="_blank" rel="noopener">GitHub Skills 互動教學</a></li>
+        <li><a href="https://git-scm.com/doc" target="_blank" rel="noopener">Git 官方文件</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ================= 模擬引擎（不碰 DOM） ================= */
+const PROJECT='treasure-hunt', GH_URL='https://github.com/expedition-team/treasure-hunt.git', MATE='小安';
+let S=null, L=null; const PREF={name:''};
+
+const col=(k,s)=>'\u0001'+k+s+'\u0002';
+const G=s=>col('g',s),R=s=>col('r',s),Y=s=>col('y',s),B=s=>col('b',s),W=s=>col('w',s),N=s=>col('n','提示：'+s);
+
+function fresh(){return{config:{name:'',email:''},cwd:'',home:{},dirs:{},commits:{},seq:0,gh:{created:false,branches:{},prs:[],prSeq:0},flags:{}};}
+function newRepo(){return{branches:{},head:'main',index:{},remoteUrl:'',tracking:{},rb:{},merge:null};}
+function ev(k){if(L)L.ev[k]=1;}
+function proj(){return S.dirs[PROJECT]||null;}
+function curDir(){return S.cwd?S.dirs[S.cwd]:{files:S.home,repo:null,home:true};}
+function tip(r){return r.branches[r.head]||null;}
+function treeOf(id){return id?S.commits[id].tree:{};}
+function lines(s){return s===undefined||s===''?[]:s.split('\n');}
+function ancSet(id){const s=new Set(),st=id?[id]:[];while(st.length){const c=st.pop();if(s.has(c))continue;s.add(c);st.push(...S.commits[c].parents);}return s;}
+function isAnc(a,b){if(!a)return true;if(!b)return false;return ancSet(b).has(a);}
+function mergeBase(a,b){const A=ancSet(a);let best=null;for(const c of ancSet(b))if(A.has(c)&&(!best||S.commits[c].n>S.commits[best].n))best=c;return best;}
+function hashId(n,msg){let h=(2166136261^Math.imul(n+1,2654435761))>>>0;const s=msg+'#'+n;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}h^=h>>>13;h=Math.imul(h,0x5bd1e995)>>>0;return('0000000'+h.toString(16)).slice(-7);}
+function mkCommit(tree,parents,msg,author){S.seq++;let k=0,id=hashId(S.seq,msg);while(S.commits[id])id=hashId(S.seq,msg+(++k));const c={id,parents,msg,author,tree,n:S.seq};S.commits[id]=c;return c;}
+function urlOk(u){return /treasure-hunt/.test(u||'');}
+function okName(n){return /^[A-Za-z0-9_.\-\/\u4e00-\u9fff]+$/.test(n)&&!n.startsWith('-');}
+function hasMarkers(t){return /^(<<<<<<<|=======|>>>>>>>)/m.test(t||'');}
+function resolveMarkers(text,mode){const out=[];let st=0;for(const ln of text.split('\n')){if(ln.startsWith('<<<<<<<')){st=1;continue;}if(ln.startsWith('=======')&&st===1){st=2;continue;}if(ln.startsWith('>>>>>>>')&&st===2){st=0;continue;}if(st===0||mode==='both'||(st===1&&mode==='ours')||(st===2&&mode==='theirs'))out.push(ln);}return out.join('\n');}
+
+function lcsMap(a,b){const n=a.length,m=b.length,dp=[];for(let i=0;i<=n;i++)dp.push(new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)dp[i][j]=a[i]===b[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  const map=new Map();let i=0,j=0;while(i<n&&j<m){if(a[i]===b[j]){map.set(i,j);i++;j++;}else if(dp[i+1][j]>=dp[i][j+1])i++;else j++;}return map;}
+function diff2(a,b){const m=lcsMap(a,b),out=[];let j=0;for(let i=0;i<a.length;i++){if(m.has(i)){while(j<m.get(i))out.push('+'+b[j++]);out.push(' '+a[i]);j++;}else out.push('-'+a[i]);}while(j<b.length)out.push('+'+b[j++]);return out;}
+function diff3(o,b,t,lo,lt){const mo=lcsMap(b,o),mt=lcsMap(b,t),out=[];let conflict=false,pb=0,po=0,pt=0;
+  const eq=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+  const flush=(eb,eo,et)=>{const cb=b.slice(pb,eb),co=o.slice(po,eo),ct=t.slice(pt,et);
+    if(eq(co,ct))out.push(...co);else if(eq(co,cb))out.push(...ct);else if(eq(ct,cb))out.push(...co);
+    else{conflict=true;out.push('<<<<<<< '+lo,...co,'=======',...ct,'>>>>>>> '+lt);}};
+  for(let i=0;i<b.length;i++){if(mo.has(i)&&mt.has(i)){const jo=mo.get(i),jt=mt.get(i);flush(i,jo,jt);out.push(b[i]);pb=i+1;po=jo+1;pt=jt+1;}}
+  flush(b.length,o.length,t.length);return{lines:out,conflict};}
+function mergeTrees(b,o,t,lo,lt){const tree={},conf=[];
+  for(const f of new Set([...Object.keys(b),...Object.keys(o),...Object.keys(t)])){const Bv=b[f],O=o[f],T=t[f];
+    if(O===T){if(O!==undefined)tree[f]=O;}
+    else if(O===Bv){if(T!==undefined)tree[f]=T;}
+    else if(T===Bv){if(O!==undefined)tree[f]=O;}
+    else if(O===undefined||T===undefined){tree[f]=O!==undefined?O:T;}
+    else{const m=diff3(lines(O),lines(Bv),lines(T),lo,lt);tree[f]=m.lines.join('\n');if(m.conflict)conf.push(f);}}
+  return{tree,conf};}
+
+function status(r,d){const h=treeOf(tip(r)),ix=r.index,wd=d.files,un=r.merge?r.merge.conflicts:[];const staged=[],unst=[],untr=[];
+  for(const f of [...new Set([...Object.keys(h),...Object.keys(ix)])].sort()){if(un.includes(f))continue;if(!(f in h))staged.push([f,'new file']);else if(!(f in ix))staged.push([f,'deleted']);else if(h[f]!==ix[f])staged.push([f,'modified']);}
+  for(const f of Object.keys(ix).sort()){if(un.includes(f))continue;if(!(f in wd))unst.push([f,'deleted']);else if(wd[f]!==ix[f])unst.push([f,'modified']);}
+  for(const f of Object.keys(wd).sort())if(!(f in ix)&&!un.includes(f))untr.push(f);
+  return{staged,unst,untr,unmerged:[...un]};}
+function aheadBehind(a,b){const A=ancSet(a),Bs=ancSet(b);let x=0,y=0;for(const c of A)if(!Bs.has(c))x++;for(const c of Bs)if(!A.has(c))y++;return[x,y];}
+function moveTo(r,d,target){const cur=treeOf(tip(r)),tg=treeOf(target),block=[];const names=new Set([...Object.keys(cur),...Object.keys(tg)]);
+  for(const f of names)if(cur[f]!==tg[f]&&(d.files[f]!==cur[f]||r.index[f]!==cur[f]))block.push(f);
+  if(block.length)return block;
+  for(const f of names)if(cur[f]!==tg[f]){if(tg[f]===undefined){delete d.files[f];delete r.index[f];}else{d.files[f]=tg[f];r.index[f]=tg[f];}}
+  return null;}
+
+/* ---- 指令解析 ---- */
+function lex(line){const cmds=[[]];let cur='',has=false,q=null;const last=()=>cmds[cmds.length-1];const push=()=>{if(has)last().push(cur);cur='';has=false;};
+  for(let i=0;i<line.length;i++){const ch=line[i];
+    if(q){if(ch===q)q=null;else if(ch==='\\'&&q==='"'&&i+1<line.length&&'"\\'.includes(line[i+1]))cur+=line[++i];else cur+=ch;continue;}
+    if(ch==='"'||ch==="'"){q=ch;has=true;continue;}
+    if(/\s/.test(ch)){push();continue;}
+    if(ch==='&'&&line[i+1]==='&'){push();cmds.push([]);i++;continue;}
+    if(ch===';'){push();cmds.push([]);continue;}
+    if(ch==='>'){push();if(line[i+1]==='>'){last().push({op:'>>'});i++;}else last().push({op:'>'});continue;}
+    cur+=ch;has=true;}
+  if(q)return{err:'引號沒有成對，檢查一下 " 有沒有少打。'};push();return{cmds:cmds.filter(x=>x.length)};}
+
+function run(line){const res={out:[],clear:false,edit:null};
+  line=String(line).replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/\u3000/g,' ').trim();
+  if(!line)return res;const lx=lex(line);if(lx.err){res.out.push(R(lx.err));return res;}
+  for(const toks of lx.cmds)exec(toks,res);return res;}
+
+function fileNameOk(f,out){if(typeof f!=='string'||!f){out.push(R('需要一個檔名'));return false;}if(f.includes('/')){out.push(N('模擬器只支援單層資料夾，檔名不能有 /'));return false;}return true;}
+
+function exec(toks,res){const out=res.out;let redir=null;const a=[];
+  for(let i=0;i<toks.length;i++){const t=toks[i];if(typeof t==='object'){redir={op:t.op,file:toks[i+1]};i++;}else a.push(t);}
+  const cmd=a[0],d=curDir();
+  switch(cmd){
+    case undefined:return;
+    case 'help':out.push(W('可用指令（模擬器）'),'  檔案   ls  cd  pwd  mkdir  touch  cat  rm  nano 檔名','         echo "文字" > 檔名（覆寫）  echo "文字" >> 檔名（加在最後）','  Git    config  init  clone  status  add  commit  log  diff  restore','         branch  switch  checkout  merge  remote  push  fetch  pull','  其他   clear  help      ↑↓ 找回打過的指令，Tab 自動補完');return;
+    case 'clear':case 'cls':res.clear=true;return;
+    case 'pwd':out.push('/home/explorer'+(S.cwd?'/'+S.cwd:''));return;
+    case 'ls':case 'dir':{const all=a.includes('-a')||a.includes('-la')||a.includes('-al');const items=[];
+      if(!S.cwd)for(const n of Object.keys(S.dirs).sort())items.push(B(n+'/'));
+      if(all&&d.repo)items.push(B('.git/'));
+      for(const f of Object.keys(d.files).sort())items.push(f);
+      if(items.length)out.push(items.join('  '));return;}
+    case 'cd':{let t=a[1];if(!t||t==='~'||t==='~/'){S.cwd='';return;}t=t.replace(/^~\//,'').replace(/^\.\//,'').replace(/\/$/,'');
+      if(t==='..'){S.cwd='';return;}if(t==='.')return;
+      if((!S.cwd||a[1].startsWith('~/'))&&S.dirs[t]){S.cwd=t;return;}
+      out.push(`cd: no such file or directory: ${a[1]}`);if(S.cwd)out.push(N('你已經在 ~/'+S.cwd+' 裡面了。用 cd .. 回上一層。'));return;}
+    case 'mkdir':{const n=a[1];if(!n){out.push('mkdir: missing operand');return;}if(S.cwd){out.push(N('模擬器只支援在家目錄（~）底下建立資料夾。'));return;}
+      if(!/^[\w.\-]+$/.test(n)){out.push(N('資料夾名稱請用英文、數字、- 或 _'));return;}
+      if(S.dirs[n]){out.push(`mkdir: cannot create directory '${n}': File exists`);return;}S.dirs[n]={files:{},repo:null};return;}
+    case 'touch':{for(const f of a.slice(1)){if(!fileNameOk(f,out))return;if(!(f in d.files))d.files[f]='';}if(a.length<2)out.push('touch: missing file operand');return;}
+    case 'echo':{const text=a.slice(1).join(' ');if(!redir){out.push(text);return;}const f=redir.file;if(!fileNameOk(f,out))return;
+      if(redir.op==='>>'&&d.files[f])d.files[f]=d.files[f]+'\n'+text;else d.files[f]=text;return;}
+    case 'cat':case 'type':{const f=a[1];if(!f){out.push('cat: missing file operand');return;}if(!(f in d.files)){out.push(`cat: ${f}: No such file or directory`);return;}
+      if(d.files[f]!=='')for(const ln of d.files[f].split('\n'))out.push(/^(<<<<<<<|>>>>>>>)/.test(ln)?Y(ln):/^=======/.test(ln)?Y(ln):ln);ev('cat:'+f);return;}
+    case 'rm':{const f=a.filter(x=>!x.startsWith('-'))[1];if(!f){out.push('rm: missing operand');return;}if(!(f in d.files)){out.push(`rm: cannot remove '${f}': No such file or directory`);return;}delete d.files[f];return;}
+    case 'nano':case 'vim':case 'vi':case 'code':case 'edit':case 'notepad':{const f=a[1];if(!fileNameOk(f,out))return;res.edit=f;return;}
+    case 'git':git(a.slice(1),out,d);return;
+    default:out.push(`${cmd}: command not found`);out.push(N('輸入 help 看模擬器支援哪些指令。'));
+  }
+}
+
+function git(a,out,d){const sub=a[0],args=a.slice(1);
+  if(!sub||sub==='help'||sub==='--help'){out.push('usage: git <command> [<args>]','','  config  init  clone  status  add  commit  log  diff  restore','  branch  switch  checkout  merge  remote  push  fetch  pull');return;}
+  if(sub==='--version'||sub==='version'){out.push('git version 2.47.0（模擬器）');return;}
+  if(sub==='config')return gitConfig(args,out);
+  if(sub==='clone')return gitClone(args,out);
+  if(sub==='init'){if(d.home){out.push(N('不要在家目錄直接 git init。先 mkdir 建一個專案資料夾，再 cd 進去。'));return;}
+    if(d.repo){out.push(`Reinitialized existing Git repository in /home/explorer/${S.cwd}/.git/`);return;}
+    d.repo=newRepo();out.push(`Initialized empty Git repository in /home/explorer/${S.cwd}/.git/`);return;}
+  const r=d.repo;
+  if(!r){out.push('fatal: not a git repository (or any of the parent directories): .git');out.push(N(d.home&&proj()?'你在家目錄。先 cd '+PROJECT+' 進到專案資料夾。':'這個資料夾還不是儲存庫，要先 git init。'));return;}
+  switch(sub){
+    case 'status':return gitStatus(r,d,out);
+    case 'add':return gitAdd(r,d,args,out);
+    case 'commit':return gitCommit(r,d,args,out);
+    case 'log':return gitLog(r,args,out);
+    case 'diff':return gitDiff(r,d,args,out);
+    case 'restore':return gitRestore(r,d,args,out);
+    case 'branch':return gitBranch(r,args,out);
+    case 'switch':case 'checkout':return gitSwitch(r,d,args,out,sub);
+    case 'merge':return gitMerge(r,d,args,out);
+    case 'remote':return gitRemote(r,args,out);
+    case 'push':return gitPush(r,args,out);
+    case 'fetch':doFetch(r,out);return;
+    case 'pull':return gitPull(r,d,args,out);
+    case 'reset':case 'stash':case 'rebase':case 'revert':case 'tag':case 'rm':case 'mv':case 'cherry-pick':
+      out.push(N(`模擬器沒有實作 git ${sub}。這 12 關用不到它，真正的 Git 裡是有的。`));return;
+    default:out.push(`git: '${sub}' is not a git command. See 'git --help'.`);
+  }
+}
+
+function gitConfig(args,out){const a=args.filter(x=>x!=='--global'&&x!=='--local');
+  if(a[0]==='--list'||a[0]==='-l'){if(S.config.name)out.push('user.name='+S.config.name);if(S.config.email)out.push('user.email='+S.config.email);out.push('init.defaultbranch=main');ev('config:list');return;}
+  const key=a[0];if(key!=='user.name'&&key!=='user.email'){out.push(N('模擬器只支援 user.name 和 user.email 兩個設定。'));return;}
+  const k=key.slice(5);if(a.length<2){if(S.config[k])out.push(S.config[k]);return;}
+  S.config[k]=a.slice(1).join(' ');}
+
+function gitStatus(r,d,out){const st=status(r,d),sec=[];let head=['On branch '+r.head];
+  const up=r.tracking[r.head];
+  if(up&&r.rb[up]!==undefined&&tip(r)){const[ah,bh]=aheadBehind(tip(r),r.rb[up]),pl=n=>n>1?'s':'';
+    if(!ah&&!bh){head.push(`Your branch is up to date with '${up}'.`);ev('status:uptodate');}
+    else if(ah&&!bh)head.push(`Your branch is ahead of '${up}' by ${ah} commit${pl(ah)}.`,'  (use "git push" to publish your local commits)');
+    else if(!ah&&bh){head.push(`Your branch is behind '${up}' by ${bh} commit${pl(bh)}, and can be fast-forwarded.`,'  (use "git pull" to update your local branch)');ev('status:behind');}
+    else head.push(`Your branch and '${up}' have diverged,`,`and have ${ah} and ${bh} different commits each, respectively.`);}
+  sec.push(head);
+  if(!tip(r))sec.push(['No commits yet']);
+  if(r.merge)sec.push(st.unmerged.length?['You have unmerged paths.','  (fix conflicts and run "git commit")','  (use "git merge --abort" to abort the merge)']:['All conflicts fixed but you are still merging.','  (use "git commit" to conclude merge)']);
+  if(st.staged.length)sec.push(['Changes to be committed:','  (use "git restore --staged <file>..." to unstage)',...st.staged.map(([f,t])=>G('\t'+(t+':').padEnd(12)+f))]);
+  if(st.unmerged.length)ev('status:unmerged');
+  if(st.unmerged.length)sec.push(['Unmerged paths:','  (use "git add <file>..." to mark resolution)',...st.unmerged.map(f=>R('\tboth modified:   '+f))]);
+  if(st.unst.length)sec.push(['Changes not staged for commit:','  (use "git add <file>..." to update what will be committed)','  (use "git restore <file>..." to discard changes in working directory)',...st.unst.map(([f,t])=>R('\t'+(t+':').padEnd(12)+f))]);
+  if(st.untr.length){sec.push(['Untracked files:','  (use "git add <file>..." to include in what will be committed)',...st.untr.map(f=>R('\t'+f))]);ev('status:untracked');}
+  if(!st.staged.length&&!r.merge){
+    if(st.unst.length)sec.push(['no changes added to commit (use "git add" and/or "git commit -a")']);
+    else if(st.untr.length)sec.push(['nothing added to commit but untracked files present (use "git add" to track)']);
+    else sec.push([tip(r)?'nothing to commit, working tree clean':'nothing to commit (create/copy files and use "git add" to track)']);}
+  sec.forEach((s,i)=>{if(i)out.push('');out.push(...s);});ev('status');}
+
+function gitAdd(r,d,args,out){const pos=args.filter(x=>!x.startsWith('-'));const all=args.includes('-A')||args.includes('--all')||pos.includes('.')||pos.includes('*');
+  if(!all&&!pos.length){out.push('Nothing specified, nothing added.',"hint: Maybe you wanted to say 'git add .'?");return;}
+  const targets=all?[...new Set([...Object.keys(d.files),...Object.keys(r.index)])]:pos;
+  for(const f of targets){
+    if(f in d.files){
+      if(r.merge&&r.merge.conflicts.includes(f)&&hasMarkers(d.files[f])){out.push(N(f+' 裡還有衝突標記（<<<<<<< ======= >>>>>>>）。先打開檔案整理好內容，再 git add。'));continue;}
+      r.index[f]=d.files[f];if(r.merge)r.merge.conflicts=r.merge.conflicts.filter(x=>x!==f);}
+    else if(f in r.index){delete r.index[f];if(r.merge)r.merge.conflicts=r.merge.conflicts.filter(x=>x!==f);}
+    else{out.push(`fatal: pathspec '${f}' did not match any files`);return;}}
+  ev('add');}
+
+function gitCommit(r,d,args,out){let msg=null,all=false;
+  for(let i=0;i<args.length;i++){const x=args[i];
+    if(x==='-m'||x==='--message')msg=args[++i];else if(x==='-am'||x==='-ma'){all=true;msg=args[++i];}else if(x==='-a'||x==='--all')all=true;
+    else if(x==='--amend'){out.push(N('模擬器沒有實作 --amend。'));return;}}
+  if(msg===undefined){out.push("error: switch `m' requires a value");return;}
+  if(!S.config.name||!S.config.email){out.push('Author identity unknown','','*** Please tell me who you are.','','Run','','  git config --global user.email "you@example.com"','  git config --global user.name "Your Name"','','to set your account\'s default identity.');return;}
+  if(r.merge&&r.merge.conflicts.length){out.push('error: Committing is not possible because you have unmerged files.','hint: Fix them up in the work tree, and then use \'git add <file>\'','hint: as appropriate to mark resolution and make a commit.');return;}
+  if(all)for(const f of Object.keys(r.index)){if(!(f in d.files))delete r.index[f];else r.index[f]=d.files[f];}
+  const h=treeOf(tip(r));let changed=0;for(const f of new Set([...Object.keys(h),...Object.keys(r.index)]))if(h[f]!==r.index[f])changed++;
+  if(!r.merge&&!changed){const st=status(r,d);out.push('On branch '+r.head);
+    if(st.unst.length)out.push('Changes not staged for commit:',...st.unst.map(([f,t])=>R('\t'+(t+':').padEnd(12)+f)),'','no changes added to commit (use "git add" and/or "git commit -a")');
+    else if(st.untr.length)out.push('Untracked files:',...st.untr.map(f=>R('\t'+f)),'','nothing added to commit but untracked files present (use "git add" to track)');
+    else out.push('nothing to commit, working tree clean');return;}
+  if(msg===null){if(r.merge)msg=r.merge.msg;else{out.push(N('真正的 Git 這時會打開編輯器讓你寫訊息。模擬器請直接用 git commit -m "訊息"'));return;}}
+  if(!msg.trim()){out.push('Aborting commit due to empty commit message.');return;}
+  const parents=tip(r)?[tip(r)]:[];if(r.merge)parents.push(r.merge.other);const root=!parents.length;
+  const c=mkCommit(Object.assign({},r.index),parents,msg,S.config.name);r.branches[r.head]=c.id;r.merge=null;
+  out.push(`[${r.head} ${root?'(root-commit) ':''}${c.id}] ${msg}`);if(changed)out.push(` ${changed} file${changed===1?'':'s'} changed`);ev('commit');}
+
+function gitLog(r,args,out){const t=tip(r);if(!t){out.push(`fatal: your current branch '${r.head}' does not have any commits yet`);return;}
+  const one=args.includes('--oneline'),graph=args.includes('--graph');const ids=ancSet(t);
+  if(args.includes('--all'))for(const v of [...Object.values(r.branches),...Object.values(r.rb)])for(const c of ancSet(v))ids.add(c);
+  const list=[...ids].sort((x,y)=>S.commits[y].n-S.commits[x].n);
+  const deco=id=>{const p=[];if(t===id)p.push(B('HEAD -> ')+G(r.head));for(const[b,v]of Object.entries(r.branches))if(v===id&&b!==r.head)p.push(G(b));for(const[b,v]of Object.entries(r.rb))if(v===id)p.push(R(b));return p.length?' '+Y('(')+p.join(Y(', '))+Y(')'):'';};
+  list.forEach((id,i)=>{const c=S.commits[id];
+    if(one||graph)out.push((graph?'* ':'')+Y(id)+deco(id)+' '+c.msg);
+    else{if(i)out.push('');out.push(Y('commit '+id)+deco(id));if(c.parents.length>1)out.push('Merge: '+c.parents.join(' '));out.push('Author: '+c.author,'','    '+c.msg);}});
+  ev('log');}
+
+function gitDiff(r,d,args,out){const staged=args.includes('--staged')||args.includes('--cached'),pos=args.filter(x=>!x.startsWith('-'));
+  const a=staged?treeOf(tip(r)):r.index,b=staged?r.index:d.files;let any=false;
+  const names=staged?new Set([...Object.keys(a),...Object.keys(b)]):new Set(Object.keys(a));
+  for(const f of [...names].sort()){if(pos.length&&!pos.includes(f))continue;if(a[f]===b[f])continue;any=true;
+    out.push(W(`diff --git a/${f} b/${f}`),W(a[f]===undefined?'--- /dev/null':'--- a/'+f),W(b[f]===undefined?'+++ /dev/null':'+++ b/'+f));
+    for(const ln of diff2(lines(a[f]),lines(b[f])))out.push(ln[0]==='+'?G(ln):ln[0]==='-'?R(ln):ln);}
+  ev('diff');if(any)ev('diff:changes');}
+
+function gitRestore(r,d,args,out){const staged=args.includes('--staged'),pos=args.filter(x=>!x.startsWith('-'));
+  if(!pos.length){out.push('fatal: you must specify path(s) to restore');return;}const h=treeOf(tip(r));
+  if(staged){const fs=pos.includes('.')?[...new Set([...Object.keys(h),...Object.keys(r.index)])]:pos;
+    let chg=false;for(const f of fs){const b=r.index[f];if(f in h)r.index[f]=h[f];else if(f in r.index)delete r.index[f];else{out.push(`error: pathspec '${f}' did not match any file(s) known to git`);return;}if(r.index[f]!==b)chg=true;}
+    if(chg)ev('restore:staged');return;}
+  const fs=pos.includes('.')?Object.keys(r.index):pos;
+  let chg=false;for(const f of fs){if(f in r.index){if(d.files[f]!==r.index[f])chg=true;d.files[f]=r.index[f];}else{out.push(`error: pathspec '${f}' did not match any file(s) known to git`);return;}}
+  if(chg)ev('restore:wd');}
+
+function gitBranch(r,args,out){const flags=args.filter(x=>x.startsWith('-')),pos=args.filter(x=>!x.startsWith('-'));
+  const DEL=flags.includes('-D'),del=DEL||flags.includes('-d')||flags.includes('--delete');
+  if(del){const n=pos[0];if(!n){out.push('fatal: branch name required');return;}if(r.branches[n]===undefined){out.push(`error: branch '${n}' not found.`);return;}
+    if(n===r.head){out.push(`error: Cannot delete branch '${n}' checked out at '/home/explorer/${S.cwd}'`);return;}
+    const up=r.rb['origin/'+n];
+    if(!DEL&&!isAnc(r.branches[n],tip(r))&&!(up&&isAnc(r.branches[n],up))){out.push(`error: The branch '${n}' is not fully merged.`,`If you are sure you want to delete it, run 'git branch -D ${n}'.`);return;}
+    out.push(`Deleted branch ${n} (was ${r.branches[n]}).`);delete r.branches[n];delete r.tracking[n];return;}
+  if(flags.includes('-m')||flags.includes('-M')){const nn=pos[pos.length-1],old=pos.length>1?pos[0]:r.head;if(!nn){out.push('fatal: branch name required');return;}
+    if(old!==nn){if(r.branches[old]!==undefined){r.branches[nn]=r.branches[old];delete r.branches[old];}if(r.tracking[old]){r.tracking[nn]=r.tracking[old];delete r.tracking[old];}if(r.head===old)r.head=nn;}return;}
+  if(!pos.length){for(const n of Object.keys(r.branches).sort())out.push(n===r.head?G('* '+n):'  '+n);
+    if(flags.includes('-a')||flags.includes('-r'))for(const k of Object.keys(r.rb).sort())out.push('  '+R('remotes/'+k));ev('branch:list');return;}
+  const n=pos[0];if(!okName(n)){out.push(`fatal: '${n}' is not a valid branch name`);return;}
+  if(r.branches[n]!==undefined){out.push(`fatal: a branch named '${n}' already exists`);return;}
+  if(!tip(r)){out.push(`fatal: not a valid object name: '${r.head}'`);out.push(N('要先有至少一個 commit，才能建立分支。'));return;}
+  r.branches[n]=tip(r);}
+
+function gitSwitch(r,d,args,out,cmd){let create=false;const pos=[];
+  for(const x of args){if(x==='-c'||x==='-b'||x==='--create')create=true;else if(x==='--'){}else if(!x.startsWith('-'))pos.push(x);}
+  const name=pos[0];
+  if(cmd==='checkout'&&!create&&name&&r.branches[name]===undefined&&r.rb['origin/'+name]===undefined&&(name in r.index||args.includes('--')||name==='.'))return gitRestore(r,d,pos,out);
+  if(!name){out.push(cmd==='switch'?'fatal: missing branch or commit argument':'fatal: 請指定分支名稱');return;}
+  if(r.merge){out.push('error: you need to resolve your current index first');out.push(N('合併還沒完成。先解決衝突並 commit，或用 git merge --abort 放棄這次合併。'));return;}
+  if(create){if(!okName(name)){out.push(`fatal: '${name}' is not a valid branch name`);return;}
+    if(r.branches[name]!==undefined){out.push(`fatal: a branch named '${name}' already exists`);return;}
+    if(tip(r))r.branches[name]=tip(r);r.head=name;out.push(`Switched to a new branch '${name}'`);return;}
+  if(name===r.head){out.push(`Already on '${name}'`);return;}
+  let target=r.branches[name],track=false;
+  if(target===undefined){if(r.rb['origin/'+name]!==undefined){target=r.rb['origin/'+name];track=true;}
+    else{out.push(cmd==='switch'?`fatal: invalid reference: ${name}`:`error: pathspec '${name}' did not match any file(s) known to git`);if(cmd==='switch')out.push(N('沒有這個分支。要建立新分支請用 git switch -c '+name));return;}}
+  const blk=moveTo(r,d,target);
+  if(blk){out.push('error: Your local changes to the following files would be overwritten by checkout:',...blk.map(f=>'\t'+f),'Please commit your changes or stash them before you switch branches.','Aborting');return;}
+  if(track){r.branches[name]=target;r.tracking[name]='origin/'+name;out.push(`branch '${name}' set up to track 'origin/${name}'.`);}
+  r.head=name;out.push(track?`Switched to a new branch '${name}'`:`Switched to branch '${name}'`);}
+
+function gitMerge(r,d,args,out){
+  if(args.includes('--abort')){if(!r.merge){out.push('fatal: There is no merge to abort (MERGE_HEAD missing).');return;}const h=treeOf(tip(r));
+    for(const f of new Set([...Object.keys(r.index),...Object.keys(h),...r.merge.conflicts])){if(h[f]===undefined)delete d.files[f];else d.files[f]=h[f];}
+    r.index=Object.assign({},h);r.merge=null;return;}
+  if(r.merge){out.push('fatal: You have not concluded your merge (MERGE_HEAD exists).','Please, commit your changes before you merge.');return;}
+  const name=args.find(x=>!x.startsWith('-'));if(!name){out.push('fatal: No commit specified and merge.defaultToUpstream not set.');return;}
+  const other=r.branches[name]!==undefined?r.branches[name]:r.rb[name];
+  if(other===undefined){out.push(`merge: ${name} - not something we can merge`);return;}
+  doMerge(r,d,other,name,out,`Merge branch '${name.replace(/^origin\//,'')}'`+(r.head!=='main'?` into ${r.head}`:''));}
+
+function doMerge(r,d,other,label,out,msg){const cur=tip(r);
+  if(!cur){r.branches[r.head]=other;r.index=Object.assign({},treeOf(other));Object.assign(d.files,treeOf(other));return 'ff';}
+  if(isAnc(other,cur)){out.push('Already up to date.');return 'uptodate';}
+  const st=status(r,d);
+  if(st.staged.length||st.unst.length){out.push('error: Your local changes to the following files would be overwritten by merge:',...[...st.staged,...st.unst].map(([f])=>'\t'+f),'Please commit your changes or stash them before you merge.','Aborting');return 'dirty';}
+  if(isAnc(cur,other)){const blk=moveTo(r,d,other);
+    if(blk){out.push('error: The following untracked working tree files would be overwritten by merge:',...blk.map(f=>'\t'+f),'Aborting');return 'dirty';}
+    r.branches[r.head]=other;out.push(`Updating ${cur}..${other}`,'Fast-forward');ev('merge:ff');return 'ff';}
+  const curT=treeOf(cur),m=mergeTrees(treeOf(mergeBase(cur,other)),curT,treeOf(other),'HEAD',label);
+  for(const f of new Set([...Object.keys(curT),...Object.keys(m.tree)])){
+    if(m.tree[f]===undefined){delete d.files[f];delete r.index[f];}
+    else{d.files[f]=m.tree[f];if(!m.conf.includes(f))r.index[f]=m.tree[f];}}
+  if(m.conf.length){r.merge={other,label,msg,conflicts:[...m.conf]};
+    for(const f of m.conf)out.push('Auto-merging '+f,R('CONFLICT (content): Merge conflict in '+f));
+    out.push('Automatic merge failed; fix conflicts and then commit the result.');ev('merge:conflict');return 'conflict';}
+  const c=mkCommit(Object.assign({},m.tree),[cur,other],msg,S.config.name||'你');r.branches[r.head]=c.id;
+  out.push("Merge made by the 'ort' strategy.");ev('merge:auto');return 'merged';}
+
+function gitRemote(r,args,out){const a=args[0];
+  if(!a||a==='-v'||a==='show'){if(r.remoteUrl){if(a==='-v')out.push(`origin\t${r.remoteUrl} (fetch)`,`origin\t${r.remoteUrl} (push)`);else out.push('origin');}return;}
+  if(a==='add'){if(!args[1]||!args[2]){out.push('usage: git remote add <name> <url>');return;}if(args[1]!=='origin'){out.push(N('模擬器只支援名為 origin 的遠端。'));return;}
+    if(r.remoteUrl){out.push('error: remote origin already exists.');return;}r.remoteUrl=args[2];
+    if(!urlOk(args[2]))out.push(N('網址看起來不是這個專案的。可以用 git remote set-url origin '+GH_URL+' 修正。'));return;}
+  if(a==='set-url'){if(!args[2]){out.push('usage: git remote set-url <name> <newurl>');return;}r.remoteUrl=args[2];return;}
+  if(a==='remove'||a==='rm'){r.remoteUrl='';r.rb={};r.tracking={};return;}
+  out.push(N('模擬器支援 git remote、git remote -v、git remote add、git remote set-url。'));}
+
+function remoteReady(r,out,remote){
+  if(!r.remoteUrl||(remote&&remote!=='origin')){out.push(`fatal: '${remote||'origin'}' does not appear to be a git repository`,'fatal: Could not read from remote repository.');out.push(N('還沒連結遠端。先 git remote add origin 網址'));return false;}
+  if(!S.gh.created||!urlOk(r.remoteUrl)){out.push('remote: Repository not found.',`fatal: repository '${r.remoteUrl}' not found`);out.push(N(!S.gh.created?'GitHub 上還沒有這個 repository，先到右邊 GitHub 面板建立。':'網址不對。用 git remote set-url origin '+GH_URL+' 修正。'));return false;}
+  return true;}
+
+function gitPush(r,args,out){let setUp=false;const pos=[];
+  for(const x of args){if(x==='-u'||x==='--set-upstream')setUp=true;else if(x==='-f'||x==='--force'){out.push(N('模擬器不支援強制推送。團隊協作時 --force 會蓋掉別人的 commit，請避免。'));return;}else if(!x.startsWith('-'))pos.push(x);}
+  if(!remoteReady(r,out,pos[0]))return;
+  let br=pos[1];
+  if(!br){if(!pos.length&&!r.tracking[r.head]){out.push(`fatal: The current branch ${r.head} has no upstream branch.`,'To push the current branch and set the remote as upstream, use','',`    git push --set-upstream origin ${r.head}`,'');return;}br=r.head;}
+  if(br==='HEAD')br=r.head;const id=r.branches[br];
+  if(id===undefined){out.push(`error: src refspec ${br} does not match any`,`error: failed to push some refs to '${r.remoteUrl}'`);if(!tip(r))out.push(N('還沒有任何 commit，沒有東西可以上傳。'));return;}
+  const cur=S.gh.branches[br];
+  if(cur===id){out.push('Everything up-to-date');}
+  else if(cur!==undefined&&!isAnc(cur,id)){out.push('To '+r.remoteUrl,R(` ! [rejected]        ${br} -> ${br} (fetch first)`),R(`error: failed to push some refs to '${r.remoteUrl}'`),'hint: Updates were rejected because the remote contains work that you do not','hint: have locally. Integrate the remote changes (e.g. \'git pull ...\') before pushing again.');ev('push:rejected');return;}
+  else{S.gh.branches[br]=id;const[n]=aheadBehind(id,cur||null);
+    out.push(`Enumerating objects: ${n*3}, done.`,`Writing objects: 100% (${n*3}/${n*3}), done.`);
+    if(cur===undefined&&br!=='main')out.push('remote:','remote: Create a pull request for \''+br+'\' on GitHub by visiting:','remote:      '+GH_URL.replace(/\.git$/,'')+'/pull/new/'+br,'remote:');
+    out.push('To '+r.remoteUrl,cur===undefined?` * [new branch]      ${br} -> ${br}`:`   ${cur}..${id}  ${br} -> ${br}`);ev('push');}
+  r.rb['origin/'+br]=id;
+  if(setUp){r.tracking[br]='origin/'+br;out.push(`branch '${br}' set up to track 'origin/${br}'.`);}}
+
+function doFetch(r,out){if(!remoteReady(r,out))return false;const ls=[];
+  for(const[b,id]of Object.entries(S.gh.branches)){const k='origin/'+b;if(r.rb[k]===undefined)ls.push(` * [new branch]      ${b} -> ${k}`);else if(r.rb[k]!==id)ls.push(`   ${r.rb[k]}..${id}  ${b.padEnd(10)} -> ${k}`);r.rb[k]=id;}
+  if(ls.length)out.push('From '+r.remoteUrl.replace(/\.git$/,''),...ls);ev('fetch');return true;}
+
+function gitPull(r,d,args,out){if(r.merge){out.push('error: Pulling is not possible because you have unmerged files.');return;}
+  if(args.includes('--rebase')){out.push(N('模擬器沒有實作 --rebase。'));return;}
+  const pos=args.filter(x=>!x.startsWith('-'));if(pos[0]&&pos[0]!=='origin'){out.push(`fatal: '${pos[0]}' does not appear to be a git repository`);return;}
+  if(!doFetch(r,out))return;const target=pos[1]?'origin/'+pos[1]:r.tracking[r.head];
+  if(!target){out.push('There is no tracking information for the current branch.','Please specify which branch you want to merge with.','','    git pull <remote> <branch>','');return;}
+  if(r.rb[target]===undefined){out.push(`fatal: couldn't find remote ref ${target.slice(7)}`);return;}
+  const b=target.slice(7);doMerge(r,d,r.rb[target],target,out,`Merge branch '${b}' of ${r.remoteUrl.replace(/\.git$/,'')}`+(r.head!==b?` into ${r.head}`:''));ev('pull');}
+
+function gitClone(args,out){const pos=args.filter(x=>!x.startsWith('-')),url=pos[0];
+  if(!url){out.push('usage: git clone <repo> [<dir>]');return;}
+  if(S.cwd){out.push(N('先 cd ~ 回到家目錄再 clone，不要把專案 clone 到另一個專案裡面。'));return;}
+  const name=pos[1]||url.replace(/\/+$/,'').split('/').pop().replace(/\.git$/,'');
+  if(S.dirs[name]){out.push(`fatal: destination path '${name}' already exists and is not an empty directory.`);return;}
+  out.push(`Cloning into '${name}'...`);
+  if(!S.gh.created||!urlOk(url)){out.push('remote: Repository not found.',`fatal: repository '${url}' not found`);return;}
+  const r=newRepo();r.remoteUrl=url;for(const[b,id]of Object.entries(S.gh.branches))r.rb['origin/'+b]=id;let files={};
+  const m=S.gh.branches.main;if(m){r.branches.main=m;r.tracking.main='origin/main';r.index=Object.assign({},treeOf(m));files=Object.assign({},treeOf(m));}
+  S.dirs[name]={files,repo:r};out.push('Receiving objects: 100%, done.');ev('clone');}
+
+/* ---- GitHub 與隊友 ---- */
+function ghCreate(){S.gh.created=true;}
+function ghTeamCommit(branch,msg,edit,who){const base=S.gh.branches[branch],tree=Object.assign({},treeOf(base));edit(tree);const c=mkCommit(tree,base?[base]:[],msg,who);S.gh.branches[branch]=c.id;return c;}
+function prOf(from){const l=S.gh.prs.filter(p=>p.from===from);return l[l.length-1]||null;}
+function ghOpenPR(from){if(!S.gh.branches[from]||from==='main')return null;if(S.gh.prs.some(p=>p.from===from&&p.state==='open'))return null;
+  const head=S.gh.branches[from];const pr={id:++S.gh.prSeq,from,title:S.commits[head].msg,state:'open',review:'new',openHead:head,tl:[]};S.gh.prs.push(pr);return pr;}
+function prCheck(pr){const m=S.gh.branches.main,h=S.gh.branches[pr.from];if(isAnc(m,h))return{conflict:false,tree:treeOf(h)};
+  const x=mergeTrees(treeOf(mergeBase(m,h)),treeOf(m),treeOf(h),'main',pr.from);return{conflict:x.conf.length>0,tree:x.tree};}
+function ghMergePR(id){const pr=S.gh.prs.find(p=>p.id===id);if(!pr||pr.state!=='open'||pr.review!=='approved')return false;const ck=prCheck(pr);if(ck.conflict)return false;
+  const m=S.gh.branches.main,h=S.gh.branches[pr.from];const c=mkCommit(Object.assign({},ck.tree),m?[m,h]:[h],`Merge pull request #${pr.id} from expedition-team/${pr.from}`,S.config.name||'你');
+  S.gh.branches.main=c.id;pr.state='merged';pr.tl.push({who:'你',text:`把 ${pr.from} 合併進 main。`});return true;}
+function settlePRs(){for(const pr of S.gh.prs)if(pr.review==='new'){pr.review='approved';pr.tl.push({who:MATE,text:'看過了，可以合併。'});}}
+
+/* ================= 關卡 ================= */
+const CH=['一個人的營地','分頭探索','連線總部','團隊協作'];
+const X={r:()=>proj()&&proj().repo,files:()=>proj()?proj().files:{},
+  br:b=>{const r=X.r();return r?r.branches[b]:undefined;},
+  ht:()=>{const r=X.r();return r?treeOf(tip(r)):{};},
+  count:()=>{const r=X.r();return r&&tip(r)?ancSet(tip(r)).size:0;},
+  e:k=>!!L.ev[k]};
+const fileWrite=(f,fn)=>{const d=proj();d.files[f]=fn(d.files[f]);};
+const existsNotOn=b=>()=>{const r=X.r();return r.branches[b]!==undefined&&r.head!==b?{m:`<b>${b}</b> 分支已經建立了，但你還站在 <b>${r.head}</b>。<code>git branch</code> 只會建立分支，不會切換過去。`,fix:'git switch '+b}:null;};
+const cleanNow=()=>{const s=status(X.r(),proj());return!s.staged.length&&!s.unst.length;};
+const noMark=()=>!!X.r().merge&&X.r().merge.conflicts.every(f=>!hasMarkers(X.files()[f]));
+const allAdded=()=>!!X.r().merge&&!X.r().merge.conflicts.length;
+const mainMoved=()=>X.br('main')!==L.base.main&&!isAnc(X.br('main'),S.gh.branches.main)?'有 commit 存到 main 上了。隊上的規矩是不直接改 main，要在自己的分支上做。':null;
+const l5bad=()=>X.count()>L.base.n?'壞掉的地圖被 commit 進去了。這一關練習的是 commit 之前的復原。':null;
+const l6bad=()=>X.br('main')!==L.base.main&&!('cave.md' in treeOf(X.br('cave')))?'剛才的 commit 存到 main 上了，cave 分支沒有拿到。':null;
+const l8={R:()=>X.br('river'),M:()=>X.br('main'),
+  rMoved:()=>!!X.br('river')&&X.br('river')!==L.base.main,
+  own:()=>X.br('main')!==L.base.main&&!isAnc(X.br('main'),X.br('river')),
+  fin:()=>!X.r().merge&&!!X.br('river')&&isAnc(X.br('river'),X.br('main'))&&l8.own(),
+  bad3:()=>X.br('main')!==L.base.main&&!l8.rMoved()?'剛才的 commit 存到 main 上了，river 還沒有自己的 commit。':null,
+  bad5:()=>X.br('main')!==L.base.main&&isAnc(X.br('main'),X.br('river'))?'main 已經先把 river 合併進來了（fast-forward），兩邊沒有不同的版本，就練習不到衝突。':null,
+  aborted:()=>!X.r().merge&&!l8.fin()?{m:'合併已經取消了。重新合併一次，衝突會再出現。',fix:'git merge river'}:null};
+const l11={P:()=>prOf('temple'),
+  has:()=>'temple.md' in treeOf(X.br('temple'))||!!prOf('temple'),
+  pushed:()=>{const p=prOf('temple');return!!p&&S.gh.branches.temple!==p.openHead;},
+  newLocal:()=>{const p=prOf('temple');return!!p&&!!X.br('temple')&&X.br('temple')!==p.openHead;}};
+const l12={P:()=>prOf('treasure'),
+  wrote:()=>!!X.br('treasure')&&treeOf(X.br('treasure'))['clues.md']!==L.base.clues,
+  fin:()=>!X.r().merge&&!!X.br('treasure')&&isAnc(S.gh.branches.main,X.br('treasure')),
+  aborted:()=>!X.r().merge&&!l12.fin()?{m:'合併已經取消了。重新合併一次，衝突會再出現。',fix:'git merge origin/main'}:null};
+
+const LEVELS=[
+{ch:0,title:'報到：告訴 Git 你是誰',
+ story:'你剛加入考古探險隊。隊上規定，每一筆發現都要署名，之後才查得到是誰、在什麼時候記下的。Git 也是這樣，每次存檔都會寫上作者。',
+ concept:'<p><b>Git</b> 是版本控制工具。它把專案在不同時間點的樣子存下來，你可以隨時回到任何一次存檔。</p><p>開始之前先設定名字和 email。這兩項只要設定一次，之後每個存檔都會帶著它們。</p>',
+ tasks:[
+  {t:'設定你的名字',h:['git config --global user.name "你的名字"'],n:'把「你的名字」換成自己的名字再按 Enter。',ok:()=>!!S.config.name},
+  {t:'設定你的 email',h:['git config --global user.email "you@example.com"'],ok:()=>!!S.config.email},
+  {t:'檢查設定有沒有寫進去',h:['git config --list'],ok:()=>X.e('config:list')}],
+ pass:'身分設定好了。往後每個 commit 都會記下這個名字。',
+ sol:[()=>run('git config --global user.name "'+(PREF.name||'探險隊員').replace(/["\\]/g,'')+'"'),'git config --global user.email "explorer@example.com"','git config --list']},
+
+{ch:0,title:'建立營地：git init',
+ story:'探險要有基地。先蓋一個專案資料夾，再請 Git 開始看管它。',
+ concept:'<p><code>git init</code> 會在資料夾裡建立一個隱藏的 <code>.git</code> 資料夾，所有存檔紀錄都放在裡面。有了它，這個資料夾就成為一個<b>儲存庫（repository）</b>。</p><p><code>git status</code> 是最常用的指令。不確定現在什麼狀況的時候，先打它。</p>',
+ tasks:[
+  {t:'建立專案資料夾 <code>treasure-hunt</code>',h:['mkdir treasure-hunt'],ok:()=>!!proj()},
+  {t:'走進資料夾',h:['cd treasure-hunt'],ok:()=>S.cwd===PROJECT||!!X.r()},
+  {t:'請 Git 開始看管這個資料夾',h:['git init'],ok:()=>!!X.r()},
+  {t:'看看目前的狀態',h:['git status'],ok:()=>X.e('status')}],
+ pass:'營地蓋好了。打 <code>ls -a</code> 可以看到隱藏的 .git 資料夾。',
+ sol:['mkdir treasure-hunt','cd treasure-hunt','git init','git status']},
+
+{ch:0,title:'第一張地圖：add 與 commit',
+ story:'隊長交給你第一項任務：畫下尋寶地圖，把它正式存進隊上的紀錄。',
+ concept:'<p>檔案在 Git 裡會經過三個地方：<b>工作目錄</b>是你正在修改的檔案，<b>暫存區</b>是這次存檔要收錄的清單，<b>版本庫</b>是已經存好的歷史。</p><p><code>git add</code> 把修改放進暫存區，<code>git commit</code> 把暫存區的內容存成一個版本。分成兩步，是為了讓你挑選哪些修改要放進同一次存檔。</p>',
+ tasks:[
+  {t:'建立地圖檔 <code>map.md</code>',h:['echo "# 尋寶地圖" > map.md'],ok:()=>'map.md' in X.files()||'map.md' in X.ht()},
+  {t:'看看 Git 怎麼描述這個新檔案',info:1,h:['git status'],n:'Untracked 的意思是 Git 看到了這個檔案，但還沒開始追蹤它。',ok:()=>X.e('status:untracked')},
+  {t:'把 map.md 放進暫存區',h:['git add map.md'],ok:()=>'map.md' in X.r().index||'map.md' in X.ht()},
+  {t:'存成第一個版本',h:['git commit -m "新增尋寶地圖"'],ok:()=>'map.md' in X.ht()}],
+ pass:'你有第一個 commit 了。右邊的圖上多了一個點，HEAD 和 main 都指著它。',
+ sol:['echo "# 尋寶地圖" > map.md','git status','git add map.md','git commit -m "新增尋寶地圖"']},
+
+{ch:0,title:'修改地圖，翻閱紀錄',
+ story:'探勘有了進展，地圖要補上起點。改完之後，學著查看改了什麼、以前存過什麼。',
+ concept:'<p><code>git diff</code> 顯示工作目錄裡還沒放進暫存區的修改，紅色是刪掉的行，綠色是加上的行。</p><p><code>git log</code> 列出存檔歷史。每個 commit 都有一串編號，之後可以用它指名某一次存檔。</p>',
+ base:()=>({n:X.count(),map:X.ht()['map.md']}),
+ tasks:[
+  {t:'在 map.md 加一行起點',h:['echo "- 起點：河邊營地" >> map.md'],n:'兩個 > 是把文字加在檔案最後。也可以點右邊「工作目錄」裡的 map.md 直接編輯。',ok:()=>X.files()['map.md']!==L.base.map||X.r().index['map.md']!==L.base.map||X.count()>L.base.n},
+  {t:'查看改了什麼',info:1,h:['git diff'],ok:()=>X.e('diff')},
+  {t:'把修改放進暫存區',h:['git add map.md'],ok:()=>X.r().index['map.md']!==L.base.map||X.count()>L.base.n,
+   pre:()=>X.files()['map.md']===L.base.map?{m:'map.md 現在沒有任何修改可以存。先在檔案裡加一行。',fix:'echo "- 起點：河邊營地" >> map.md'}:null},
+  {t:'存成新版本',h:['git commit -m "標上起點"'],ok:()=>X.count()>L.base.n},
+  {t:'翻閱存檔歷史',h:['git log --oneline'],ok:()=>X.e('log')}],
+ pass:'兩個存檔排成一條線，最新的在最上面。',
+ sol:['echo "- 起點：河邊營地" >> map.md','git diff','git add map.md','git commit -m "標上起點"','git log --oneline']},
+
+{ch:0,title:'後悔藥：git restore',
+ story:'半夜整理地圖時手滑，整張寫壞了。還好之前有存檔。',
+ concept:'<p>還沒 commit 的修改有兩種退路。<code>git restore 檔名</code> 把工作目錄的檔案還原成上次存檔的樣子。<code>git restore --staged 檔名</code> 把檔案從暫存區拿出來，你的修改還留在工作目錄。</p><p>注意：被 <code>git restore</code> 丟掉的修改找不回來。</p>',
+ base:()=>({n:X.count()}),
+ tasks:[
+  {g:'情況一：改壞了，還沒 add',t:'把地圖寫壞',h:['echo "亂畫一通" > map.md'],n:'一個 > 會覆寫整個檔案。',ok:()=>X.files()['map.md']!==X.ht()['map.md']||X.e('restore:wd'),bad:l5bad},
+  {t:'還原成上次存檔的樣子',h:['git restore map.md'],ok:()=>X.e('restore:wd'),bad:l5bad,
+   pre:()=>X.r().index['map.md']!==X.ht()['map.md']?{m:'壞掉的地圖已經被 add 進暫存區了。這一步要練習的是還沒 add 的情況，先把它拿出來。',fix:'git restore --staged map.md'}:null,
+   after:()=>{delete L.ev['restore:staged'];}},
+  {g:'情況二：改壞了，而且已經 add',t:'再把地圖寫壞一次',h:['echo "又畫壞了" > map.md'],ok:()=>X.files()['map.md']!==X.ht()['map.md']||X.r().index['map.md']!==X.ht()['map.md']||X.e('restore:staged'),bad:l5bad},
+  {t:'這次把它放進暫存區',h:['git add map.md'],ok:()=>X.r().index['map.md']!==X.ht()['map.md']||X.e('restore:staged'),bad:l5bad},
+  {t:'把它從暫存區拿出來',h:['git restore --staged map.md'],n:'檔案回到「已修改」，內容還是壞的。',ok:()=>X.e('restore:staged'),bad:l5bad},
+  {t:'還原工作目錄，回到乾淨狀態',h:['git restore map.md'],ok:cleanNow,bad:l5bad}],
+ pass:'工作目錄乾淨了。只要有 commit，就有地方可以退回去。',
+ sol:['echo "亂畫一通" > map.md','git restore map.md','echo "又畫壞了" > map.md','git add map.md','git restore --staged map.md','git restore map.md']},
+
+{ch:1,title:'開闢新路線：分支',
+ story:'前方出現一個洞穴，值不值得探還不知道。你決定開一條自己的路線去看看，主線地圖先不動。',
+ concept:'<p><b>分支（branch）</b>是一個指向某個 commit 的標籤。在分支上存檔，只有那個標籤往前移，main 留在原地。<b>HEAD</b> 表示你現在站在哪個分支上。</p><p><code>git switch -c 名稱</code> 建立分支並切換過去。舊寫法是 <code>git checkout -b 名稱</code>，兩種都常見。</p>',
+ base:()=>({main:X.br('main')}),
+ tasks:[
+  {t:'建立並切換到 <code>cave</code> 分支',h:['git switch -c cave'],ok:()=>X.r().head==='cave'||'cave.md' in treeOf(X.br('cave')),pre:existsNotOn('cave')},
+  {t:'寫下洞穴筆記 <code>cave.md</code>',on:'cave',h:['echo "# 洞穴探勘筆記" > cave.md'],ok:()=>'cave.md' in X.files()||'cave.md' in treeOf(X.br('cave')),bad:l6bad},
+  {t:'把 cave.md 放進暫存區',on:'cave',h:['git add cave.md'],ok:()=>'cave.md' in X.r().index||'cave.md' in treeOf(X.br('cave')),bad:l6bad},
+  {t:'在 cave 分支上存檔',on:'cave',h:['git commit -m "探勘洞穴入口"'],ok:()=>'cave.md' in treeOf(X.br('cave')),bad:l6bad},
+  {t:'列出所有分支',h:['git branch'],n:'前面有 * 的是你現在所在的分支。',ok:()=>X.e('branch:list')}],
+ pass:'看右邊的圖：cave 往前了一步，main 還停在原地。',
+ sol:['git switch -c cave','echo "# 洞穴探勘筆記" > cave.md','git add cave.md','git commit -m "探勘洞穴入口"','git branch']},
+
+{ch:1,title:'會合：git merge',
+ story:'洞穴裡真的有線索。把這條路線的成果併回主線。',
+ concept:'<p>合併要站在<b>接收成果的那個分支</b>上做。先切回 main，再把 cave 合併進來。</p><p>這次 main 在你離開後沒有新的 commit，Git 只需要把 main 標籤往前移到 cave 的位置。這種合併叫 <b>fast-forward</b>。</p>',
+ tasks:[
+  {t:'切回 main',h:['git switch main'],n:'切過去之後 cave.md 會從工作目錄消失，因為 main 還沒有它。',ok:()=>X.r().head==='main'||'cave.md' in treeOf(X.br('main'))},
+  {t:'把 cave 合併進來',on:'main',h:['git merge cave'],ok:()=>'cave.md' in treeOf(X.br('main')),
+   bad:()=>X.br('cave')===undefined&&!('cave.md' in treeOf(X.br('main')))?'cave 分支在合併之前就被刪掉了。':null},
+  {t:'刪掉用完的分支',on:'main',h:['git branch -d cave'],ok:()=>X.br('cave')===undefined}],
+ pass:'main 追上來了，cave.md 也回到工作目錄。分支標籤刪掉，commit 還在。',
+ sol:['git switch main','git merge cave','git branch -d cave']},
+
+{ch:1,title:'地圖打架了：解決衝突',
+ story:'你在 river 路線寫下一站要走渡口，回到主線又寫了要上山頂。同一個地方有兩種寫法，Git 無法替你決定。',
+ concept:'<p>兩個分支改到同一段內容時，合併會停下來，在檔案裡標出兩邊的版本：</p><pre>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD\n你現在這個分支的內容\n=======\n要合併進來的內容\n&gt;&gt;&gt;&gt;&gt;&gt;&gt; river</pre><p>處理方式：打開檔案，留下要的內容，刪掉三行標記，然後 <code>git add</code>、<code>git commit</code>。衝突是協作的日常，不代表你做錯事。</p>',
+ base:()=>({main:X.br('main')}),
+ tasks:[
+  {g:'第一段：在 river 路線留下紀錄',t:'建立並切換到 <code>river</code> 分支',h:['git switch -c river'],ok:()=>X.r().head==='river'||l8.rMoved(),pre:existsNotOn('river'),bad:l8.bad3},
+  {t:'在 map.md 最後寫下一站',on:'river',h:['echo "- 下一站：河流渡口" >> map.md'],ok:()=>l8.rMoved()||(X.r().head==='river'&&X.files()['map.md']!==treeOf(L.base.main)['map.md']),bad:l8.bad3},
+  {t:'在 river 上存檔',on:'river',h:['git commit -am "river：下一站走渡口"'],n:'-am 是 -a 加 -m：已追蹤的檔案自動 add，然後直接 commit。少了 a 就不會存到。',ok:l8.rMoved,bad:l8.bad3},
+  {g:'第二段：回主線寫下不同的內容',t:'切回 main',h:['git switch main'],n:'切過去之後，剛才在 river 寫的那一行會從 map.md 消失。',ok:()=>X.r().head==='main'||l8.own(),
+   pre:()=>X.r().head!=='main'&&!cleanNow()?{m:'你有還沒 commit 的修改。現在切換分支，修改會跟著你到另一個分支。先在這裡存檔。',fix:'git commit -am "補上修改"'}:null},
+  {t:'在 map.md 最後寫下不同的下一站',on:'main',h:['echo "- 下一站：山頂瞭望台" >> map.md'],ok:()=>l8.own()||(X.r().head==='main'&&X.files()['map.md']!==treeOf(X.br('main'))['map.md']),bad:l8.bad5},
+  {t:'在 main 上存檔',on:'main',h:['git commit -am "main：下一站上山頂"'],ok:l8.own,bad:l8.bad5},
+  {g:'第三段：合併，解決衝突',t:'合併 river',on:'main',h:['git merge river'],n:'出現 CONFLICT 是預期中的結果。',ok:()=>X.e('merge:conflict')||l8.fin()},
+  {t:'看看 Git 怎麼描述衝突',info:1,mg:1,h:['git status'],ok:()=>X.e('status:unmerged'),pre:l8.aborted},
+  {t:'打開 map.md，留下要的內容，刪掉標記',mg:1,h:['nano map.md'],n:'也可以點右邊標著「衝突」的 map.md。編輯視窗上方有一鍵處理的按鈕。',ok:()=>l8.fin()||noMark(),pre:l8.aborted},
+  {t:'告訴 Git 衝突解決了',mg:1,h:['git add map.md'],ok:()=>l8.fin()||allAdded(),pre:l8.aborted},
+  {t:'存檔，完成合併',mg:1,h:['git commit -m "合併 river，決定下一站"'],ok:l8.fin,pre:l8.aborted}],
+ pass:()=>X.e('merge:conflict')?'兩條線匯合成一個 merge commit。它有兩個上一步，所以圖上有兩條線接到它。':'合併完成了，不過這次沒有出現衝突：兩邊改的不是同一段，Git 自動合併了。想練習解衝突，可以按上方「重置本關」再走一次。',
+ sol:['git switch -c river','echo "- 下一站：河流渡口" >> map.md','git commit -am "river：下一站走渡口"','git switch main','echo "- 下一站：山頂瞭望台" >> map.md','git commit -am "main：下一站上山頂"','git merge river','git status',()=>fileWrite('map.md',t=>resolveMarkers(t,'both')),'git add map.md','git commit -m "合併 river，決定下一站"']},
+
+{ch:2,title:'連線總部：remote 與 push',
+ story:'到目前為止，所有紀錄都只存在你的電腦裡。電腦壞了就全沒了，隊友也看不到。該把紀錄送回總部了。',
+ concept:'<p><b>GitHub</b> 是放在網路上的儲存庫，我們叫它<b>遠端（remote）</b>。<code>git remote add origin 網址</code> 替遠端取名為 origin，<code>git push</code> 把本機的 commit 上傳。</p><p>第一次 push 加上 <code>-u</code>，讓本機的 main 記住它對應遠端的 main。之後只要打 <code>git push</code>。</p>',
+ tasks:[
+  {t:'在 GitHub 建立 repository',h:[{ui:'到右邊的 GitHub 面板，按「建立 repository」。'}],ok:()=>S.gh.created},
+  {t:'把本機和遠端連起來',h:['git remote add origin '+GH_URL],n:'點 GitHub 面板上的網址，可以把它填進終端機。',ok:()=>!!X.r().remoteUrl},
+  {t:'上傳 main',on:'main',h:['git push -u origin main'],ok:()=>S.gh.branches.main!==undefined,
+   pre:()=>!urlOk(X.r().remoteUrl)?{m:'遠端網址打錯了，push 會找不到 repository。用這個指令改成正確的網址。',fix:'git remote set-url origin '+GH_URL}:null},
+  {t:'確認本機和遠端同步',on:'main',h:['git status'],ok:()=>X.e('status:uptodate'),
+   pre:()=>!X.r().tracking.main?{m:'main 還沒有記住它對應的遠端分支（push 的時候少了 -u）。再 push 一次補上。',fix:'git push -u origin main'}:null}],
+ pass:'GitHub 上的圖和你的電腦一樣了。虛線框的 origin/main 是本機記得的「遠端 main 在哪裡」。',
+ sol:[()=>ghCreate(),'git remote add origin '+GH_URL,'git push -u origin main','git status']},
+
+{ch:2,title:'隊友的更新：fetch 與 pull',
+ story:'隊友小安用 git clone 把整個專案複製到她的電腦，寫下新線索後 push 回總部。總部現在比你的電腦多一個 commit。',
+ concept:'<p>每個人的電腦上都有一份完整的複本，各自工作，再和總部同步。這樣不會互相蓋掉，沒有網路也能存檔。這就是為什麼要先 <code>git clone</code> 複製一份，而不是直接在總部動手。</p><p><code>git fetch</code> 只下載遠端的新 commit，不動你的分支。<code>git pull</code> 等於 fetch 之後再 merge。</p>',
+ enter:()=>{if(S.gh.branches.main&&!S.flags.l10){S.flags.l10=1;ghTeamCommit('main','新增線索：太陽圖騰',t=>{t['clues.md']='# 線索\n- 小安：石碑上刻著太陽圖騰';},MATE);}},
+ tasks:[
+  {t:'下載遠端的更新',h:['git fetch'],n:'fetch 之後 origin/main 往前了，你的 main 沒動。',ok:()=>X.r().rb['origin/main']===S.gh.branches.main},
+  {t:'看看你落後多少',info:1,on:'main',h:['git status'],ok:()=>X.e('status:behind')},
+  {t:'把更新合併進來',on:'main',h:['git pull'],ok:()=>isAnc(S.gh.branches.main,X.br('main'))},
+  {t:'讀讀小安寫的線索',on:'main',h:['cat clues.md'],ok:()=>X.e('cat:clues.md')}],
+ pass:'你和總部又同步了。開始工作前先 pull，是協作的好習慣。',
+ sol:['git fetch','git status','git pull','cat clues.md']},
+
+{ch:3,title:'Pull Request：請隊友審核',
+ story:'隊上的規矩：沒有人直接改總部的 main。要加東西，就在自己的分支上做，上傳之後發一個 Pull Request，請隊友看過再合併。',
+ concept:'<p><b>Pull Request（PR）</b>是一個請求：「我的分支做好了，請把它合併進 main。」隊友可以在上面留言、要求修改。</p><p>你在同一個分支上再 commit、再 push，PR 會自動更新。審核通過後按下 Merge，成果就進到 main。</p>',
+ base:()=>({main:X.br('main')}),
+ tasks:[
+  {g:'第一段：在自己的分支上工作',t:'建立並切換到 <code>temple</code> 分支',h:['git switch -c temple'],ok:()=>X.r().head==='temple'||l11.has(),pre:existsNotOn('temple'),bad:mainMoved},
+  {t:'寫下神殿線索 <code>temple.md</code>',on:'temple',h:['echo "# 神殿線索" > temple.md'],ok:()=>'temple.md' in X.files()||l11.has(),bad:mainMoved},
+  {t:'把 temple.md 放進暫存區',on:'temple',h:['git add temple.md'],ok:()=>'temple.md' in X.r().index||l11.has(),bad:mainMoved},
+  {t:'在 temple 分支上存檔',on:'temple',h:['git commit -m "新增神殿線索"'],ok:l11.has,bad:mainMoved},
+  {g:'第二段：上傳，發出 Pull Request',t:'把 temple 分支上傳到 GitHub',on:'temple',h:['git push -u origin temple'],ok:()=>S.gh.branches.temple!==undefined},
+  {t:'發出 Pull Request',h:[{ui:'到右邊的 GitHub 面板，按「Compare & pull request」。'}],ok:()=>!!l11.P(),
+   after:()=>{const p=l11.P();p.review='changes';p.tl.push({who:MATE,text:'線索很清楚。請在 temple.md 最後補上神殿的出口位置，再 push 上來。'});}},
+  {g:'第三段：依審查意見修改',t:'在 temple.md 最後補上出口位置',on:'temple',h:['echo "- 出口：東側石門" >> temple.md'],ok:()=>l11.pushed()||l11.newLocal()||(X.r().head==='temple'&&X.files()['temple.md']!==treeOf(X.br('temple'))['temple.md']),bad:mainMoved},
+  {t:'存檔',on:'temple',h:['git commit -am "補上出口位置"'],ok:()=>l11.pushed()||l11.newLocal(),bad:mainMoved},
+  {t:'再 push 一次，PR 會自動更新',on:'temple',h:['git push'],n:'已經設定過 -u，這次只要 git push。',ok:l11.pushed,
+   after:()=>{const p=l11.P();if(p.state==='open'){p.review='approved';p.tl.push({who:MATE,text:'補上了，可以合併。'});}}},
+  {g:'第四段：合併，收尾',t:'合併 Pull Request',h:[{ui:'到 GitHub 面板按「Merge pull request」。'}],ok:()=>l11.P().state==='merged'},
+  {t:'切回 main',h:['git switch main'],ok:()=>X.r().head==='main'||X.br('temple')===undefined},
+  {t:'把合併後的結果拉下來',on:'main',h:['git pull'],ok:()=>isAnc(S.gh.branches.main,X.br('main'))},
+  {t:'刪掉本機用完的分支',on:'main',h:['git branch -d temple'],ok:()=>X.br('temple')===undefined}],
+ pass:'這就是一輪完整的協作：開分支、push、PR、審核、合併、同步。',
+ sol:['git switch -c temple','echo "# 神殿線索" > temple.md','git add temple.md','git commit -m "新增神殿線索"','git push -u origin temple',()=>ghOpenPR('temple'),'echo "- 出口：東側石門" >> temple.md','git commit -am "補上出口位置"','git push',()=>ghMergePR(prOf('temple').id),'git switch main','git pull','git branch -d temple']},
+
+{ch:3,title:'最終挑戰：寶藏在哪裡',
+ story:'你確信寶藏在神殿地下室，準備把結論寫進線索表。同一時間，小安也有她的推論。',
+ concept:'<p>真實的協作裡，main 會在你工作的時候被別人更新。PR 出現衝突時的做法：把最新的 main 合併進你的分支，在自己的分支上解決衝突，再 push。PR 會跟著更新，衝突消失後就能合併。</p><p><code>origin/main</code> 是本機記得的遠端 main。<code>git fetch</code> 會更新它，接著 <code>git merge origin/main</code> 就能把最新進度合併進來。</p>',
+ base:()=>({clues:X.ht()['clues.md'],main:X.br('main')}),
+ tasks:[
+  {g:'第一段：寫下你的結論，發出 PR',t:'建立並切換到 <code>treasure</code> 分支',h:['git switch -c treasure'],ok:()=>X.r().head==='treasure'||l12.wrote(),pre:existsNotOn('treasure'),bad:mainMoved},
+  {t:'在 clues.md 最後寫下寶藏位置',on:'treasure',h:['echo "- 寶藏位置：神殿地下室" >> clues.md'],ok:()=>l12.wrote()||(X.r().head==='treasure'&&X.files()['clues.md']!==L.base.clues),bad:mainMoved},
+  {t:'存檔',on:'treasure',h:['git commit -am "寫下寶藏位置"'],ok:l12.wrote,bad:mainMoved},
+  {t:'上傳 treasure 分支',on:'treasure',h:['git push -u origin treasure'],ok:()=>S.gh.branches.treasure!==undefined},
+  {t:'發出 Pull Request',h:[{ui:'到 GitHub 面板按「Compare & pull request」。'}],ok:()=>!!l12.P(),
+   after:()=>{const p=l12.P();if(!S.flags.l12){S.flags.l12=1;ghTeamCommit('main','補上寶藏位置的推論',t=>{t['clues.md']=(t['clues.md']||'# 線索')+'\n- 寶藏位置：瀑布後方的洞窟';},MATE);}
+     p.review='wait';p.tl.push({who:MATE,text:prCheck(p).conflict?'我的推論剛剛先進了 main，和你的分支改到同一個地方。請把最新的 main 合併進你的分支，解決衝突後再 push。':'main 剛剛有更新。請先把最新的 main 合併進你的分支，再 push。'});}},
+  {g:'第二段：main 更新了，在自己的分支解決衝突',t:'取得最新的 main',h:['git fetch'],ok:()=>X.r().rb['origin/main']===S.gh.branches.main},
+  {t:'把最新的 main 合併進你的分支',on:'treasure',h:['git merge origin/main'],n:'會出現衝突，因為你和小安都在 clues.md 的最後加了一行。',ok:()=>X.e('merge:conflict')||l12.fin()},
+  {t:'打開 clues.md，留下要的內容，刪掉標記',mg:1,h:['nano clues.md'],n:'也可以點右邊標著「衝突」的 clues.md。',ok:()=>l12.fin()||noMark(),pre:l12.aborted},
+  {t:'告訴 Git 衝突解決了',mg:1,h:['git add clues.md'],ok:()=>l12.fin()||allAdded(),pre:l12.aborted},
+  {t:'存檔，完成合併',mg:1,h:['git commit -m "合併 main，確認寶藏位置"'],ok:l12.fin,pre:l12.aborted},
+  {g:'第三段：送出',t:'把解決後的結果 push 上去',on:'treasure',h:['git push'],ok:()=>l12.fin()&&S.gh.branches.treasure===X.br('treasure'),
+   after:()=>{const p=l12.P();if(p.state==='open'){p.review='approved';p.tl.push({who:MATE,text:'衝突解決了，內容我看過，可以合併。'});}}},
+  {t:'合併 Pull Request',h:[{ui:'到 GitHub 面板按「Merge pull request」。'}],ok:()=>l12.P().state==='merged'}],
+ pass:'',
+ sol:['git switch -c treasure','echo "- 寶藏位置：神殿地下室" >> clues.md','git commit -am "寫下寶藏位置"','git push -u origin treasure',()=>ghOpenPR('treasure'),'git fetch','git merge origin/main',()=>fileWrite('clues.md',t=>resolveMarkers(t,'ours')),'git add clues.md','git commit -m "合併 main，確認寶藏位置"','git push',()=>ghMergePR(prOf('treasure').id)]}
+];
+
+/* 每完成一步就存一個檢查點（cp），做錯時可以退回該步開始前的狀態 */
+function snap(){return JSON.stringify({S,ev:L.ev});}
+function startLevel(i){const lv=LEVELS[i];L={i,done:lv.tasks.map(()=>0),ev:{},hint:{},base:{},cp:[],complete:false};
+  if(lv.enter)lv.enter();if(lv.base)L.base=lv.base();L.cp[0]=snap();evaluate();}
+function evaluate(){const ts=LEVELS[L.i].tasks,test=k=>{try{return!!ts[k].ok();}catch(e){return false;}};
+  for(let k=0;k<ts.length;k++){if(L.done[k])continue;let v=test(k)?1:0;
+    // 觀察型步驟（info）沒做也不卡關：下一個實作步驟已經達成時，標成「略過」
+    if(!v&&ts[k].info){let j=k+1;while(j<ts.length&&ts[j].info)j++;if(j<ts.length&&test(j))v=2;}
+    if(!v)break;L.done[k]=v;if(ts[k].after)ts[k].after();L.cp[k+1]=snap();}
+  settlePRs();L.complete=L.done.every(Boolean);}
+function rewind(k){if(k<0||!L.cp[k])return false;const o=JSON.parse(L.cp[k]);S=o.S;L.ev=o.ev;
+  for(let j=k;j<L.done.length;j++)L.done[j]=0;L.cp.length=k+1;L.complete=false;evaluate();return true;}
+function prevCp(k){for(let j=k-1;j>=0;j--)if(L.cp[j]!==L.cp[k])return j;return-1;}
+/* 目前這一步的狀況診斷：回傳 {m 說明, fix 建議指令, redo 是否建議重做}，沒問題回傳 null */
+function diagnose(){const ts=LEVELS[L.i].tasks,k=L.done.findIndex(v=>!v);if(k<0)return null;const t=ts[k];
+  if((L.i>=2||(L.i===1&&k>=2))&&proj()&&S.cwd!==PROJECT)return{m:'你現在不在專案資料夾裡，指令不會作用在專案上。',fix:'cd ~/'+PROJECT};
+  const r=X.r();if(!r)return null;
+  try{
+    if(t.bad){const m=t.bad();if(m)return{m,redo:true};}
+    if(t.pre){const p=t.pre();if(p)return p;}
+    if(r.merge&&!t.mg)return{m:'現在有一個做到一半的合併，而且有衝突。可以自己解決（編輯檔案、git add、git commit），或回到合併之前。',redo:true};
+    if(t.on&&r.head!==t.on&&r.branches[t.on]!==undefined)return{m:`這一步要在 <b>${t.on}</b> 分支上做，你現在在 <b>${r.head}</b>。`,fix:'git switch '+t.on};
+  }catch(e){}
+  return null;}
+function step(s){if(typeof s==='string')run(s);else s();evaluate();}
+function jump(i){PREF.name=(S&&S.config.name)||PREF.name;S=fresh();const bad=[];
+  for(let k=0;k<i;k++){startLevel(k);for(const s of LEVELS[k].sol)step(s);if(!L.complete)bad.push(k+1);}
+  startLevel(i);return bad;}
+
+if(typeof module!=='undefined'&&module.exports){module.exports={LEVELS,jump,step,run,status,diagnose,rewind,prevCp,evaluate,get S(){return S;},get L(){return L;},proj};return;}
+
+/* ================= 介面 ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=s=>esc(s).replace(/\u0001(.)/g,'<span class="c-$1">').replace(/\u0002/g,'</span>');
+const KEY='git-quest-v1';let completed={},hist=[],hpos=0,ed=null,prevChips=null,lastDiag=null,resumeAt=0;
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify({v:2,S,L,completed}));}catch(e){}}
+function load(){try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(!o||!o.L||!LEVELS[o.L.i])return false;
+    completed=o.completed||{};resumeAt=o.L.i;if(o.S&&o.S.config)PREF.name=o.S.config.name||'';
+    if(o.v!==2||!o.S||!Array.isArray(o.L.cp)||o.L.done.length!==LEVELS[o.L.i].tasks.length||!o.S.gh||!o.S.commits)return false;
+    S=o.S;L=o.L;evaluate();return true;}catch(e){return false;}}
+
+function promptHTML(){const d=curDir(),r=d.repo;return `<span class="p-path">~${S.cwd?'/'+esc(S.cwd):''}</span>${r?` <span class="p-br">(${esc(r.head)}${r.merge?'|MERGING':''})</span>`:''} <span class="p-usd">$</span>`;}
+function print(html){const o=$('out'),div=document.createElement('div');div.className='ln';div.innerHTML=html;o.appendChild(div);o.scrollTop=o.scrollHeight;}
+function note(s){print('<span class="c-d">'+esc(s)+'</span>');}
+function announce(){note(`── 關卡 ${L.i+1}：${LEVELS[L.i].title} ──`);}
+
+function vizDir(){return(S.cwd&&S.dirs[S.cwd])||proj();}
+
+function renderRoute(){let h='';CH.forEach((name,c)=>{h+=`<div class="leg"><span class="leg-name">${name}</span><div class="stops">`;
+    LEVELS.forEach((lv,i)=>{if(lv.ch!==c)return;const last=i===LEVELS.length-1;
+      h+=`<button type="button" class="stop${completed[i]?' done':''}${i===L.i?' now':''}${last?' x':''}" data-go="${i}" title="關卡 ${i+1}：${esc(lv.title)}" aria-label="關卡 ${i+1}：${esc(lv.title)}${completed[i]?'（已完成）':''}"${i===L.i?' aria-current="step"':''}>${last?'✕':i+1}</button>`;});
+    h+='</div></div>';});$('route').innerHTML=h;}
+
+function renderLesson(){const lv=LEVELS[L.i],now=L.done.findIndex(v=>!v),nDone=L.done.filter(Boolean).length,dg=diagnose();
+  let h=`<p class="eyebrow"><span>第${'一二三四'[lv.ch]}章 · ${CH[lv.ch]}</span><span>${L.i+1} / ${LEVELS.length}</span></p><h2>${lv.title}</h2><p class="story">${lv.story}</p><div class="concept"><h3>觀念</h3>${lv.concept}</div><h3 class="sec">任務<span>${nDone} / ${lv.tasks.length}</span></h3><ol class="tasks">`;
+  lv.tasks.forEach((t,k)=>{const d=L.done[k],st=d===2?'done skip':d?'done':k===now?'now':'todo';
+    if(t.g)h+=`<li class="grp">${t.g}</li>`;
+    h+=`<li class="${st}"><span class="box" aria-hidden="true"></span><div><p>${t.t}${d===2?'<span class="skipped">已略過</span>':d?'<span class="sr">（已完成）</span>':''}</p>`;
+    if(!d){if(L.hint[k])h+=`<div class="hint">${t.h.map(c=>c.ui?`<p class="ui-hint">${c.ui}</p>`:`<button type="button" class="cmd" data-act="fill" data-fill="${esc(c)}">${esc(c)}</button>`).join('')}${t.n?`<p class="hn">${t.n}</p>`:''}</div>`;
+      else h+=`<button type="button" class="link" data-act="hint" data-k="${k}">看提示</button>`;
+      if(k===now){
+        if(dg)h+=`<div class="warn" role="status"><p><b>狀況不對：</b>${dg.m}</p>${dg.fix?`<button type="button" class="cmd" data-act="fill" data-fill="${esc(dg.fix)}">${esc(dg.fix)}</button>`:''}${dg.redo?'<button type="button" class="btn" data-act="redo">重做這一步</button>':''}</div>`;
+        const canRedo=snap()!==L.cp[k],back=prevCp(k);
+        h+=`<div class="undo"><span>做錯了？</span><button type="button" class="link" data-act="redo"${canRedo?'':' disabled'} title="把專案還原成這一步開始之前的樣子">重做這一步</button><button type="button" class="link" data-act="back"${back<0?' disabled':''} title="連上一步也重來">退回上一步</button></div>`;}}
+    h+='</div></li>';});
+  h+='</ol>';
+  if(L.complete){const pass=typeof lv.pass==='function'?lv.pass():lv.pass;
+    if(L.i<LEVELS.length-1)h+=`<div class="passed"><p><strong>過關。</strong>${pass}</p><button type="button" class="btn primary" data-act="next">前往關卡 ${L.i+2}</button></div>`;
+    else h+=`<div class="final"><h3>寶藏找到了！</h3><p>你從一個空資料夾開始，走完了一次真正的團隊協作流程：</p>
+      <p class="flow"><span>branch</span><span>add</span><span>commit</span><span>push</span><span>Pull Request</span><span>review</span><span>merge</span><span>pull</span></p>
+      <p>最後收個尾：<code>git switch main</code>，再 <code>git pull</code>，讓本機的 main 也拿到寶藏。終端機還開著，可以繼續自由練習。</p>
+      <p><b>課後挑戰</b>（在真正的 GitHub 上做一次）</p>
+      <ol><li>寫一支印出「寶藏找到了！」的程式</li><li>commit 並 push 到你的分支</li><li>向 main 發出 Pull Request</li><li>請隊友或小老師審核並合併</li></ol>
+      <button type="button" class="btn" data-act="restart">從第 1 關重新開始</button></div>`;}
+  $('lesson').innerHTML=h;}
+
+function renderZones(){const d=vizDir(),now={};let first=prevChips===null;
+  const chip=(zone,f,cls,tag,click)=>{const key=zone+'|'+f+'|'+cls;now[key]=1;const fr=!first&&!prevChips[key]?' fresh':'';const inner=esc(f)+(tag?`<span class="tag">${tag}</span>`:'');
+    return click?`<button type="button" class="chip ${cls}${fr}" data-act="edit" data-f="${esc(f)}" title="點一下編輯 ${esc(f)}">${inner}</button>`:`<span class="chip ${cls}${fr}">${inner}</span>`;};
+  let wd='',sg='',rp='';
+  if(!d){wd='<p class="empty">還沒有專案資料夾。</p>';sg=rp='<p class="empty">第 2 關用 git init 建立。</p>';}
+  else{const r=d.repo,files=Object.keys(d.files).sort();
+    if(!r){wd=files.length?'<div class="chips">'+files.map(f=>chip('w',f,'s-clean','',true)).join('')+'</div>':'<p class="empty">空的資料夾。</p>';sg=rp='<p class="empty">執行 git init 之後才有。</p>';}
+    else{const st=status(r,d),unm=st.unmerged,mod={};st.unst.forEach(([f,t])=>mod[f]=t);
+      const w=files.map(f=>unm.includes(f)?chip('w',f,'s-conf','衝突',true):st.untr.includes(f)?chip('w',f,'s-new','未追蹤',true):mod[f]?chip('w',f,'s-mod','已修改',true):chip('w',f,'s-clean','',true));
+      st.unst.filter(([,t])=>t==='deleted').forEach(([f])=>w.push(chip('w',f,'s-del','已刪除',false)));
+      wd=w.length?'<div class="chips">'+w.join('')+'</div>':'<p class="empty">空的資料夾。</p>';
+      const tagOf={'new file':['s-new','新檔案'],'modified':['s-mod','修改'],'deleted':['s-del','刪除']};
+      sg=st.staged.length?'<div class="chips">'+st.staged.map(([f,t])=>chip('s',f,tagOf[t][0],tagOf[t][1],false)).join('')+'</div>':'<p class="empty">沒有等著存檔的修改。</p>';
+      const t=tip(r);
+      if(t){const c=S.commits[t];rp=`<p class="last">最新存檔 <code>${t}</code><br>${esc(c.msg)}</p><div class="chips">${Object.keys(c.tree).sort().map(f=>chip('r',f,'s-clean','',false)).join('')}</div>`;}
+      else rp='<p class="empty">還沒有任何存檔。</p>';}}
+  prevChips=now;
+  $('zones').innerHTML=`<div class="zones">
+    <div class="zone"><h4>工作目錄<small>你正在改的檔案</small></h4>${wd}</div>
+    <div class="arrow">git add<b>→</b></div>
+    <div class="zone"><h4>暫存區<small>這次要存的清單</small></h4>${sg}</div>
+    <div class="arrow">git commit<b>→</b></div>
+    <div class="zone"><h4>版本庫<small>已存好的歷史</small></h4>${rp}</div></div>`;}
+
+function layout(tips){const all=new Set();for(const t of tips)if(t)for(const c of ancSet(t))all.add(c);
+  const list=[...all].sort((a,b)=>S.commits[b].n-S.commits[a].n),lane={},occ=[],kids={};
+  for(const id of list)for(const p of S.commits[id].parents)(kids[p]=kids[p]||[]).push(id);
+  const place=t=>{if(!t||lane[t]!==undefined)return;const chain=[];let c=t;while(c&&lane[c]===undefined){chain.push(c);c=S.commits[c].parents[0];}
+    const lo=c?S.commits[c].n+.5:S.commits[chain[chain.length-1]].n;let hi=S.commits[t].n;for(const k of kids[t]||[])hi=Math.max(hi,S.commits[k].n-.5);
+    let l=0;for(;;l++){if(!(occ[l]||[]).some(([a,b])=>lo<=b&&a<=hi))break;}
+    (occ[l]=occ[l]||[]).push([lo,hi]);for(const x of chain)lane[x]=l;};
+  for(const t of tips)place(t);
+  for(const id of list){place(id);for(const p of S.commits[id].parents)place(p);}
+  return{list,lane,nl:Math.max(1,occ.length)};}
+
+function drawGraph(lay,has,labels,ghostText,headId){const RH=30,LW=18,PX=13,W=PX*2+(lay.nl-1)*LW,H=lay.list.length*RH,row={};
+  lay.list.forEach((id,i)=>row[id]=i);let ed='',nd='',rows='';
+  for(const id of lay.list){const c=S.commits[id],x=PX+lay.lane[id]*LW,y=row[id]*RH+RH/2,g=!has.has(id);
+    c.parents.forEach((p,k)=>{if(row[p]===undefined)return;const px=PX+lay.lane[p]*LW,py=row[p]*RH+RH/2,gg=g||!has.has(p);let dd;
+      if(px===x)dd=`M${x} ${y}L${px} ${py}`;
+      else if(k===0)dd=`M${x} ${y}L${x} ${py-RH}C${x} ${py-RH/2} ${px} ${py-RH/2} ${px} ${py}`;
+      else dd=`M${x} ${y}C${x} ${y+RH/2} ${px} ${y+RH/2} ${px} ${y+RH}L${px} ${py}`;
+      ed+=`<path d="${dd}" class="e l${(k===0?lay.lane[id]:lay.lane[p])%5}${gg?' gh':''}" fill="none"/>`;});
+    if(id===headId)nd+=`<circle cx="${x}" cy="${y}" r="9" class="hd"/>`;
+    nd+=`<circle cx="${x}" cy="${y}" r="5" class="n l${lay.lane[id]%5}${g?' gh':''}"/>`;
+    const lb=(labels[id]||[]).map(([t,cls])=>`<span class="pill ${cls}">${esc(t)}</span>`).join('');
+    rows+=`<div class="row${g?' ghost':''}" title="${esc(c.msg)}（${esc(c.author)}）">${lb}<code>${id}</code><span class="msg">${g?ghostText:esc(c.msg)}</span>${!g&&c.author===MATE?`<span class="who">${MATE}</span>`:''}</div>`;}
+  return `<div class="graph"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${ed}${nd}</svg><div style="padding-left:${W+2}px">${rows}</div></div>`;}
+
+function renderGraphs(){const d=vizDir(),r=d&&d.repo,gh=S.gh,tips=[];
+  if(r&&r.branches.main)tips.push(r.branches.main);if(gh.branches.main)tips.push(gh.branches.main);
+  if(r){tips.push(...Object.values(r.branches).sort((a,b)=>S.commits[a].n-S.commits[b].n),...Object.values(r.rb));}
+  tips.push(...Object.values(gh.branches));
+  const lay=layout(tips);
+  // 本機
+  if(!r)$('gLocal').innerHTML='<p class="empty">還沒有儲存庫。</p>';
+  else if(!lay.list.length)$('gLocal').innerHTML='<p class="empty">還沒有任何 commit。每次 git commit 會在這裡多一個點。</p>';
+  else{const has=new Set(),lab={};for(const v of [...Object.values(r.branches),...Object.values(r.rb)])for(const c of ancSet(v))has.add(c);
+    const add=(id,t,cls)=>(lab[id]=lab[id]||[]).push([t,cls]);const t=tip(r);
+    if(t)add(t,'HEAD → '+r.head,'head');for(const[b,v]of Object.entries(r.branches))if(b!==r.head)add(v,b,'');for(const[b,v]of Object.entries(r.rb))add(v,b,'rb');
+    $('gLocal').innerHTML=drawGraph(lay,has,lab,'只在 GitHub 上，還沒下載',t);}
+  // GitHub
+  let h='';
+  if(!gh.created){h=`<div class="gh-empty"><p>總部還沒有這個專案。${L.i<8?'第 9 關會把紀錄上傳到這裡。':'建立之後就能把本機的 commit 上傳。'}</p><button type="button" class="btn primary" data-act="gh-create"${L.i<8?' disabled':''}>建立 repository</button></div>`;}
+  else{h+=`<p class="gh-url"><span>expedition-team / treasure-hunt</span><button type="button" data-act="fill-url" title="點一下把網址填進終端機">${GH_URL}</button></p>`;
+    if(!Object.keys(gh.branches).length&&!lay.list.length)h+='<p class="empty">空的 repository，還沒有任何 commit。</p>';
+    else{const has=new Set(),lab={};for(const v of Object.values(gh.branches))for(const c of ancSet(v))has.add(c);
+      for(const[b,v]of Object.entries(gh.branches))(lab[v]=lab[v]||[]).push([b,'ghb']);
+      h+=drawGraph(lay,has,lab,'只在你的電腦，還沒 push',null);}
+    const news=Object.keys(gh.branches).filter(b=>b!=='main'&&!isAnc(gh.branches[b],gh.branches.main)&&!gh.prs.some(p=>p.from===b&&p.state==='open'));
+    if(news.length||gh.prs.length){h+='<div class="prs"><h4>PULL REQUESTS</h4>';
+      for(const b of news)h+=`<div class="pr-new"><span><b class="mono">${esc(b)}</b> 有新的 commit</span><button type="button" class="btn primary" data-act="pr-open" data-b="${esc(b)}">Compare &amp; pull request</button></div>`;
+      for(const pr of [...gh.prs].reverse()){let st,cls,why='',can=false;
+        if(pr.state==='merged'){st='Merged';cls='st-merged';}
+        else{const ck=prCheck(pr);
+          if(ck.conflict){st='有衝突';cls='st-bad';why='這個分支和 main 有衝突。在本機把 main 合併進來、解決後再 push。';}
+          else if(pr.review==='changes'){st='要求修改';cls='st-wait';why='push 新的 commit 後會重新審核。';}
+          else if(pr.review==='approved'){st='已核准';cls='st-ok';why='審核通過，沒有衝突。';can=true;}
+          else{st='等待審核';cls='st-wait';why='需要 1 位隊友核准。';}}
+        h+=`<div class="pr"><div class="pr-head"><span class="st ${cls}">${st}</span><b>#${pr.id} ${esc(pr.title)}</b><span class="mono">${esc(pr.from)} → main</span></div>`;
+        if(pr.tl.length)h+='<ul class="tl">'+pr.tl.map(c=>`<li><b>${esc(c.who)}</b>：${esc(c.text)}</li>`).join('')+'</ul>';
+        if(pr.state==='open')h+=`<div class="pr-foot"><span>${why}</span><button type="button" class="btn primary" data-act="pr-merge" data-id="${pr.id}"${can?'':' disabled'}>Merge pull request</button></div>`;
+        h+='</div>';}
+      h+='</div>';}}
+  $('ghBody').innerHTML=h;}
+
+function renderAll(){if(L.complete)completed[L.i]=true;renderRoute();renderLesson();$('prompt').innerHTML=promptHTML();renderZones();renderGraphs();save();}
+const plain=h=>String(h).replace(/<[^>]+>/g,'');
+function after(){const was=L.complete,n0=L.done.filter(Boolean).length;evaluate();renderAll();
+  const ts=LEVELS[L.i].tasks,n1=L.done.filter(Boolean).length;
+  for(let k=n0;k<n1;k++)note((L.done[k]===2?'– 略過：':'✓ 完成：')+plain(ts[k].t));
+  if(!was&&L.complete)note(L.i===LEVELS.length-1?'★ 寶藏找到了！全部關卡完成。':'✓ 關卡 '+(L.i+1)+' 完成。');
+  const dg=diagnose(),m=dg?plain(dg.m):null;
+  if(m&&m!==lastDiag)print('<span class="c-n">狀況不對：'+esc(m)+(dg.fix?' 可以輸入 '+esc(dg.fix):'')+(dg.redo?' 左邊的任務可以按「重做這一步」。':'')+'</span>');
+  lastDiag=m;}
+function doRewind(k){if(k<0||!L.cp[k])return;const name=plain(LEVELS[L.i].tasks[k].t);if(ed){ed=null;$('editor').hidden=true;}
+  rewind(k);prevChips=null;lastDiag=null;note('↺ 已回到「'+name+'」這一步開始前的狀態。');renderAll();$('cmdInput').focus();}
+
+function submit(line){print(promptHTML()+' '+esc(line));if(line.trim()){hist.push(line);}hpos=hist.length;
+  const res=run(line);if(res.clear)$('out').innerHTML='';for(const o of res.out)print(fmt(o));
+  after();if(res.edit)openEditor(res.edit,S.cwd);}
+function fill(text,append){const inp=$('cmdInput');inp.value=append&&inp.value&&!/\s$/.test(inp.value)?inp.value+' '+text:append?inp.value+text:text;inp.focus();try{inp.setSelectionRange(inp.value.length,inp.value.length);}catch(e){}}
+
+function openEditor(f,dirName){const d=dirName?S.dirs[dirName]:(S.cwd?null:{files:S.home});if(!d){return;}ed={f,d};
+  $('edTitle').textContent='編輯 '+f;$('edText').value=d.files[f]||'';$('confBar').hidden=!hasMarkers(d.files[f]);$('editor').hidden=false;$('edText').focus();}
+function closeEditor(saveIt){if(!ed)return;if(saveIt){ed.d.files[ed.f]=$('edText').value.replace(/\s+$/,'');note('已儲存 '+ed.f);}
+  ed=null;$('editor').hidden=true;if(saveIt)after();$('cmdInput').focus();}
+
+const CMDS=['git','ls','cd','cat','echo','mkdir','touch','rm','nano','clear','help','pwd'];
+const GITS=['add','branch','checkout','clone','commit','config','diff','fetch','init','log','merge','pull','push','remote','restore','status','switch'];
+function complete(inp){const v=inp.value.slice(0,inp.selectionStart),rest=inp.value.slice(inp.selectionStart),pre=(v.match(/(\S*)$/)||['',''])[1];
+  const toks=v.trim()?v.trim().split(/\s+/):[],sp=/\s$/.test(v)||!v;let c;
+  if(toks.length<=1&&!sp)c=CMDS;else if(toks[0]==='git'&&toks.length===2&&!sp)c=GITS;else if(toks[0]==='git'&&toks.length===1&&sp)return;
+  else{const d=curDir();c=Object.keys(d.files);if(!S.cwd)c.push(...Object.keys(S.dirs));if(d.repo)c.push(...Object.keys(d.repo.branches),'origin',...Object.keys(d.repo.rb));c.push('--staged','--oneline','--global','user.name','user.email');}
+  if(!pre)return;const hit=[...new Set(c)].filter(x=>x.startsWith(pre));if(!hit.length)return;let cp=hit[0];for(const x of hit)while(!x.startsWith(cp))cp=cp.slice(0,-1);
+  if(cp.length>pre.length||hit.length===1){inp.value=v.slice(0,v.length-pre.length)+cp+(hit.length===1?' ':'')+rest;const p=inp.value.length-rest.length;try{inp.setSelectionRange(p,p);}catch(e){}}}
+
+function goto(i,keep){if(keep)startLevel(i);else jump(i);prevChips=null;lastDiag=null;announce();if(!keep)note('專案狀態已重建成這一關的起點。');renderAll();$('lesson').scrollTop=0;}
+
+function bind(){
+  let composing=false,compEnd=0;const ci=$('cmdInput');
+  ci.addEventListener('compositionstart',()=>{composing=true;});ci.addEventListener('compositionend',()=>{composing=false;compEnd=Date.now();});
+  // 中文輸入法選字時按的 Enter 不算送出指令
+  $('tform').addEventListener('submit',e=>{e.preventDefault();if(composing||Date.now()-compEnd<60)return;const v=ci.value;ci.value='';submit(v);});
+  $('cmdInput').addEventListener('keydown',e=>{const inp=e.target;
+    if(e.key==='ArrowUp'){if(hpos>0){hpos--;inp.value=hist[hpos];}e.preventDefault();}
+    else if(e.key==='ArrowDown'){if(hpos<hist.length){hpos++;inp.value=hist[hpos]||'';}e.preventDefault();}
+    else if(e.key==='Tab'){e.preventDefault();complete(inp);}
+    else if(e.key==='l'&&e.ctrlKey){e.preventDefault();$('out').innerHTML='';}});
+  $('out').addEventListener('click',()=>{if(!String(window.getSelection()))$('cmdInput').focus();});
+  $('btnClear').addEventListener('click',()=>{$('out').innerHTML='';$('cmdInput').focus();});
+  $('route').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;const i=+b.dataset.go;if(i===L.i)return;goto(i,i===L.i+1&&L.complete);});
+  $('btnReset').addEventListener('click',()=>goto(L.i,false));
+  $('lesson').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+    if(a==='hint'){L.hint[b.dataset.k]=1;renderLesson();save();}
+    else if(a==='fill')fill(b.dataset.fill);
+    else if(a==='redo')doRewind(L.done.findIndex(v=>!v));
+    else if(a==='back')doRewind(prevCp(L.done.findIndex(v=>!v)));
+    else if(a==='next')goto(L.i+1,true);
+    else if(a==='restart'){completed={};goto(0,false);}});
+  $('viz').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act;
+    if(a==='edit'){const d=vizDir();const name=Object.keys(S.dirs).find(k=>S.dirs[k]===d);openEditor(b.dataset.f,name);}
+    else if(a==='fill-url')fill(GH_URL,true);
+    else if(a==='gh-create'){ghCreate();note('GitHub：已建立 repository expedition-team/treasure-hunt');after();}
+    else if(a==='pr-open'){const pr=ghOpenPR(b.dataset.b);if(pr)note(`GitHub：已發出 Pull Request #${pr.id}（${pr.from} → main）`);after();}
+    else if(a==='pr-merge'){if(ghMergePR(+b.dataset.id))note('GitHub：Pull Request 已合併進 main');after();}});
+  $('edSave').addEventListener('click',()=>closeEditor(true));$('edCancel').addEventListener('click',()=>closeEditor(false));
+  $('confBar').addEventListener('click',e=>{const b=e.target.closest('[data-res]');if(!b)return;$('edText').value=resolveMarkers($('edText').value,b.dataset.res);$('confBar').hidden=true;$('edText').focus();});
+  $('editor').addEventListener('keydown',e=>{if(e.key==='Escape')closeEditor(false);else if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='Enter')){e.preventDefault();closeEditor(true);}});
+  $('editor').addEventListener('click',e=>{if(e.target===$('editor'))closeEditor(false);});
+  $('btnCheat').addEventListener('click',()=>{$('cheat').hidden=false;$('chClose').focus();});
+  $('chClose').addEventListener('click',()=>{$('cheat').hidden=true;$('btnCheat').focus();});
+  $('cheat').addEventListener('click',e=>{if(e.target===$('cheat'))$('cheat').hidden=true;});
+  $('cheat').addEventListener('keydown',e=>{if(e.key==='Escape')$('cheat').hidden=true;});
+}
+
+function start(){const restored=load();if(!restored)jump(resumeAt);bind();
+  note('歡迎加入探險隊。照著左邊的任務，在這裡輸入指令。輸入 help 可以看指令列表。');
+  if(restored)note('已接回上次的進度。');else if(resumeAt)note('關卡內容更新過了，專案已重建成關卡 '+(resumeAt+1)+' 的起點。');
+  announce();renderAll();}
+start();
+})();
+</script>
+</body>
+</html>
