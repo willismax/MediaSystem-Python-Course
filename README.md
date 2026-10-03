@@ -4,7 +4,7 @@
 
 ## 從這裡開始
 
-- [多媒體系統 V2 學生教材包](course-115-v2/README.md)
+- [多媒體系統 V2 der學生教材包](course-115-v2/README.md)
 - [單冊整合教科書](course-115-v2/textbook/MULTIMEDIA_SYSTEMS_V2.md)
 - [現行課程主題](course-115-v2/CURRENT_COURSE_TOPICS.md)
 - [指定用書與其他教材整合](course-115-v2/TEXTBOOK_INTEGRATION_MAP.md)
