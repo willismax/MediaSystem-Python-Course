@@ -26,7 +26,7 @@
 | 現行課程主題 | 週次 | 主要材料 |
 |---|---|---|
 | 多媒體資料與影像基礎 | W01～W03 | `weeks/W01`～`W03`、`labs/w02`～`w03`、`colab/W02`～`W03` |
-| 生成影像與視覺敘事 | W04～W08 | `weeks/W04`～`W08`、`labs/w04_diffusion_forward.py`、`colab/W04_Diffusion_Forward.ipynb` |
+| 生成影像與視覺敘事 | W04～W08 | `weeks/W04`～`W08`、`labs/w04_diffusion_forward.py`、`colab/W04_Diffusion_Forward.ipynb`、`colab/W04_Diffusion_Lab.ipynb` |
 | 數位聲音與語音 | W10～W12 | `weeks/W10`～`W12`、`labs/w10`～`w11`、`colab/W10`～`W11` |
 | 短影音與系統整合 | W13～W18 | `weeks/W13`～`W18`、`labs/w15_make_short.py`、`colab/W15_Make_Short.ipynb`、`templates/` |
 
