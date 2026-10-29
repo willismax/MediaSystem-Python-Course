@@ -10,6 +10,7 @@
 - [指定用書與其他教材整合](course-115-v2/TEXTBOOK_INTEGRATION_MAP.md)
 - [快速開始](docs/QUICKSTART.md)
 - [Git 尋寶隊：互動式 Git 教學](https://willismax.github.io/MediaSystem-Python-Course/git-quest/)（[部署說明](docs/git-quest/README.md)）
+- 互動實驗室：[W08-0 AI 模型先修](https://willismax.github.io/MediaSystem-Python-Course/labs/w08-0/)、[W08 LoRA](https://willismax.github.io/MediaSystem-Python-Course/labs/w08/)、[W10 聲音](https://willismax.github.io/MediaSystem-Python-Course/labs/w10/)
 
 ## 多媒體系統 V2 教材包
 

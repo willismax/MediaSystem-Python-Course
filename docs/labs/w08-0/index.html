@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="多媒體系統 W08-0 互動先修：神經元、權重矩陣、梯度下降、過擬合、下一個 Token 與 RAG。">
+<title>W08-0 AI 模型先修實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab notebook — sticky experiment index, one bench per concept, controls left and live result right. Same identity as the W08 LoRA lab. */
+:root{
+  --bg:#121212; --surface:#1b1b1a; --sunk:#0c0c0c; --fg:#f2f0ea; --muted:#9c988f; --line:#33322f;
+  --accent:#ff7a1a; --accent-ink:#121212; --good:#5fc48a; --bad:#ff6b5e;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:900}
+h2{font-size:clamp(1.45rem,3vw,2rem);font-weight:900}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.acc{color:var(--accent)} .muted{color:var(--muted)} a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.top .wrap{display:flex;gap:16px;align-items:center;padding-block:10px}
+.top .brand{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.top nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.top nav a:hover,.top nav a.on{color:var(--fg);background:var(--surface)}
+.hero{padding-block:48px 28px;display:grid;gap:20px}
+.hero p.lede{max-width:46em;color:var(--muted);font-size:1.05rem}
+.map{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.map a{display:grid;gap:4px;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.map a:hover{border-color:var(--fg)}
+.map .when{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.map .w{font-size:.82rem;color:var(--muted)}
+.map a.hot{border-color:var(--accent)}
+@media (max-width:760px){.map{grid-template-columns:repeat(2,minmax(0,1fr))}}
+button{font:inherit;font-size:.92rem;font-weight:700;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--fg)} button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)} button.ghost{background:transparent}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+section.bench{padding-block:56px;border-top:1px solid var(--line);scroll-margin-top:64px}
+.bench-head{display:grid;gap:8px;margin-bottom:24px;max-width:52em}
+.bench-head .q{color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.ctrl{display:grid;gap:14px}
+.ctrl label{display:grid;gap:4px;font-size:.92rem}
+.ctrl label .lab{display:flex;justify-content:space-between;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=text],textarea,input[type=number]{font:inherit;font-size:.92rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%}
+textarea{min-height:70px;resize:vertical}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font-size:.82rem;padding:5px 12px;font-weight:500}
+.seg button.on{border-color:var(--accent);color:var(--accent)}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:16px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:24px}
+.stat .v{font-family:var(--mono);font-size:1.7rem;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.try{border-left:3px solid var(--accent);padding:8px 14px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.93rem}
+.try b{color:var(--accent)}
+.chart svg,.fig svg{width:100%;height:auto;display:block}
+.calc{font-family:var(--mono);font-size:.95rem;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;white-space:nowrap}
+.mat{border-collapse:collapse;font-family:var(--mono);font-size:.92rem}
+.mat td,.mat th{padding:4px 6px;text-align:center}
+.mat th{font-family:var(--body);font-weight:500;font-size:.8rem;color:var(--muted)}
+.mat input{width:4.6em;text-align:center;padding:4px}
+.tablewrap{overflow-x:auto}
+.toks{display:flex;flex-wrap:wrap;gap:6px}
+.tok{font-size:1rem;padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--sunk)}
+.tok.new{border-color:var(--accent);color:var(--accent)}
+.pbars{display:grid;gap:6px}
+.pbars button{display:grid;grid-template-columns:5em minmax(0,1fr) 3.5em;gap:10px;align-items:center;text-align:left;font-weight:500;padding:4px 10px}
+.pbars .bar{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.pbars .bar i{display:block;height:100%;background:var(--accent)}
+.docs{display:grid;gap:8px}
+.doc{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:.88rem;background:var(--sunk);display:grid;grid-template-columns:3.2em minmax(0,1fr) 4em;gap:8px;align-items:start}
+.doc.hit{border-color:var(--accent)}
+.doc .sc{font-family:var(--mono);text-align:right;color:var(--muted)}
+pre.out{font-family:var(--mono);font-size:.82rem;line-height:1.6;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:14px;margin:0;white-space:pre-wrap;word-break:break-word}
+.answer{border:1.5px solid var(--accent);border-radius:10px;padding:12px 16px}
+.answer.bad{border-color:var(--bad)}
+.quiz{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px}
+.qcard .opts{display:flex;flex-wrap:wrap;gap:6px}
+.qcard .opts button{font-size:.82rem;padding:5px 10px;font-weight:500}
+.qcard .opts button.right{border-color:var(--good);color:var(--good)}
+.qcard .opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.qcard .fb{font-size:.88rem;color:var(--muted);min-height:1.5em}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--muted);font-size:.88rem}
+.links{display:flex;flex-wrap:wrap;gap:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.top .theme{margin-left:auto;flex:none;font-size:.82rem;padding:5px 12px;white-space:nowrap}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="brand">W08-0<span class="acc">／</span>AI 先修</span>
+  <nav id="nav">
+    <a href="#neuron">神經元</a><a href="#layer">矩陣</a><a href="#descent">訓練</a><a href="#overfit">驗證</a>
+    <a href="#token">下一個 Token</a><a href="#rag">RAG</a><a href="#methods">四種方式</a>
+  </nav>
+  <button class="ghost theme" id="themeBtn" type="button" aria-label="切換深色／淺色">☾ 深色</button>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">多媒體系統・MS-115 日間部・Week 08-0</span>
+    <h1>模型怎麼<span class="acc">學</span>，又怎麼<span class="acc">用</span>？</h1>
+    <p class="lede">第八章的 LoRA 要「凍結權重 W，只學 ΔW」。在那之前，先弄清楚權重是什麼、訓練在改什麼、推論時為什麼權重不會變，以及大語言模型和 RAG 怎麼運作。下面每個實驗都可以直接動手改。</p>
+    <div class="map" aria-label="改變模型行為的四種方式">
+      <a href="#methods"><span class="when">推論時・不改權重</span><b>Prompt</b><span class="w">寫清楚要什麼</span></a>
+      <a href="#rag"><span class="when">推論時・不改權重</span><b>RAG／Reference</b><span class="w">附上資料或參考圖</span></a>
+      <a href="#descent" class="hot"><span class="when">訓練時・改權重</span><b class="acc">Fine-tuning／LoRA</b><span class="w">用少量資料調整</span></a>
+      <a href="#descent"><span class="when">訓練時・全部重學</span><b>預訓練</b><span class="w">大量資料、非常昂貴</span></a>
+    </div>
+  </div>
+
+  <section class="bench" id="neuron">
+    <div class="bench-head"><span class="eyebrow">實驗 1・0.1–0.2</span><h2>一個神經元：這張圖像小藍嗎？</h2>
+      <p class="q">小藍的特徵是短黑髮、圓眼鏡、深藍帽T。神經元把每個特徵乘上權重、加起來、再加偏差值 b，最後用 Sigmoid 壓到 0～1。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">輸入 x（圖片的特徵程度）</div>
+        <label><span class="lab">x₁ 短黑髮<span class="mono" id="x1V"></span></span><input type="range" id="x1" min="0" max="1" step="0.05" value="0.9"></label>
+        <label><span class="lab">x₂ 圓眼鏡<span class="mono" id="x2V"></span></span><input type="range" id="x2" min="0" max="1" step="0.05" value="1"></label>
+        <label><span class="lab">x₃ 深藍帽T<span class="mono" id="x3V"></span></span><input type="range" id="x3" min="0" max="1" step="0.05" value="0.7"></label>
+        <div class="lab">權重 w 與偏差 b（模型學到的數字）</div>
+        <label><span class="lab">w₁<span class="mono" id="w1V"></span></span><input type="range" id="w1" min="-3" max="3" step="0.1" value="1.2"></label>
+        <label><span class="lab">w₂<span class="mono" id="w2V"></span></span><input type="range" id="w2" min="-3" max="3" step="0.1" value="2"></label>
+        <label><span class="lab">w₃<span class="mono" id="w3V"></span></span><input type="range" id="w3" min="-3" max="3" step="0.1" value="0.8"></label>
+        <label><span class="lab">b<span class="mono" id="bV"></span></span><input type="range" id="b" min="-4" max="2" step="0.1" value="-2"></label>
+        <button class="ghost" id="nReset">回到講義的例子</button>
+      </div>
+      <div class="stage">
+        <div class="row" style="align-items:flex-start;gap:24px">
+          <div id="nStudent" style="width:140px;color:var(--fg)"></div>
+          <div class="stats"><div class="stat"><div class="v" id="zV"></div><div class="k">加權總和 z</div></div>
+            <div class="stat"><div class="v acc" id="pV"></div><div class="k">像小藍的機率 σ(z)</div></div></div>
+        </div>
+        <div class="calc" id="nCalc"></div>
+        <div class="chart"><svg id="sigChart" viewBox="0 0 640 200" role="img" aria-label="Sigmoid 曲線"></svg></div>
+        <div class="try"><b>動手：</b>把 x₂ 拉到 0（拿掉眼鏡），機率掉多少？再把 w₂ 改成 0.2，拿掉眼鏡還有影響嗎？權重大的特徵，就是神經元最在乎的特徵。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="layer">
+    <div class="bench-head"><span class="eyebrow">實驗 2・0.3</span><h2>一層網路 ＝ 一張權重表</h2>
+      <p class="q">三個神經元並排，各有一排權重，排起來就是矩陣 W。輸出 y ＝ Wx ＋ b。第八章 LoRA 要凍結的就是這種 W。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="tablewrap"><table class="mat" id="matW"></table></div>
+        <label><span class="lab">網路每層的神經元數（用 - 分隔）</span><input type="text" id="arch" value="3-4-4-2"></label>
+        <div class="try"><b>動手：</b>把網路改成 768-3072-768（類似語言模型裡的一個區塊），參數一下子變多少？每一個都只是表裡的一個數字。</div>
+      </div>
+      <div class="stage">
+        <div class="calc" id="matCalc"></div>
+        <div class="fig"><svg id="netFig" viewBox="0 0 640 230" role="img" aria-label="網路示意"></svg></div>
+        <div class="stats"><div class="stat"><div class="v acc" id="paramN"></div><div class="k">總參數（權重＋偏差）</div></div>
+          <div class="stat"><div class="v" id="paramW"></div><div class="k">其中權重</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="descent">
+    <div class="bench-head"><span class="eyebrow">實驗 3・0.4</span><h2>訓練：往 Loss 變小的方向走</h2>
+      <p class="q">橫軸是某一個權重的值，縱軸是 Loss。每一步看斜率（梯度），往下坡走一小步。學習率決定一步多大。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">學習率<span class="mono" id="lrV"></span></span><input type="range" id="lr" min="0" max="6" step="1" value="2"></label>
+        <label><span class="lab">起點 w<span class="mono" id="w0V"></span></span><input type="range" id="w0" min="-3" max="3" step="0.1" value="-2.6"></label>
+        <div class="row"><button class="primary" id="gdStep">走一步</button><button id="gdRun">連走 20 步</button><button class="ghost" id="gdReset">重設</button></div>
+        <div class="try"><b>動手：</b>先猜：學習率 0.01 走 20 步會到谷底嗎？再試 0.9。從 w ＝ 2.5 出發，模型可能卡在哪裡？</div>
+      </div>
+      <div class="stage">
+        <div class="chart"><svg id="gdChart" viewBox="0 0 640 260" role="img" aria-label="Loss 曲面與梯度下降軌跡"></svg></div>
+        <div class="stats"><div class="stat"><div class="v" id="gdS">0</div><div class="k">步數</div></div>
+          <div class="stat"><div class="v" id="gdW"></div><div class="k">目前的 w</div></div>
+          <div class="stat"><div class="v acc" id="gdL"></div><div class="k">Loss</div></div></div>
+        <p class="muted" id="gdNote" style="font-size:.9rem"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="overfit">
+    <div class="bench-head"><span class="eyebrow">實驗 4・0.4</span><h2>考得好，就是真的會嗎？</h2>
+      <p class="q">實心點是訓練資料，空心點是模型沒看過的驗證資料。模型越複雜（多項式次數越高），越能貼著訓練點走，但不一定猜得準新的點。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">模型複雜度（多項式次數）<span class="mono" id="degV"></span></span><input type="range" id="deg" min="1" max="12" step="1" value="3"></label>
+        <label><span class="lab">訓練資料數量<span class="mono" id="ntV"></span></span><input type="range" id="nt" min="8" max="60" step="4" value="12"></label>
+        <div class="try"><b>動手：</b>把次數拉到 12，看訓練誤差和驗證誤差怎麼變。再把訓練資料加到 60，過擬合有改善嗎？</div>
+      </div>
+      <div class="stage">
+        <div class="chart"><svg id="ofChart" viewBox="0 0 640 260" role="img" aria-label="多項式擬合"></svg></div>
+        <div class="stats"><div class="stat"><div class="v" id="ofTr"></div><div class="k">訓練誤差</div></div>
+          <div class="stat"><div class="v acc" id="ofVa"></div><div class="k">驗證誤差</div></div></div>
+        <p class="muted" id="ofNote" style="font-size:.9rem"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="token">
+    <div class="bench-head"><span class="eyebrow">實驗 5・0.6–0.7</span><h2>大語言模型：預測下一個 Token</h2>
+      <p class="q">這是一個用 24 句課程句子訓練的玩具語言模型，只看前一個詞來猜下一個（Bigram）。真正的 LLM 看得更長、模型大得多，但推論的迴圈相同：算機率、挑一個、接上去、再預測。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">Temperature<span class="mono" id="tempV"></span></span><input type="range" id="temp" min="1" max="20" step="1" value="10"></label>
+        <div class="row"><button class="primary" id="genOne">自動接一個</button><button id="genAll">接到句尾</button><button class="ghost" id="genReset">重來</button></div>
+        <div class="try"><b>動手：</b>點右邊的機率條自己選下一個詞。把 Temperature 調到最低，每次生成都一樣嗎？調到最高呢？推論時模型的權重（這張機率表）有沒有變？</div>
+      </div>
+      <div class="stage">
+        <div class="toks" id="toks"></div>
+        <div class="pbars" id="pbars"></div>
+        <p class="muted" id="tokNote" style="font-size:.9rem"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="rag">
+    <div class="bench-head"><span class="eyebrow">實驗 6・0.8</span><h2>RAG：先查資料，再回答</h2>
+      <p class="q">模型的權重裡沒有這學期的課程規定。RAG 先從講義裡找出最相關的段落，和問題一起放進 Prompt。下面的講義段落是示例資料。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label>你的問題<input type="text" id="ragQ" value="W08 要繳交什麼？"></label>
+        <div class="seg" id="ragPresets"></div>
+        <label>修改第 1 段講義（模擬資料更新）<textarea id="doc0"></textarea></label>
+        <div class="try"><b>動手：</b>把第 1 段的截止時間改掉，再問一次。答案跟著變了，模型有重新訓練嗎？再問「期末專題幾個人一組？」，檢索有找對段落嗎？</div>
+      </div>
+      <div class="stage">
+        <div class="docs" id="docs"></div>
+        <pre class="out" id="ragPrompt"></pre>
+        <div class="answer" id="ragA"></div>
+        <div class="answer bad" id="noRag"><b>不用 RAG：</b>模型只能依訓練時讀過的文字接下去，可能回答「W08 要繳交三張海報和一份心得」。看起來合理，但是編的。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="methods">
+    <div class="bench-head"><span class="eyebrow">實驗 7・0.9</span><h2>該用哪一種方式？</h2>
+      <p class="q">先用便宜的方法，不夠再往下一層。讀每個情境，選最先該試的做法。</p></div>
+    <div class="quiz" id="quiz"></div>
+    <p class="muted" style="margin-top:14px" id="quizScore"></p>
+  </section>
+</main>
+
+<footer><div class="wrap" style="display:grid;gap:12px">
+  <div class="links"><a href="../w08/">下一步：W08 LoRA 實驗室</a></div>
+  <p>對應教材：講義〈08-0｜先修：AI 模型怎麼學、怎麼用〉、影片 W08-0 上／下、Colab W08-0 先修筆記本（見課程雲端教材資料夾）。本頁的語言模型與 RAG 是小型示範，用來說明原理，不代表真實模型的能力。</p>
+</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function rng(seed){return()=>{let t=(seed+=0x6D2B79F5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const f2=v=>(+v).toFixed(2);const fmt=n=>n.toLocaleString('en-US');
+
+/* 1 neuron */
+const HAIR={short:'M54 96 Q56 46 100 48 Q144 46 146 96 Q132 70 100 72 Q68 70 54 96 Z',long:'M54 96 Q56 46 100 48 Q144 46 146 96 L152 178 L132 178 L134 100 Q100 74 66 100 L68 178 L48 178 Z'};
+function student(x1,x2,x3){const hair=x1>=.5?HAIR.short:HAIR.long,ga=Math.max(.08,x2),fill=x3>=.5?'var(--muted)':'none';
+ return `<svg viewBox="0 0 200 250" aria-label="角色示意"><path d="M28 250 Q30 170 100 164 Q170 170 172 250 Z" fill="${fill}" fill-opacity="${x3}" stroke="currentColor" stroke-width="5"/><path d="M70 170 Q100 204 130 170" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="100" cy="104" r="46" fill="none" stroke="currentColor" stroke-width="5"/><path d="${hair}" fill="currentColor" fill-opacity="${.35+.65*Math.abs(x1-.5)*2}"/><g opacity="${ga}"><circle cx="82" cy="108" r="13" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="118" cy="108" r="13" fill="none" stroke="currentColor" stroke-width="4"/><path d="M95 108 L105 108" stroke="currentColor" stroke-width="4"/></g><path d="M88 134 Q100 142 112 134" fill="none" stroke="currentColor" stroke-width="4"/></svg>`;}
+const NID=['x1','x2','x3','w1','w2','w3','b'];
+function neuron(){const v={};NID.forEach(k=>{v[k]=+$('#'+k).value;$('#'+k+'V').textContent=f2(v[k])});
+ const z=v.w1*v.x1+v.w2*v.x2+v.w3*v.x3+v.b,p=1/(1+Math.exp(-z));
+ $('#zV').textContent=f2(z);$('#pV').textContent=(p*100).toFixed(0)+'%';$('#nStudent').innerHTML=student(v.x1,v.x2,v.x3);
+ $('#nCalc').textContent=`z = ${f2(v.w1)}×${f2(v.x1)} + ${f2(v.w2)}×${f2(v.x2)} + ${f2(v.w3)}×${f2(v.x3)} + (${f2(v.b)}) = ${f2(z)}　→　σ(z) = ${f2(p)}`;
+ const fg=css('--fg'),mu=css('--muted'),ln=css('--line'),ac=css('--accent'),X=t=>40+(t+6)/12*580,Y=q=>180-q*160;
+ let d='';for(let t=-6;t<=6.001;t+=.1)d+=`${t>-6?'L':'M'}${X(t).toFixed(1)} ${Y(1/(1+Math.exp(-t))).toFixed(1)}`;
+ const zc=Math.max(-6,Math.min(6,z));
+ $('#sigChart').innerHTML=`<line x1="40" x2="620" y1="180" y2="180" stroke="${ln}"/><line x1="${X(0)}" x2="${X(0)}" y1="16" y2="180" stroke="${ln}"/>
+ <text x="36" y="24" fill="${mu}" font-size="12" text-anchor="end">1</text><text x="36" y="184" fill="${mu}" font-size="12" text-anchor="end">0</text><text x="620" y="196" fill="${mu}" font-size="12" text-anchor="end">z →</text>
+ <path d="${d}" fill="none" stroke="${fg}" stroke-width="2.5"/><line x1="${X(zc)}" x2="${X(zc)}" y1="${Y(1/(1+Math.exp(-zc)))}" y2="180" stroke="${ac}" stroke-dasharray="4 4"/><circle cx="${X(zc)}" cy="${Y(1/(1+Math.exp(-zc)))}" r="7" fill="${ac}"/>`;}
+NID.forEach(k=>$('#'+k).addEventListener('input',neuron));
+$('#nReset').onclick=()=>{const d={x1:.9,x2:1,x3:.7,w1:1.2,w2:2,w3:.8,b:-2};NID.forEach(k=>$('#'+k).value=d[k]);neuron()};neuron();
+
+/* 2 layer */
+const FEAT=['短黑髮','圓眼鏡','深藍帽T'],W0=[[1.2,2.0,0.8],[-0.5,0.3,1.5],[0.9,-1.1,0.4]],XV=[0.9,1.0,0.7];
+$('#matW').innerHTML=`<tr><th></th>${FEAT.map(f=>`<th>${f}</th>`).join('')}</tr>`+W0.map((r,i)=>`<tr><th>神經元 ${i+1}</th>${r.map((v,j)=>`<td><input type="number" step="0.1" id="m${i}${j}" value="${v}" aria-label="神經元 ${i+1} 的 ${FEAT[j]} 權重"></td>`).join('')}</tr>`).join('')+`<tr><th>輸入 x</th>${XV.map(v=>`<td class="mono">${v}</td>`).join('')}</tr>`;
+function layer(){const W=W0.map((r,i)=>r.map((_,j)=>+$(`#m${i}${j}`).value||0));const y=W.map(r=>r.reduce((s,w,j)=>s+w*XV[j],0));
+ $('#matCalc').innerHTML=y.map((v,i)=>`y${i+1} = ${W[i].map((w,j)=>`${f2(w)}×${XV[j]}`).join(' + ')} = <b class="acc">${f2(v)}</b>`).join('<br>');
+ const L=$('#arch').value.split(/[-,\s]+/).map(Number).filter(n=>n>0&&Number.isFinite(n)).slice(0,8);
+ let pw=0,pb=0;for(let i=1;i<L.length;i++){pw+=L[i-1]*L[i];pb+=L[i]}
+ $('#paramN').textContent=L.length>1?fmt(pw+pb):'—';$('#paramW').textContent=L.length>1?fmt(pw):'—';
+ const fg=css('--fg'),ln=css('--line'),mu=css('--muted'),ac=css('--accent');let s='';const n=L.length;
+ const show=L.map(k=>Math.min(k,7)),xs=show.map((_,i)=>n>1?60+i*(520/(n-1)):320);
+ const ys=k=>[...Array(k)].map((_,j)=>20+(j+.5)*(180/k));
+ for(let i=1;i<n;i++)ys(show[i-1]).forEach(a=>ys(show[i]).forEach(b=>s+=`<line x1="${xs[i-1]}" y1="${a}" x2="${xs[i]}" y2="${b}" stroke="${i===1?ac:ln}" stroke-opacity="${i===1?.55:1}"/>`));
+ show.forEach((k,i)=>{ys(k).forEach(y=>s+=`<circle cx="${xs[i]}" cy="${y}" r="9" fill="${css('--surface')}" stroke="${fg}" stroke-width="2"/>`);s+=`<text x="${xs[i]}" y="222" text-anchor="middle" fill="${mu}" font-size="12">${fmt(L[i])}${L[i]>7?'（只畫 7 個）':''}</text>`});
+ if(n>1)s+=`<text x="${(xs[0]+xs[1])/2}" y="14" text-anchor="middle" fill="${ac}" font-size="12">第 1 個 W：${L[0]}×${L[1]}</text>`;
+ $('#netFig').innerHTML=s;}
+$('#matW').addEventListener('input',layer);$('#arch').addEventListener('input',layer);layer();
+
+/* 3 gradient descent: loss(w) with a local minimum */
+const LOSS=w=>0.18*(w*w-4)**2*0.25+0.35*w+1.1, DL=w=>0.18*0.25*2*(w*w-4)*2*w+0.35;
+const LRS=[0.01,0.03,0.1,0.3,0.6,0.9,1.2];let gw,gs,path;
+function gdReset(){gw=+$('#w0').value;gs=0;path=[gw];gdDraw()}
+function gdStepF(){const lr=LRS[+$('#lr').value];gw=gw-lr*DL(gw);gw=Math.max(-6,Math.min(6,gw));gs++;path.push(gw)}
+function gdDraw(){$('#lrV').textContent=LRS[+$('#lr').value];$('#w0V').textContent=f2($('#w0').value);
+ const fg=css('--fg'),mu=css('--muted'),ln=css('--line'),ac=css('--accent'),X=w=>40+(w+3.2)/6.4*580,Y=l=>230-Math.min(l,5)/5*210;
+ let d='';for(let w=-3.2;w<=3.201;w+=.05)d+=`${w>-3.2?'L':'M'}${X(w).toFixed(1)} ${Y(LOSS(w)).toFixed(1)}`;
+ const pts=path.map(w=>[X(Math.max(-3.2,Math.min(3.2,w))),Y(LOSS(w))]);
+ $('#gdChart').innerHTML=`<line x1="40" x2="620" y1="230" y2="230" stroke="${ln}"/><text x="620" y="250" text-anchor="end" fill="${mu}" font-size="12">權重 w →</text><text x="40" y="14" fill="${mu}" font-size="12">Loss</text>
+ <path d="${d}" fill="none" stroke="${fg}" stroke-width="2.5"/><path d="${pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')}" fill="none" stroke="${ac}" stroke-width="1.5" stroke-dasharray="4 3"/>
+ ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?8:3.5}" fill="${ac}" fill-opacity="${i===pts.length-1?1:.6}"/>`).join('')}`;
+ $('#gdS').textContent=gs;$('#gdW').textContent=f2(gw);$('#gdL').textContent=f2(LOSS(gw));
+ const last=path.slice(-4),moving=Math.abs(last[last.length-1]-last[0]);
+ const lrN=LRS[+$('#lr').value];$('#gdNote').textContent=Math.abs(gw)>=3.2?'走出畫面了：學習率太大，越走越遠。':gs>3&&lrN>=.6&&moving>=.01?'步子太大，在谷底兩側來回跳。':gs>3&&gw>0.5?'往右邊的小山谷走：那是局部最小值，Loss 比左邊的谷底高。':gs>=20&&lrN<=.03?'學習率太小：走了這麼多步，還沒到谷底。':gs>3&&moving<.01?'停在谷底附近，Loss 不太會再下降了。':'';}
+$('#gdStep').onclick=()=>{gdStepF();gdDraw()};$('#gdRun').onclick=()=>{for(let i=0;i<20;i++)gdStepF();gdDraw()};$('#gdReset').onclick=gdReset;
+['#lr','#w0'].forEach(s=>$(s).addEventListener('input',gdReset));gdReset();
+
+/* 4 overfitting: polynomial least squares */
+const truth=x=>Math.sin(2.4*x)*0.8+0.3*x;
+function solve(A,b){const n=b.length;for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;[A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];
+ for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}const x=Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function fit(pts,deg){const m=deg+1,A=[...Array(m)].map(()=>Array(m).fill(0)),b=Array(m).fill(0);
+ pts.forEach(([x,y])=>{const p=[...Array(m)].map((_,k)=>x**k);for(let i=0;i<m;i++){b[i]+=p[i]*y;for(let j=0;j<m;j++)A[i][j]+=p[i]*p[j]}});
+ for(let i=0;i<m;i++)A[i][i]+=1e-6;return solve(A,b)}
+const ev=(c,x)=>c.reduce((s,v,k)=>s+v*x**k,0),mse=(c,P)=>P.reduce((s,[x,y])=>s+(ev(c,x)-y)**2,0)/P.length;
+function overfit(){const deg=+$('#deg').value,n=+$('#nt').value;$('#degV').textContent=deg;$('#ntV').textContent=n;
+ const r=rng(77),tr=[...Array(n)].map(()=>{const x=r()*2-1;return[x,truth(x)+gauss(r)*.18]});const rv=rng(78),va=[...Array(40)].map(()=>{const x=rv()*2-1;return[x,truth(x)+gauss(rv)*.18]});
+ const c=fit(tr,deg),et=mse(c,tr),evv=mse(c,va);$('#ofTr').textContent=et.toFixed(3);$('#ofVa').textContent=evv.toFixed(3);
+ const fg=css('--fg'),mu=css('--muted'),ln=css('--line'),ac=css('--accent'),X=x=>40+(x+1)/2*580,Y=y=>130-y*85;
+ let d='';for(let x=-1;x<=1.0001;x+=.01){const y=Math.max(-1.5,Math.min(1.5,ev(c,x)));d+=`${x>-1?'L':'M'}${X(x).toFixed(1)} ${Y(y).toFixed(1)}`}
+ $('#ofChart').innerHTML=`<line x1="40" x2="620" y1="130" y2="130" stroke="${ln}"/>`+va.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="4.5" fill="none" stroke="${mu}" stroke-width="1.5"/>`).join('')+tr.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="${fg}"/>`).join('')+`<path d="${d}" fill="none" stroke="${ac}" stroke-width="3"/><text x="40" y="252" fill="${mu}" font-size="12">● 訓練資料　○ 驗證資料　— 模型</text>`;
+ $('#ofNote').textContent=evv>et*3&&deg>=7?'訓練誤差很小、驗證誤差大很多：模型背下了訓練資料的雜訊，這就是過擬合。':deg<=1?'模型太簡單，連訓練資料都描述不好（欠擬合）。':'訓練與驗證誤差接近，模型學到的是一般規律。';}
+['#deg','#nt'].forEach(s=>$(s).addEventListener('input',overfit));overfit();
+
+/* 5 toy bigram LM */
+const CORPUS=`多媒體 系統 是 一門 結合 影像 聲音 與 文字 的 課程 。
+多媒體 系統 是 一門 結合 理論 與 實作 的 課程 。
+多媒體 系統 是 一門 探討 媒體 處理 的 課程 。
+多媒體 系統 是 一門 有趣 的 課程 。
+影像 是 一組 數字 。
+聲音 是 一種 波形 。
+影片 是 一連串 的 影像 。
+模型 是 一個 函數 。
+模型 會 從 資料 學習 。
+語言 模型 會 預測 下一個 詞 。
+語言 模型 會 一個 詞 一個 詞 生成 文字 。
+擴散 模型 會 從 雜訊 生成 影像 。
+擴散 模型 會 一步 一步 去除 雜訊 。
+權重 是 模型 裡 的 數字 。
+訓練 會 調整 權重 。
+訓練 需要 大量 資料 。
+推論 時 權重 不會 改變 。
+微調 是 用 少量 資料 繼續 訓練 。
+LoRA 是 一種 省 參數 的 微調 方法 。
+LoRA 會 凍結 原本 的 權重 。
+RAG 會 先 檢索 資料 再 回答 。
+RAG 不會 改變 模型 的 權重 。
+提示詞 會 影響 生成 的 結果 。
+課程 會 介紹 影像 與 聲音 的 處理 。`.split('\n').map(s=>s.trim().split(/\s+/));
+const BG={};CORPUS.forEach(s=>{for(let i=0;i<s.length-1;i++){(BG[s[i]]=BG[s[i]]||{});BG[s[i]][s[i+1]]=(BG[s[i]][s[i+1]]||0)+1}});
+const START=['多媒體','系統','是','一門'];let seq,genR=rng(5);
+function probs(last){const c=BG[last]||{},T=+$('#temp').value/10;const ks=Object.keys(c);if(!ks.length)return[];
+ const tot=ks.reduce((s,k)=>s+c[k],0);let ws=ks.map(k=>[k,Math.pow(c[k]/tot,1/T)]);const z=ws.reduce((s,[,w])=>s+w,0);return ws.map(([k,w])=>[k,w/z]).sort((a,b)=>b[1]-a[1])}
+function tokDraw(newIdx){$('#tempV').textContent=(+$('#temp').value/10).toFixed(1);
+ $('#toks').innerHTML=seq.map((t,i)=>`<span class="tok${i>=START.length?' new':''}">${t}</span>`).join('');
+ const last=seq[seq.length-1],P=last==='。'?[]:probs(last);
+ $('#pbars').innerHTML=P.slice(0,6).map(([k,p])=>`<button data-k="${k}"><span>${k}</span><span class="bar"><i style="width:${(p*100).toFixed(1)}%"></i></span><span class="mono">${(p*100).toFixed(0)}%</span></button>`).join('');
+ $('#tokNote').textContent=last==='。'?'句子結束了。按「重來」再試一次。':`「${last}」後面可能接的詞，以及模型給的機率：`;}
+function pick(){const last=seq[seq.length-1];if(last==='。')return false;const P=probs(last);if(!P.length)return false;let r=genR(),acc=0;for(const [k,p] of P){acc+=p;if(r<=acc){seq.push(k);return true}}seq.push(P[P.length-1][0]);return true}
+$('#pbars').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;seq.push(b.dataset.k);tokDraw()});
+$('#genOne').onclick=()=>{pick();tokDraw()};$('#genAll').onclick=()=>{for(let i=0;i<20&&pick();i++);tokDraw()};
+$('#genReset').onclick=()=>{seq=[...START];genR=rng(5);tokDraw()};$('#temp').addEventListener('input',()=>tokDraw());seq=[...START];tokDraw();
+
+/* 6 toy RAG: TF-IDF over character bigrams */
+const DOCS=['W08 要繳交的作業：Dataset Card 一份，以及六張故事圖的一致性評分表，週日 23:59 前上傳。',
+ 'W07 主題：提示詞與 CFG，練習固定 Seed 比較生成結果，繳交比較表一份。',
+ '期中考範圍：W01 到 W08，包含取樣量化、卷積濾波、擴散模型與 LoRA。',
+ '請假規定：請於上課前透過校務系統請假，並告知助教。',
+ 'Colab 使用方式：執行前先選擇 GPU 執行階段，免費的 T4 即可完成 GPU 實驗。',
+ '作業遲交：每遲交一天扣 10 分，最多扣到 50 分。',
+ '期末專題：三人一組，製作一支 60 秒以內的短影音，並附上製作紀錄。',
+ 'W08-0 先修：神經網路、訓練、推論、大語言模型與 RAG 的基本觀念。'];
+$('#doc0').value=DOCS[0];
+const STOP=new Set('的了是嗎什麼呢？?，。、：要會怎幾'.split(''));
+const grams=s=>{s=s.replace(/[\s，。、：；？?！!（）「」]/g,'').toLowerCase();const g=[];for(const c of s)if(!STOP.has(c))g.push(c);for(let i=0;i<s.length-1;i++)g.push(s.slice(i,i+2));return g};
+function vec(g,idf){const v={};g.forEach(t=>v[t]=(v[t]||0)+1);for(const k in v)v[k]*=(idf[k]||0);return v}
+const cos=(a,b)=>{let d=0,na=0,nb=0;for(const k in a){na+=a[k]*a[k];if(b[k])d+=a[k]*b[k]}for(const k in b)nb+=b[k]*b[k];return na&&nb?d/Math.sqrt(na*nb):0};
+const PRE=['W08 要繳交什麼？','期末專題幾個人一組？','遲交會扣幾分？','Colab 要選什麼執行階段？','模型怎麼生成影片？'];
+$('#ragPresets').innerHTML=PRE.map(q=>`<button>${q}</button>`).join('');
+$('#ragPresets').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('#ragQ').value=b.textContent;rag()});
+function rag(){const docs=[$('#doc0').value.trim(),...DOCS.slice(1)],G=docs.map(grams),N=docs.length,df={};G.forEach(g=>new Set(g).forEach(t=>df[t]=(df[t]||0)+1));
+ const idf={};for(const k in df)idf[k]=Math.log((N+1)/(df[k]+1))+1;const q=$('#ragQ').value,qv=vec(grams(q),idf),sc=G.map(g=>cos(qv,vec(g,idf)));
+ const order=[...sc.keys()].sort((a,b)=>sc[b]-sc[a]),top=order[0],ok=sc[top]>=0.2;
+ $('#docs').innerHTML=order.map(i=>`<div class="doc${i===top&&ok?' hit':''}"><span class="mono muted">第${i+1}段</span><span>${docs[i].replace(/</g,'&lt;')}</span><span class="sc">${sc[i].toFixed(2)}</span></div>`).join('');
+ $('#ragPrompt').textContent=ok?`[系統] 只根據下列資料回答，並註明出處。\n[資料] 第${top+1}段：${docs[top]}\n[問題] ${q}`:`[系統] 只根據下列資料回答。\n[資料] （沒有找到相關段落）\n[問題] ${q}`;
+ $('#ragA').innerHTML=ok?`<b>RAG 回答：</b>根據講義第 ${top+1} 段，${docs[top].replace(/^[^：]*：/,'').replace(/</g,'&lt;')}（出處：第 ${top+1} 段）`:`<b>RAG 回答：</b>講義裡找不到相關資料，無法回答。這比編一個答案好。`;}
+['#ragQ','#doc0'].forEach(s=>$(s).addEventListener('input',rag));rag();
+
+/* 7 quiz */
+const OPT=['Prompt','RAG','Fine-tuning／LoRA','從頭預訓練'];
+const Q=[['希望聊天機器人回答時用條列、每點不超過 20 字。',0,'這是格式要求，寫進 Prompt 就好，不必動模型。'],
+ ['要回答本學期每週更新的課程公告。',1,'資料常更新、又需要附出處，用 RAG 檢索最新公告，不必重新訓練。'],
+ ['影像模型要長期穩定畫出一個全新的原創角色。',2,'模型沒學過的新概念、需要長期大量使用，才值得用 LoRA 微調。'],
+ ['想做一個完全不同語言、市面上沒有任何模型支援的基礎模型。',3,'需要從頭學一般能力，才會走到預訓練；成本極高，通常只有大型團隊做。'],
+ ['模型偶爾答錯學校的請假規定。',1,'規定寫在文件裡，讓模型先查再答（RAG），比微調容易更新也容易查證。'],
+ ['生成的圖片希望改成水彩風格，只做這一次。',0,'一次性的風格要求，先在 Prompt 寫清楚，不夠再考慮參考圖。']];
+let qs={};
+$('#quiz').innerHTML=Q.map((q,i)=>`<div class="qcard"><p>${q[0]}</p><div class="opts">${OPT.map((o,j)=>`<button data-q="${i}" data-o="${j}">${o}</button>`).join('')}</div><p class="fb" id="fb${i}"></p></div>`).join('');
+$('#quiz').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.q,j=+b.dataset.o,ok=j===Q[i][1];
+ b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(ok?'right':'wrong');
+ $('#fb'+i).textContent=ok?'對：'+Q[i][2]:'再想想：缺的是說明、資料，還是模型本身沒學過的能力？';
+ if(!(i in qs))qs[i]=ok;const n=Object.keys(qs).length,c=Object.values(qs).filter(Boolean).length;$('#quizScore').textContent=`第一次作答：${c}／${n} 題答對`;});
+
+/* nav + theme */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-40% 0px -55% 0px'});
+document.querySelectorAll('section.bench').forEach(s=>io.observe(s));
+const redraw=()=>{neuron();layer();gdDraw();overfit()};matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+
+/* theme toggle: follows the system until the viewer picks one; the choice is remembered */
+{const root=document.documentElement,darkQ=matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkQ.matches;
+const btn=document.getElementById('themeBtn');
+function themeLabel(){btn.textContent=isDark()?'☀ 淺色':'☾ 深色'}
+try{const t=localStorage.getItem('w080-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+btn.onclick=()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('w080-theme',t)}catch(e){}themeLabel()};
+darkQ.addEventListener('change',themeLabel);themeLabel();}
+})();
+</script>
+
+</body>
+</html>

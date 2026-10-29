@@ -13,9 +13,13 @@
 docs/
 ├── .nojekyll          # 告訴 GitHub Pages 不要用 Jekyll 處理，檔案原樣發布
 ├── index.html         # 網站首頁（互動教材入口）
-└── git-quest/
-    ├── index.html     # Git 尋寶隊本體
-    └── README.md      # 這份說明
+├── git-quest/
+│   ├── index.html     # Git 尋寶隊本體
+│   └── README.md      # 這份說明
+└── labs/              # 各週互動實驗室，網址為 labs/<週次>/
+    ├── w08-0/index.html   # W08-0 AI 模型先修實驗室
+    ├── w08/index.html     # W08 LoRA 實驗室
+    └── w10/index.html     # W10 聲音實驗室
 ```
 
 ## GitHub Pages

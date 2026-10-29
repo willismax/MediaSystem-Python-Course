@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="多媒體系統 W08 互動實驗：LoRA 參數量、低秩近似、訓練、資料偏差、Dataset Card 與視覺規格。">
+<title>W08 LoRA 實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab notebook — a sticky experiment index, then one bench per experiment, each with controls left and live result right. */
+:root{
+  --bg:#121212; --surface:#1b1b1a; --sunk:#0c0c0c; --fg:#f2f0ea; --muted:#9c988f; --line:#33322f;
+  --accent:#ff7a1a; --accent-ink:#121212; --good:#5fc48a; --bad:#ff6b5e;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:900;letter-spacing:.01em}
+h2{font-size:clamp(1.45rem,3vw,2rem);font-weight:900}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.acc{color:var(--accent)}
+.muted{color:var(--muted)}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.top .wrap{display:flex;gap:16px;align-items:center;padding-block:10px}
+.top .brand{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.top nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.top nav a:hover,.top nav a.on{color:var(--fg);background:var(--surface)}
+
+/* hero */
+.hero{padding-block:48px 28px;display:grid;gap:22px}
+.hero p.lede{max-width:44em;color:var(--muted);font-size:1.05rem}
+.story{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 6px 6px;text-align:center;transition:border-color .25s}
+.panel svg{width:100%;height:auto;display:block}
+.panel small{display:block;font-size:.75rem;color:var(--muted);line-height:1.4;margin-top:4px}
+.panel.off{border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,.btn{font:inherit;font-size:.92rem;font-weight:700;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--fg)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.ghost{background:transparent}
+.verdict{font-weight:700}
+
+/* benches */
+section.bench{padding-block:56px;border-top:1px solid var(--line);scroll-margin-top:64px}
+.bench-head{display:grid;gap:8px;margin-bottom:24px;max-width:52em}
+.bench-head .q{color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}.story{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ctrl{display:grid;gap:16px}
+.ctrl label{display:grid;gap:4px;font-size:.92rem}
+.ctrl label .lab{display:flex;justify-content:space-between;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=text],textarea,select,input[type=number]{font:inherit;font-size:.92rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%}
+textarea{min-height:64px;resize:vertical}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:16px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:24px}
+.stat .v{font-family:var(--mono);font-size:1.7rem;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.try{border-left:3px solid var(--accent);padding:8px 14px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.93rem}
+.try b{color:var(--accent)}
+canvas{max-width:100%;image-rendering:pixelated;border-radius:6px;background:var(--sunk);display:block}
+.pair{display:flex;flex-wrap:wrap;gap:16px}
+.pair figure{margin:0;display:grid;gap:6px;justify-items:start}
+figcaption{font-size:.8rem;color:var(--muted)}
+.bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.wbars{display:grid;gap:10px}
+.wbars .r{display:grid;grid-template-columns:5.5em minmax(0,1fr) 4em;gap:10px;align-items:center;font-size:.9rem}
+.thumbs{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
+@media (max-width:620px){.thumbs{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.thumbs svg{width:100%;height:auto;display:block;border-radius:4px}
+pre.out{font-family:var(--mono);font-size:.82rem;line-height:1.6;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:14px;margin:0;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:.78rem;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.ok{border-color:var(--good);color:var(--good)}
+.pill.no{border-color:var(--bad);color:var(--bad)}
+.quiz{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px}
+.qcard .opts{display:flex;flex-wrap:wrap;gap:6px}
+.qcard .opts button{font-size:.82rem;padding:5px 10px;font-weight:500}
+.qcard .opts button.right{border-color:var(--good);color:var(--good)}
+.qcard .opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.qcard .fb{font-size:.88rem;color:var(--muted);min-height:1.5em}
+table.rub{border-collapse:collapse;width:100%;font-size:.9rem}
+.tablewrap{overflow-x:auto}
+table.rub th,table.rub td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+table.rub input{width:4.2em}
+.chart svg{width:100%;height:auto;display:block}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--muted);font-size:.88rem}
+.links{display:flex;flex-wrap:wrap;gap:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.top .theme{margin-left:auto;flex:none;font-size:.82rem;padding:5px 12px;white-space:nowrap}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="brand">W08<span class="acc">／</span>LoRA Lab</span>
+  <nav id="nav">
+    <a href="#rank">參數帳</a><a href="#svd">低秩</a><a href="#train">訓練</a><a href="#entangle">資料偏差</a>
+    <a href="#card">Dataset Card</a><a href="#spec">規格模板</a><a href="#choose">選工具</a><a href="#rubric">評分</a>
+  </nav>
+  <button class="ghost theme" id="themeBtn" type="button" aria-label="切換深色／淺色">☾ 深色</button>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">多媒體系統・MS-115 日間部・Week 08</span>
+    <h1>六張圖，<span class="acc">同一個角色</span>？</h1>
+    <p class="lede">同一句 Prompt 換一個 Seed，角色就可能變樣。按下面兩個按鈕比較看看：只靠文字描述，和把規格、參考、Adapter 一起固定下來，差在哪裡。這一頁的八個實驗都在瀏覽器裡跑，改一個變因，看結果怎麼動。</p>
+    <div class="story" id="story"></div>
+    <div class="row">
+      <button id="reseed">換 Seed 重抽（只靠 Prompt）</button>
+      <button class="primary" id="lock">固定 Visual Spec ＋ LoRA</button>
+      <span class="verdict" id="storyVerdict"></span>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <section class="bench" id="rank">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 1・8.4–8.5</span>
+      <h2>LoRA 到底省了多少參數？</h2>
+      <p class="q">LoRA 不改原本的權重 W，只學一個更新量 ΔW＝B×A。B 是 d×r、A 是 r×k，r 越小，要學的數字越少。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">輸出維度 d<span class="mono" id="dV"></span></span><input type="range" id="d" min="6" max="13" step="1" value="12"></label>
+        <label><span class="lab">輸入維度 k<span class="mono" id="kV"></span></span><input type="range" id="k" min="6" max="13" step="1" value="12"></label>
+        <label><span class="lab">Rank r<span class="mono" id="rV"></span></span><input type="range" id="r" min="0" max="8" step="1" value="4"></label>
+        <div class="try"><b>動手：</b>先預測 r 加倍時參數量會變幾倍，再拖動滑桿驗證。講義的例子是 4096×4096、r＝16。</div>
+      </div>
+      <div class="stage">
+        <div class="stats">
+          <div class="stat"><div class="v" id="fullP"></div><div class="k">完整微調要學的參數 d×k</div></div>
+          <div class="stat"><div class="v acc" id="loraP"></div><div class="k">LoRA 要學的參數 r(d+k)</div></div>
+          <div class="stat"><div class="v acc" id="pct"></div><div class="k">占完整微調的比例</div></div>
+        </div>
+        <svg id="shapes" viewBox="0 0 640 260" role="img" aria-label="W 與 B、A 的矩陣形狀比例"></svg>
+        <p class="muted" style="font-size:.85rem">簡化例子：只算單一矩陣。真實模型有很多層，LoRA 也不一定加在每一層，總參數量依設定而定。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="bench" id="svd">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 2・低秩直覺</span>
+      <h2>只留前 k 個成分，圖還認得出來嗎？</h2>
+      <p class="q">一張 64×64 的圖就是一個矩陣。用奇異值分解（SVD）只保留前 k 個成分，等於用「rank k」去近似它。LoRA 押的就是：模型需要的更新量，常常用低 rank 就表示得差不多。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">保留成分數 k<span class="mono" id="kkV"></span></span><input type="range" id="kk" min="1" max="64" step="1" value="4"></label>
+        <div class="row"><button id="drawClear" class="ghost">清空畫布</button><button id="drawReset" class="ghost">放回角色</button></div>
+        <div class="try"><b>動手：</b>在左邊畫布上自己畫（拖曳滑鼠或手指）。橫線、直線這類規律的圖，k 很小就能還原；雜亂的塗鴉要多少 k？</div>
+      </div>
+      <div class="stage">
+        <div class="pair">
+          <figure><canvas id="pad" width="256" height="256" style="width:min(256px,40vw);touch-action:none;cursor:crosshair"></canvas><figcaption>原圖（可以畫）</figcaption></figure>
+          <figure><canvas id="rec" width="64" height="64" style="width:min(256px,40vw)"></canvas><figcaption id="recCap">rank k 近似</figcaption></figure>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="v acc" id="energy"></div><div class="k">保留的能量（Σσ² 比例）</div></div>
+          <div class="stat"><div class="v" id="store"></div><div class="k">要存的數字 k(64+64+1) ／ 4096</div></div>
+        </div>
+        <svg id="spec" viewBox="0 0 640 120" role="img" aria-label="奇異值大小"></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="bench" id="train">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 3・8.6–8.7、8.19</span>
+      <h2>親手訓練一個 LoRA</h2>
+      <p class="q">一個 8×8 的「預訓練權重」W 被凍結。新任務真正需要的更新量 ΔW* 是 rank 2。我們只訓練 B（初始為 0）與 A，看不同 rank 能不能學會。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">LoRA Rank r<span class="mono" id="trV"></span></span><input type="range" id="tr" min="1" max="4" step="1" value="1"></label>
+        <label><span class="lab">學習率<span class="mono" id="lrV"></span></span><input type="range" id="lr" min="1" max="5" step="1" value="3"></label>
+        <div class="row"><button class="primary" id="trainGo">開始訓練</button><button id="trainReset" class="ghost">重設</button></div>
+        <label><span class="lab">LoRA Scale（訓練後調整）<span class="mono" id="scV"></span></span><input type="range" id="sc" min="0" max="150" step="5" value="100"></label>
+        <div class="try"><b>動手：</b>先用 r＝1 訓練，記下最後的 loss；再改 r＝2。預測：r＝3、4 會比 r＝2 好很多嗎？訓練完拖 Scale：0 就是 Base Model（對照組）。</div>
+      </div>
+      <div class="stage">
+        <div class="pair">
+          <figure><canvas id="hTrue" width="8" height="8" style="width:150px"></canvas><figcaption>目標 ΔW*（rank 2）</figcaption></figure>
+          <figure><canvas id="hLearn" width="8" height="8" style="width:150px"></canvas><figcaption id="hLearnCap">學到的 s·B×A</figcaption></figure>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="v" id="tStep">0</div><div class="k">訓練步數</div></div>
+          <div class="stat"><div class="v acc" id="tLoss"></div><div class="k">驗證 loss（MSE）</div></div>
+          <div class="stat"><div class="v" id="tParams"></div><div class="k">可訓練參數 ／ 完整 64</div></div>
+        </div>
+        <div class="chart"><svg id="lossChart" viewBox="0 0 640 200" role="img" aria-label="loss 曲線"></svg></div>
+        <div class="chart"><svg id="scaleChart" viewBox="0 0 640 170" role="img" aria-label="LoRA scale 與 loss"></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="bench" id="entangle">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 4・8.12–8.14</span>
+      <h2>模型學到的是角色，還是背景？</h2>
+      <p class="q">訓練資料裡，角色 A 永遠站在白牆前、角色 B 永遠在森林。背景比臉好認，模型就可能抄捷徑。測試時把背景對調，看它還認不認得出角色。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">換背景的訓練圖比例<span class="mono" id="divV"></span></span><input type="range" id="div" min="0" max="50" step="5" value="0"></label>
+        <label><span class="lab">訓練圖數量<span class="mono" id="nV"></span></span><input type="range" id="n" min="24" max="240" step="24" value="96"></label>
+        <div class="try"><b>動手：</b>先預測 0% 時「背景對調」測試的正確率，再慢慢加到 50%。正確率在哪裡開始明顯回升？只增加圖片數量、不加多樣性，有用嗎？</div>
+      </div>
+      <div class="stage">
+        <div class="thumbs" id="thumbs" aria-label="訓練資料前 24 張"></div>
+        <figcaption>訓練資料前 24 張（橘框＝換過背景的圖）</figcaption>
+        <div class="stats">
+          <div class="stat"><div class="v" id="accTrain"></div><div class="k">訓練資料正確率</div></div>
+          <div class="stat"><div class="v acc" id="accSwap"></div><div class="k">背景對調測試正確率</div></div>
+        </div>
+        <div class="wbars" id="wbars"></div>
+        <p class="muted" style="font-size:.85rem" id="entVerdict"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="bench" id="card">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 5・8.10–8.11</span>
+      <h2>按下 Train 之前：Dataset Card</h2>
+      <p class="q">先寫清楚模型要從這批資料學到什麼。填完五個欄位，右邊會檢查還缺什麼，可以直接複製貼進作業。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl" id="cardForm">
+        <label>① Source 來源與授權<textarea id="cSource">自己繪製的角色設定圖 20 張，授權：本人創作，可用於課堂訓練</textarea></label>
+        <label>② Target Concept 要學的概念<input type="text" id="cTarget" value="原創角色「小藍」：短黑髮、圓眼鏡、深藍帽T"></label>
+        <label>③ Diversity 多樣性（角度、場景、光線…）<textarea id="cDiv">正面 8、側面 6、背面 2、坐姿 4；教室、操場、圖書館；白天與室內燈</textarea></label>
+        <label>④ Caption 標註規則與觸發詞<input type="text" id="cCap" value="每張以「xblue student」開頭，描述姿勢與場景，不描述固定外觀"></label>
+        <label>⑤ Validation 驗證方式<textarea id="cVal">固定 Seed，測試 6 個訓練資料沒有的 Prompt（跑步、背面、藍光…），與 Base Model 對照</textarea></label>
+      </div>
+      <div class="stage">
+        <div class="pills" id="cardChecks"></div>
+        <pre class="out" id="cardOut"></pre>
+        <div class="row"><button id="cardCopy">複製 Markdown</button><span class="muted" id="cardMsg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="bench" id="spec">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 6・8.15–8.17、8.27</span>
+      <h2>Visual Specification × Prompt Template</h2>
+      <p class="q">固定的部分寫一次，只讓場景變。改左邊任何一格，六個 Prompt 會一起更新：這就是 Template Thinking。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <label>CHARACTER<textarea id="sChar">20-year-old male student, short black hair, round glasses, navy hoodie, white sneakers</textarea></label>
+        <label>STYLE<textarea id="sStyle">flat editorial illustration, clean geometric shapes, navy and coral palette, soft daylight, medium shot, eye-level camera, 16:9, no text</textarea></label>
+        <label>六個 scene（一行一個）<textarea id="sScenes" style="min-height:150px">walking into the campus gate
+sitting in a classroom
+typing on a laptop in a computer lab
+entering a science laboratory
+discussing with classmates at a table
+standing on a stage holding a microphone</textarea></label>
+      </div>
+      <div class="stage">
+        <pre class="out" id="specOut"></pre>
+        <div class="pills" id="specChecks"></div>
+        <div class="row"><button id="specCopy">複製六個 Prompt</button><span class="muted" id="specMsg"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="bench" id="choose">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 7・8.18</span>
+      <h2>缺的是哪一種控制？</h2>
+      <p class="q">LoRA 是工具箱裡的一項工具，不是每個一致性問題的預設答案。讀每個情境，選最先該試的方法。</p>
+    </div>
+    <div class="quiz" id="quiz"></div>
+    <p class="muted" style="margin-top:14px" id="quizScore"></p>
+  </section>
+
+  <!-- 8 -->
+  <section class="bench" id="rubric">
+    <div class="bench-head">
+      <span class="eyebrow">實驗 8・8.19–8.22</span>
+      <h2>一致性不能只靠「看起來差不多」</h2>
+      <p class="q">固定 Model、Prompt、Seed、Steps，只改 LoRA Scale。每個條件依 Rubric 打 1–5 分，Base（Scale 0）是對照組。表格預填的是示意分數，換成你自己生成結果的評分。</p>
+    </div>
+    <div class="tablewrap"><table class="rub" id="rubTable"></table></div>
+    <div class="chart" style="margin-top:18px"><svg id="rubChart" viewBox="0 0 640 230" role="img" aria-label="各 Scale 的 Identity 與 Flexibility"></svg></div>
+    <p class="try" style="margin-top:14px" id="rubSummary"></p>
+  </section>
+</main>
+
+<footer><div class="wrap" style="display:grid;gap:12px">
+  <div class="links">
+    <a href="../w08-0/">先修：W08-0 AI 模型先修實驗室</a>
+    <a href="https://hackmd.io/@wiimax/SyJ-cctUMe" target="_blank" rel="noopener">講義：08｜LoRA、資料品質與影像一致性</a>
+    <a href="https://colab.research.google.com/drive/1SHVcsbV-YgPz1Z2aGzQ5e_Qb5hX56AHT" target="_blank" rel="noopener">Colab 實作</a>
+  </div>
+  <p>影片：W08-1 LoRA：用少量參數微調模型、W08-2 資料品質與影像一致性（見課程雲端教材資料夾）。本頁的實驗 3、4 用小型合成資料示範原理，數字不代表真實擴散模型的表現。</p>
+</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function rng(seed){return()=>{let t=(seed+=0x6D2B79F5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const fmt=n=>n.toLocaleString('en-US');
+
+/* ---------- shared character ---------- */
+const HAIR={short:'M54 96 Q56 46 100 48 Q144 46 146 96 Q132 70 100 72 Q68 70 54 96 Z',
+ long:'M54 96 Q56 46 100 48 Q144 46 146 96 L152 178 L132 178 L134 100 Q100 74 66 100 L68 178 L48 178 Z',
+ spiky:'M54 98 L60 56 L76 66 L88 42 L102 60 L118 40 L128 62 L144 54 L146 98 Q130 74 100 76 Q70 74 54 98 Z',
+ bun:'M54 96 Q56 46 100 48 Q144 46 146 96 Q132 70 100 72 Q68 70 54 96 Z M86 40 a14 14 0 1 0 28 0 a14 14 0 1 0 -28 0'};
+function student(o){o=Object.assign({hair:'short',face:'round',coat:'none',glasses:true},o);
+ const fg='currentColor',fill=o.coat==='fill'?'var(--muted)':o.coat==='accent'?'var(--accent)':'none';
+ const head=o.face==='long'?'<ellipse cx="100" cy="104" rx="38" ry="52" fill="none" stroke="currentColor" stroke-width="5"/>':'<circle cx="100" cy="104" r="46" fill="none" stroke="currentColor" stroke-width="5"/>';
+ const gl=o.glasses?'<circle cx="82" cy="108" r="13" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="118" cy="108" r="13" fill="none" stroke="currentColor" stroke-width="4"/><path d="M95 108 L105 108" stroke="currentColor" stroke-width="4"/>':'<circle cx="84" cy="108" r="4" fill="currentColor"/><circle cx="116" cy="108" r="4" fill="currentColor"/>';
+ return `<svg viewBox="0 0 200 250" aria-hidden="true"><path d="M28 250 Q30 170 100 164 Q170 170 172 250 Z" fill="${fill}" stroke="${fg}" stroke-width="5"/><path d="M70 170 Q100 204 130 170" fill="none" stroke="${fg}" stroke-width="5"/>${head}<path d="${HAIR[o.hair]}" fill="${fg}"/>${gl}<path d="M88 134 Q100 142 112 134" fill="none" stroke="${fg}" stroke-width="4"/></svg>`;}
+
+/* ---------- hero ---------- */
+const SC=['走進校園','坐在教室','操作電腦','進入實驗室','與同學討論','站上舞台'];
+let seedN=7;
+function drawStory(lock){const r=rng(seedN);let off=0;
+ $('#story').innerHTML=SC.map((s,i)=>{let o={};
+  if(!lock){const hs=['short','short','long','spiky','bun'];o={hair:hs[Math.floor(r()*hs.length)],face:r()<.35?'long':'round',coat:r()<.3?'fill':'none',glasses:r()>.25};}
+  const bad=!lock&&(o.hair!=='short'||o.face!=='round'||o.coat!=='none'||!o.glasses);if(bad)off++;
+  return `<div class="panel${bad?' off':''}">${student(o)}<small>${i+1}・${s}</small></div>`}).join('');
+ $('#storyVerdict').innerHTML=lock?'<span style="color:var(--good)">六張一致</span>':`<span class="acc">${off} 張和設定不同</span>`;}
+$('#reseed').onclick=()=>{seedN++;drawStory(false)};$('#lock').onclick=()=>drawStory(true);drawStory(false);
+
+/* ---------- 1 param budget ---------- */
+function rankUpd(){const d=2**+$('#d').value,k=2**+$('#k').value,r=2**+$('#r').value;
+ $('#dV').textContent=d;$('#kV').textContent=k;$('#rV').textContent=r;
+ const full=d*k,lo=r*(d+k);$('#fullP').textContent=fmt(full);$('#loraP').textContent=fmt(lo);
+ $('#pct').textContent=(lo/full*100).toFixed(lo/full<.01?2:1)+'%';
+ const S=200/Math.max(d,k),w=k*S,h=d*S,rr=Math.max(r*S,2);
+ const fg=css('--fg'),ac=css('--accent'),mu=css('--muted');
+ $('#shapes').innerHTML=`<rect x="10" y="20" width="${w}" height="${h}" fill="none" stroke="${fg}" stroke-width="2"/><text x="${10+w/2}" y="${20+h/2+8}" text-anchor="middle" fill="${fg}" font-size="26" font-weight="700">W</text><text x="10" y="248" fill="${mu}" font-size="14">${d}×${k}（凍結）</text>
+ <text x="250" y="${20+h/2+8}" fill="${fg}" font-size="26">≈</text>
+ <rect x="300" y="20" width="${rr}" height="${h}" fill="${ac}" fill-opacity=".25" stroke="${ac}" stroke-width="2"/><text x="300" y="248" fill="${ac}" font-size="14">B ${d}×${r}</text>
+ <text x="${310+rr}" y="40" fill="${fg}" font-size="20">×</text>
+ <rect x="${335+rr}" y="20" width="${w}" height="${rr}" fill="${ac}" fill-opacity=".25" stroke="${ac}" stroke-width="2"/><text x="${335+rr}" y="${20+rr+20}" fill="${ac}" font-size="14">A ${r}×${k}</text>`;}
+['#d','#k','#r'].forEach(s=>$(s).addEventListener('input',rankUpd));rankUpd();
+
+/* ---------- 2 SVD ---------- */
+const pad=$('#pad'),pc=pad.getContext('2d'),N=64;
+function resetPad(){pc.fillStyle='#fff';pc.fillRect(0,0,256,256);pc.save();pc.translate(28,6);pc.scale(1,1);
+ pc.strokeStyle='#000';pc.fillStyle='#000';pc.lineWidth=7;pc.lineCap='round';
+ const P=d=>new Path2D(d);pc.stroke(P('M28 250 Q30 170 100 164 Q170 170 172 250'));pc.stroke(P('M70 170 Q100 204 130 170'));
+ pc.beginPath();pc.arc(100,104,46,0,7);pc.stroke();pc.fill(P(HAIR.short));pc.lineWidth=5;
+ pc.beginPath();pc.arc(82,108,13,0,7);pc.stroke();pc.beginPath();pc.arc(118,108,13,0,7);pc.stroke();
+ pc.stroke(P('M95 108 L105 108'));pc.stroke(P('M88 134 Q100 142 112 134'));pc.restore();computeSVD();}
+let drawing=false,last=null;
+function pos(e){const b=pad.getBoundingClientRect();return[(e.clientX-b.left)*256/b.width,(e.clientY-b.top)*256/b.height]}
+pad.addEventListener('pointerdown',e=>{drawing=true;last=pos(e);pad.setPointerCapture(e.pointerId)});
+pad.addEventListener('pointermove',e=>{if(!drawing)return;const p=pos(e);pc.strokeStyle='#000';pc.lineWidth=10;pc.lineCap='round';pc.beginPath();pc.moveTo(...last);pc.lineTo(...p);pc.stroke();last=p});
+pad.addEventListener('pointerup',()=>{if(drawing){drawing=false;computeSVD()}});
+$('#drawClear').onclick=()=>{pc.fillStyle='#fff';pc.fillRect(0,0,256,256);computeSVD()};$('#drawReset').onclick=resetPad;
+let U=[],Sg=[],V=[];
+function computeSVD(){const t=document.createElement('canvas');t.width=t.height=N;const tc=t.getContext('2d');tc.drawImage(pad,0,0,N,N);
+ const px=tc.getImageData(0,0,N,N).data,A=[];for(let i=0;i<N;i++){A.push(new Float64Array(N));for(let j=0;j<N;j++)A[i][j]=1-px[(i*N+j)*4]/255}
+ // eigen of AᵀA by cyclic Jacobi
+ const M=[];for(let i=0;i<N;i++){M.push(new Float64Array(N));for(let j=0;j<N;j++){let s=0;for(let r=0;r<N;r++)s+=A[r][i]*A[r][j];M[i][j]=s}}
+ const Vm=[];for(let i=0;i<N;i++){Vm.push(new Float64Array(N));Vm[i][i]=1}
+ for(let sw=0;sw<12;sw++){let off=0;for(let p=0;p<N;p++)for(let q=p+1;q<N;q++)off+=M[p][q]*M[p][q];if(off<1e-10)break;
+  for(let p=0;p<N;p++)for(let q=p+1;q<N;q++){if(Math.abs(M[p][q])<1e-12)continue;const th=(M[q][q]-M[p][p])/(2*M[p][q]);const t=Math.sign(th||1)/(Math.abs(th)+Math.sqrt(th*th+1));const c=1/Math.sqrt(t*t+1),s=t*c;
+   for(let r=0;r<N;r++){const a=M[r][p],b=M[r][q];M[r][p]=c*a-s*b;M[r][q]=s*a+c*b}
+   for(let r=0;r<N;r++){const a=M[p][r],b=M[q][r];M[p][r]=c*a-s*b;M[q][r]=s*a+c*b}
+   for(let r=0;r<N;r++){const a=Vm[r][p],b=Vm[r][q];Vm[r][p]=c*a-s*b;Vm[r][q]=s*a+c*b}}}
+ const idx=[...Array(N).keys()].sort((a,b)=>M[b][b]-M[a][a]);
+ Sg=idx.map(i=>Math.sqrt(Math.max(M[i][i],0)));V=idx.map(i=>Float64Array.from({length:N},(_,r)=>Vm[r][i]));
+ U=V.map((v,n)=>{const u=new Float64Array(N);if(Sg[n]>1e-9)for(let i=0;i<N;i++){let s=0;for(let j=0;j<N;j++)s+=A[i][j]*v[j];u[i]=s/Sg[n]}return u});
+ svdUpd();}
+function svdUpd(){const k=+$('#kk').value;$('#kkV').textContent=k;const rc=$('#rec').getContext('2d'),im=rc.createImageData(N,N);
+ for(let i=0;i<N;i++)for(let j=0;j<N;j++){let s=0;for(let n=0;n<k;n++)s+=Sg[n]*U[n][i]*V[n][j];const v=Math.round(255*(1-Math.min(1,Math.max(0,s))));const o=(i*N+j)*4;im.data[o]=im.data[o+1]=im.data[o+2]=v;im.data[o+3]=255}
+ rc.putImageData(im,0,0);const tot=Sg.reduce((a,b)=>a+b*b,0)||1,kept=Sg.slice(0,k).reduce((a,b)=>a+b*b,0);
+ $('#energy').textContent=(kept/tot*100).toFixed(1)+'%';$('#store').textContent=fmt(k*129)+' ／ 4,096';$('#recCap').textContent=`rank ${k} 近似`;
+ const mx=Sg[0]||1,ac=css('--accent'),mu=css('--line'),tx=css('--muted');
+ $('#spec').innerHTML=Sg.map((s,i)=>`<rect x="${20+i*9.4}" y="${100-s/mx*86}" width="7" height="${s/mx*86}" fill="${i<k?ac:mu}"/>`).join('')+`<text x="20" y="116" fill="${tx}" font-size="12">σ₁ … σ₆₄（奇異值由大到小，橘色＝保留）</text>`;}
+$('#kk').addEventListener('input',svdUpd);
+
+/* ---------- 3 LoRA trainer ---------- */
+const D=8,NS=96;const tr0=rng(42);
+const W0=[...Array(D)].map(()=>[...Array(D)].map(()=>gauss(tr0)*.6));
+const u1=[...Array(D)].map(()=>gauss(tr0)),v1=[...Array(D)].map(()=>gauss(tr0)),u2=[...Array(D)].map(()=>gauss(tr0)),v2=[...Array(D)].map(()=>gauss(tr0));
+const DT=[...Array(D)].map((_,i)=>[...Array(D)].map((_,j)=>.55*u1[i]*v1[j]+.3*u2[i]*v2[j]));
+const mk=n=>[...Array(n)].map(()=>[...Array(D)].map(()=>gauss(tr0)));
+const Xtr=mk(NS),Xva=mk(48);
+const target=(X)=>X.map(x=>[...Array(D)].map((_,i)=>{let s=0;for(let j=0;j<D;j++)s+=(W0[i][j]+DT[i][j])*x[j];return s+gauss(tr0)*.05}));
+const Ytr=target(Xtr),Yva=target(Xva);
+let B,Am,step,hist,running=false,raf=0;
+function initT(){const r=+$('#tr').value,ri=rng(9);B=[...Array(D)].map(()=>Array(r).fill(0));Am=[...Array(r)].map(()=>[...Array(D)].map(()=>gauss(ri)*.3));step=0;hist=[];hist.push(evalL(1));drawT();}
+function dW(s){const r=Am.length;return[...Array(D)].map((_,i)=>[...Array(D)].map((_,j)=>{let t=0;for(let q=0;q<r;q++)t+=B[i][q]*Am[q][j];return s*t}))}
+function evalL(s,X=Xva,Y=Yva){const d=dW(s);let L=0;X.forEach((x,n)=>{for(let i=0;i<D;i++){let p=0;for(let j=0;j<D;j++)p+=(W0[i][j]+d[i][j])*x[j];L+=(p-Y[n][i])**2}});return L/(X.length*D)}
+function sgd(){const lr=[0,.01,.03,.06,.12,.25][+$('#lr').value],d=dW(1),G=[...Array(D)].map(()=>Array(D).fill(0));
+ Xtr.forEach((x,n)=>{for(let i=0;i<D;i++){let p=0;for(let j=0;j<D;j++)p+=(W0[i][j]+d[i][j])*x[j];const e=2*(p-Ytr[n][i])/(NS*D);for(let j=0;j<D;j++)G[i][j]+=e*x[j]}});
+ const r=Am.length,gB=B.map((row,i)=>row.map((_,q)=>{let s=0;for(let j=0;j<D;j++)s+=G[i][j]*Am[q][j];return s})),gA=Am.map((row,q)=>row.map((_,j)=>{let s=0;for(let i=0;i<D;i++)s+=B[i][q]*G[i][j];return s}));
+ for(let i=0;i<D;i++)for(let q=0;q<r;q++)B[i][q]-=lr*gB[i][q];for(let q=0;q<r;q++)for(let j=0;j<D;j++)Am[q][j]-=lr*gA[q][j];step++;}
+function heat(cv,M){const c=cv.getContext('2d'),im=c.createImageData(D,D),mx=1.6;const ac=[255,122,26],bl=[90,160,255];
+ for(let i=0;i<D;i++)for(let j=0;j<D;j++){const v=Math.max(-1,Math.min(1,M[i][j]/mx)),col=v>0?ac:bl,a=Math.abs(v),o=(i*D+j)*4;const base=document.documentElement.matches('[data-theme="light"]')||matchMedia('(prefers-color-scheme: light)').matches&&!document.documentElement.matches('[data-theme="dark"]')?255:18;
+  for(let k=0;k<3;k++)im.data[o+k]=Math.round(base+(col[k]-base)*a);im.data[o+3]=255}c.putImageData(im,0,0)}
+function drawT(){const s=+$('#sc').value/100;$('#scV').textContent=s.toFixed(2);$('#trV').textContent=$('#tr').value;$('#lrV').textContent=['','0.01','0.03','0.06','0.12','0.25'][+$('#lr').value];
+ heat($('#hTrue'),DT);heat($('#hLearn'),dW(s));$('#hLearnCap').textContent=`學到的 ${s.toFixed(2)}·B×A`;
+ $('#tStep').textContent=step;$('#tLoss').textContent=evalL(s).toFixed(4);const r=Am.length;$('#tParams').textContent=`${r*16} ／ 64`;
+ const fg=css('--fg'),mu=css('--muted'),ln=css('--line'),ac=css('--accent');
+ const mxL=Math.max(...hist,.01),X=i=>50+i/Math.max(hist.length-1,1)*570,Y=v=>170-Math.log10(v/ (mxL/1000)+1e-9)/3*150;
+ const yv=v=>{const lo=Math.log10(Math.max(v,1e-4)),top=Math.log10(mxL);return 20+(top-lo)/(top+4)*150};
+ let path=hist.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${yv(v).toFixed(1)}`).join(' ');
+ const ticks=[mxL,1e-1,1e-2,1e-3].filter(t=>t<=mxL);
+ $('#lossChart').innerHTML=ticks.map(t=>`<line x1="50" x2="620" y1="${yv(t)}" y2="${yv(t)}" stroke="${ln}"/><text x="44" y="${yv(t)+4}" text-anchor="end" fill="${mu}" font-size="11">${t>=.1?t.toFixed(2):t.toExponential(0)}</text>`).join('')+
+  `<path d="${path}" fill="none" stroke="${ac}" stroke-width="2.5"/><text x="620" y="196" text-anchor="end" fill="${mu}" font-size="11">訓練步數 → ${step}</text><text x="50" y="14" fill="${mu}" font-size="11">驗證 loss（對數刻度）</text>`;
+ const ss=[...Array(31)].map((_,i)=>i*.05),Ls=ss.map(x=>evalL(x)),mL=Math.max(...Ls),sx=x=>50+x/1.5*570,sy=v=>150-v/mL*120;
+ $('#scaleChart').innerHTML=`<line x1="50" x2="620" y1="150" y2="150" stroke="${ln}"/>`+[0,.4,.7,1,1.3].map(x=>`<text x="${sx(x)}" y="166" text-anchor="middle" fill="${mu}" font-size="11">${x}</text><line x1="${sx(x)}" x2="${sx(x)}" y1="146" y2="150" stroke="${mu}"/>`).join('')+
+  `<path d="${ss.map((x,i)=>`${i?'L':'M'}${sx(x)} ${sy(Ls[i])}`).join(' ')}" fill="none" stroke="${fg}" stroke-width="2"/><circle cx="${sx(s)}" cy="${sy(evalL(s))}" r="6" fill="${ac}"/><text x="50" y="18" fill="${mu}" font-size="11">LoRA Scale 對驗證 loss 的影響（0＝Base Model 對照組）</text>`;}
+function loop(){for(let k=0;k<6&&step<600;k++){sgd();if(step%3===0)hist.push(evalL(1))}drawT();if(running&&step<600)raf=requestAnimationFrame(loop);else{running=false;$('#trainGo').textContent='繼續訓練'}}
+$('#trainGo').onclick=()=>{if(running){running=false;cancelAnimationFrame(raf);$('#trainGo').textContent='繼續訓練';return}if(step>=600)initT();running=true;$('#trainGo').textContent='暫停';loop()};
+$('#trainReset').onclick=()=>{running=false;cancelAnimationFrame(raf);$('#trainGo').textContent='開始訓練';initT()};
+$('#tr').addEventListener('input',()=>{running=false;cancelAnimationFrame(raf);$('#trainGo').textContent='開始訓練';initT()});
+['#lr','#sc'].forEach(s=>$(s).addEventListener('input',drawT));initT();
+
+/* ---------- 4 shortcut learning ---------- */
+function thumb(shape,bg,swapped){const wall=bg==='wall';const b=wall?'#e9e6df':'#3f7d4a';const ink=wall?'#222':'#f2f0ea';
+ const fig=shape==='A'?`<circle cx="20" cy="15" r="7" fill="none" stroke="${ink}" stroke-width="2.4"/>`:`<rect x="13" y="8" width="14" height="14" fill="none" stroke="${ink}" stroke-width="2.4"/>`;
+ const tree=wall?'':`<path d="M6 34 L6 26 M2 27 L6 16 L10 27 Z" stroke="#bfe0b0" fill="none" stroke-width="1.4"/>`;
+ return `<svg viewBox="0 0 40 40" style="outline:${swapped?'2px solid var(--accent)':'none'};outline-offset:-2px"><rect width="40" height="40" fill="${b}"/>${tree}${fig}<path d="M10 40 Q12 27 20 26 Q28 27 30 40" fill="none" stroke="${ink}" stroke-width="2.4"/></svg>`;}
+function entUpd(){const p=+$('#div').value/100,n=+$('#n').value;$('#divV').textContent=Math.round(p*100)+'%';$('#nV').textContent=n;
+ const r=rng(123),data=[];for(let i=0;i<n;i++){const y=i%2;const sw=r()<p;const bg=sw?1-y:y;data.push({y,bg,sw,x:[(y?1:-1)*.6+gauss(r)*1.0,(bg?1:-1)*1.2+gauss(r)*.25]})}
+ // logistic regression, 400 iters
+ let w=[0,0],b=0;for(let it=0;it<400;it++){let g0=0,g1=0,gb=0;data.forEach(d=>{const z=w[0]*d.x[0]+w[1]*d.x[1]+b,pp=1/(1+Math.exp(-z)),e=pp-d.y;g0+=e*d.x[0];g1+=e*d.x[1];gb+=e});w[0]-=.5*g0/n+.002*w[0];w[1]-=.5*g1/n+.002*w[1];b-=.5*gb/n}
+ const acc=set=>set.filter(d=>(w[0]*d.x[0]+w[1]*d.x[1]+b>0)===(d.y===1)).length/set.length;
+ const rt=rng(999),test=[];for(let i=0;i<400;i++){const y=i%2,bg=1-y;test.push({y,x:[(y?1:-1)*.6+gauss(rt)*1.0,(bg?1:-1)*1.2+gauss(rt)*.25]})}
+ const aT=acc(data),aS=acc(test);$('#accTrain').textContent=(aT*100).toFixed(0)+'%';$('#accSwap').textContent=(aS*100).toFixed(0)+'%';
+ $('#thumbs').innerHTML=data.slice(0,24).map(d=>thumb(d.y?'B':'A',d.bg?'forest':'wall',d.sw)).join('');
+ const tot=Math.abs(w[0])+Math.abs(w[1])||1;
+ $('#wbars').innerHTML=[['看角色形狀',w[0]],['看背景',w[1]]].map(([k,v])=>`<div class="r"><span>${k}</span><div class="bar"><i style="width:${Math.abs(v)/tot*100}%"></i></div><span class="mono">${(Math.abs(v)/tot*100).toFixed(0)}%</span></div>`).join('');
+ $('#entVerdict').textContent=aS<.5?'模型主要靠背景判斷：背景一對調，它就把角色認錯。這就是 Concept Entanglement。':aS<.75?'模型開始同時看形狀和背景，但背景仍有很大影響。':'模型主要靠角色本身判斷，背景改變也不太受影響。';}
+['#div','#n'].forEach(s=>$(s).addEventListener('input',entUpd));entUpd();
+
+/* ---------- 5 dataset card ---------- */
+const CF=[['cSource','Source','來源與授權',v=>/授權|licen|CC|本人|自行/i.test(v),'沒寫授權'],['cTarget','Target Concept','要學的概念',v=>v.length>=6,'描述太短'],
+ ['cDiv','Diversity','多樣性',v=>(v.match(/[、，,；;]/g)||[]).length>=2,'只列了一兩種變化'],['cCap','Caption','標註規則',v=>v.length>=6,'沒寫觸發詞或規則'],['cVal','Validation','驗證方式',v=>/Base|對照|seed|Seed/.test(v),'沒提到對照組或固定 Seed']];
+function cardUpd(){let md='## Dataset Card\n\n';const pills=[];CF.forEach(([id,en,zh,chk,msg],i)=>{const v=$('#'+id).value.trim();md+=`### ${'①②③④⑤'[i]} ${en}｜${zh}\n${v||'（未填）'}\n\n`;const ok=v&&chk(v);pills.push(`<span class="pill ${ok?'ok':'no'}">${'①②③④⑤'[i]} ${zh}${ok?' ✓':'：'+(v?msg:'未填')}</span>`)});
+ $('#cardOut').textContent=md.trim();$('#cardChecks').innerHTML=pills.join('');}
+CF.forEach(([id])=>$('#'+id).addEventListener('input',cardUpd));cardUpd();
+function copy(text,msgEl){const done=()=>{msgEl.textContent='已複製';setTimeout(()=>msgEl.textContent='',1800)};
+ try{navigator.clipboard.writeText(text).then(done,()=>{msgEl.textContent='無法自動複製，請手動選取上方文字'})}catch(e){msgEl.textContent='無法自動複製，請手動選取上方文字'}}
+$('#cardCopy').onclick=()=>copy($('#cardOut').textContent,$('#cardMsg'));
+
+/* ---------- 6 spec template ---------- */
+function specUpd(){const C=$('#sChar').value.trim(),S=$('#sStyle').value.trim(),sc=$('#sScenes').value.split('\n').map(s=>s.trim()).filter(Boolean);
+ const ps=sc.map((s,i)=>`# Scene ${i+1}\n${C},\n${s},\n${S}`);$('#specOut').textContent=ps.join('\n\n');
+ const anchors=C.split(',').map(s=>s.trim()).filter(Boolean);
+ $('#specChecks').innerHTML=[`<span class="pill ${sc.length===6?'ok':'no'}">場景數 ${sc.length}／6</span>`,`<span class="pill ${anchors.length>=4?'ok':'no'}">角色錨點 ${anchors.length} 個</span>`,`<span class="pill ${/no text/i.test(S)?'ok':'no'}">no text</span>`,`<span class="pill ${/16:9|aspect/i.test(S)?'ok':'no'}">固定畫面比例</span>`,`<span class="pill ok">固定部分 ${(C+S).length} 字・變動只在 scene</span>`].join('');}
+['#sChar','#sStyle','#sScenes'].forEach(s=>$(s).addEventListener('input',specUpd));specUpd();
+$('#specCopy').onclick=()=>copy($('#specOut').textContent,$('#specMsg'));
+
+/* ---------- 7 quiz ---------- */
+const OPT=['Prompt Template','Reference／IP-Adapter','ControlNet','LoRA'];
+const Q=[['六張圖有時水彩、有時 3D、有時寫實照片。',0,'畫風跳動是文字規格沒固定，先把 STYLE 寫進模板。'],
+ ['要讓角色長得像老師給的這一張設定圖，只做這一次。',1,'有現成參考圖、又是短期需求，用參考圖做 Image Guidance 就夠，不必訓練。'],
+ ['六張圖都要同一個站姿，或沿用同一張草圖的輪廓。',2,'姿勢、輪廓、深度屬於結構控制，ControlNet 用 Pose／Canny／Depth 處理。'],
+ ['全新原創吉祥物，整學期要生成上百張，文字和參考圖都不穩。',3,'模型本身不認識的新概念、又要長期大量使用，才值得訓練 LoRA。'],
+ ['每次 Prompt 都重寫，有時寫 navy hoodie、有時寫 blue jacket。',0,'描述不一致是寫法問題，固定 CHARACTER 區塊就能解決。'],
+ ['產品包裝的外框形狀必須和設計稿完全一樣。',2,'精準的形狀邊界用 ControlNet（例如 Canny 邊緣）鎖住結構。']];
+let qScore={};
+$('#quiz').innerHTML=Q.map((q,i)=>`<div class="qcard"><p>${q[0]}</p><div class="opts">${OPT.map((o,j)=>`<button data-q="${i}" data-o="${j}">${o}</button>`).join('')}</div><p class="fb" id="fb${i}"></p></div>`).join('');
+$('#quiz').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.q,j=+b.dataset.o,ok=j===Q[i][1];
+ b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(ok?'right':'wrong');
+ $('#fb'+i).textContent=(ok?'對：':'再想想：')+(ok?Q[i][2]:'這個情境缺的是哪一種控制？文字、外觀、結構，還是模型沒學過的新概念？');
+ if(!(i in qScore))qScore[i]=ok;const n=Object.keys(qScore).length,c=Object.values(qScore).filter(Boolean).length;$('#quizScore').textContent=`第一次作答：${c}／${n} 題答對`;});
+
+/* ---------- 8 rubric ---------- */
+const SCL=['0.0（Base）','0.4','0.7','1.0','1.3'],DIM=['Character Identity','Clothing','Style','Palette','Composition','Scene Compliance','Prompt Flexibility'];
+const PRE=[[2,2,3,3,4,4,5],[3,3,3,3,4,4,5],[4,4,4,4,4,4,4],[4,5,4,4,4,4,3],[5,5,4,3,3,3,2]];
+$('#rubTable').innerHTML=`<thead><tr><th>LoRA Scale</th>${DIM.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${SCL.map((s,i)=>`<tr><td class="mono">${s}</td>${DIM.map((d,j)=>`<td><input type="number" min="1" max="5" step="1" id="rb${i}_${j}" value="${PRE[i][j]}" aria-label="${s} ${d}"></td>`).join('')}</tr>`).join('')}</tbody>`;
+function rubUpd(){const v=SCL.map((_,i)=>DIM.map((_,j)=>Math.max(1,Math.min(5,+$(`#rb${i}_${j}`).value||1))));
+ const id=v.map(r=>(r[0]+r[1])/2),fl=v.map(r=>r[6]);const fg=css('--fg'),mu=css('--muted'),ln=css('--line'),ac=css('--accent');
+ const x=i=>80+i*130,y=s=>200-(s-1)/4*170;
+ $('#rubChart').innerHTML=[1,2,3,4,5].map(s=>`<line x1="60" x2="620" y1="${y(s)}" y2="${y(s)}" stroke="${ln}"/><text x="52" y="${y(s)+4}" text-anchor="end" fill="${mu}" font-size="11">${s}</text>`).join('')+
+  SCL.map((s,i)=>`<text x="${x(i)}" y="222" text-anchor="middle" fill="${mu}" font-size="11">${s}</text>`).join('')+
+  `<path d="${id.map((s,i)=>`${i?'L':'M'}${x(i)} ${y(s)}`).join(' ')}" fill="none" stroke="${ac}" stroke-width="3"/>${id.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s)}" r="5" fill="${ac}"/>`).join('')}
+  <path d="${fl.map((s,i)=>`${i?'L':'M'}${x(i)} ${y(s)}`).join(' ')}" fill="none" stroke="${fg}" stroke-width="2" stroke-dasharray="6 5"/>${fl.map((s,i)=>`<circle cx="${x(i)}" cy="${y(s)}" r="4" fill="${fg}"/>`).join('')}
+  <text x="70" y="14" fill="${ac}" font-size="12">— 角色一致（Identity＋Clothing 平均）</text><text x="330" y="14" fill="${fg}" font-size="12">- - Prompt Flexibility</text>`;
+ const best=id.map((s,i)=>s+fl[i]).reduce((b,s,i,a)=>s>a[b]?i:b,0);
+ $('#rubSummary').innerHTML=`和 Base 相比，Scale ${SCL[3]} 的角色一致從 <b>${id[0].toFixed(1)}</b> 變成 <b>${id[3].toFixed(1)}</b>，Prompt Flexibility 從 <b>${fl[0]}</b> 變成 <b>${fl[3]}</b>。兩者加總最高的是 Scale <b>${SCL[best]}</b>。最像訓練圖的那一格，不一定是最好的選擇。`;}
+$('#rubTable').addEventListener('input',rubUpd);rubUpd();
+
+/* ---------- nav + theme redraws ---------- */
+const secs=[...document.querySelectorAll('section.bench')];const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}})},{rootMargin:'-40% 0px -55% 0px'});secs.forEach(s=>io.observe(s));
+const redraw=()=>{rankUpd();svdUpd();drawT();rubUpd()};matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+resetPad();
+if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+
+/* theme toggle: follows the system until the viewer picks one; the choice is remembered */
+{const root=document.documentElement,darkQ=matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkQ.matches;
+const btn=document.getElementById('themeBtn');
+function themeLabel(){btn.textContent=isDark()?'☀ 淺色':'☾ 深色'}
+try{const t=localStorage.getItem('w08-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+btn.onclick=()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('w08-theme',t)}catch(e){}themeLabel()};
+darkQ.addEventListener('change',themeLabel);themeLabel();}
+})();
+</script>
+
+</body>
+</html>
