@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="多媒體系統 W11 互動實驗：裁切、增益、淡入淡出、混音削波、正規化、靜音偵測、Podcast 自動剪輯、背景音樂 ducking、濾波、變速變調。">
+<title>W11 聲音剪輯實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab notebook — sticky index; animation strip, then three parts of benches; controls left, live plots and play buttons right. Same identity as the W08/W10 labs. */
+:root{
+  --bg:#121212; --surface:#1b1b1a; --sunk:#0c0c0c; --fg:#f2f0ea; --muted:#9c988f; --line:#33322f;
+  --accent:#ff7a1a; --accent-ink:#121212; --good:#5fc48a; --bad:#ff6b5e;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:900}
+h2{font-size:clamp(1.45rem,3vw,2rem);font-weight:900}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.acc{color:var(--accent)} .muted{color:var(--muted)} a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.top .wrap{display:flex;gap:16px;align-items:center;padding-block:10px}
+.top .brand{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.top nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.top nav a:hover,.top nav a.on{color:var(--fg);background:var(--surface)}
+.top nav .sep{color:var(--line);padding:4px 2px}
+.top .theme{margin-left:auto;flex:none;font-size:.82rem;padding:5px 12px;white-space:nowrap}
+.hero{padding-block:48px 24px;display:grid;gap:18px}
+.hero p.lede{max-width:46em;color:var(--muted);font-size:1.05rem}
+.views{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.views div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:2px}
+.views b{font-size:1.05rem} .views span{color:var(--muted);font-size:.88rem}
+@media (max-width:700px){.views{grid-template-columns:minmax(0,1fr)}}
+.part{margin-top:24px;padding:14px 0;border-top:3px solid var(--accent);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.part b{font-size:1.2rem} .part span{color:var(--muted)}
+button{font:inherit;font-size:.92rem;font-weight:700;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--fg)} button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)} button.ghost{background:transparent}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+section.bench{padding-block:48px;border-top:1px solid var(--line);scroll-margin-top:64px}
+.bench-head{display:grid;gap:8px;margin-bottom:22px;max-width:52em}
+.bench-head .q{color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.ctrl{display:grid;gap:14px}
+.ctrl label{display:grid;gap:4px;font-size:.92rem}
+.ctrl label .lab{display:flex;justify-content:space-between;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font-size:.82rem;padding:5px 12px;font-weight:500}
+.seg button.on{border-color:var(--accent);color:var(--accent)}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:14px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:24px}
+.stat .v{font-family:var(--mono);font-size:1.6rem;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.try{border-left:3px solid var(--accent);padding:8px 14px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.93rem}
+.try b{color:var(--accent)}
+canvas{width:100%;height:auto;display:block;border-radius:8px;background:var(--sunk)}
+.cap{font-size:.8rem;color:var(--muted);margin-top:-6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:.92rem}
+.chk input{accent-color:var(--accent);width:18px;height:18px}
+.quiz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.quiz{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px}
+.qc select{font:inherit;font-size:.88rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px}
+.qc.ok{border-color:var(--good)} .qc.no{border-color:var(--bad)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:.92rem}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--muted);font-size:.88rem}
+.links{display:flex;flex-wrap:wrap;gap:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.anim{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.anim{grid-template-columns:minmax(0,1fr)}}
+.anim figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid}
+.anim video{width:100%;aspect-ratio:16/9;display:block;background:#000}
+.anim figcaption{padding:10px 14px 12px;font-size:.86rem;color:var(--muted)}
+.anim figcaption b{color:var(--fg);display:block;font-size:.98rem}
+pre.code{font-family:var(--mono);font-size:.82rem;line-height:1.55;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+code{font-family:var(--mono);font-size:.9em}
+.tablewrap{overflow-x:auto}
+table.tb{border-collapse:collapse;width:100%;font-size:.88rem}
+table.tb th,table.tb td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+table.tb th{font-weight:500;color:var(--muted);font-size:.8rem}
+table.tb td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+table.tb tr.bad td{color:var(--bad)}
+.pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pipe span{font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.pipe i{color:var(--muted);font-style:normal}
+.qz{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start}
+.qcard .opts{display:flex;flex-wrap:wrap;gap:6px}
+.qcard .opts button{font-size:.82rem;padding:5px 10px;font-weight:500;text-align:left}
+.qcard .opts button.right{border-color:var(--good);color:var(--good)}
+.qcard .opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.qcard .fb{font-size:.86rem;color:var(--muted);min-height:1.4em}
+input[type=range]:disabled{opacity:.4}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <span class="brand">W11<span class="acc">／</span>剪輯實驗室</span>
+  <nav id="nav">
+    <a href="#anim">動畫</a><span class="sep">｜</span>
+    <a href="#crop">裁切</a><a href="#gain">增益</a><a href="#fade">淡入淡出</a><a href="#mix">混音削波</a><a href="#norm">正規化</a><span class="sep">｜</span>
+    <a href="#silence">靜音偵測</a><a href="#podcast">Podcast 剪輯器</a><span class="sep">｜</span>
+    <a href="#duck">背景音樂</a><a href="#filter">濾波</a><a href="#stretch">變速變調</a><a href="#check">檢核</a>
+  </nav>
+  <button class="ghost theme" id="themeBtn" type="button" aria-label="切換深色／淺色">☾ 深色</button>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">多媒體系統・MS-115 日間部・Week 11</span>
+    <h1>剪輯聲音，就是在<span class="acc">改數字</span></h1>
+    <p class="lede">裁切、調音量、淡入淡出、混音、去停頓、變速變調，背後都是對一串樣本做運算。每個實驗都照同一條線走：剪輯操作 → 訊號改變 → 聽到的結果。先戴耳機、音量調小，先預測再按播放。頁面上的人聲是程式合成的示範聲音。</p>
+    <div class="views">
+      <div><b>剪輯操作</b><span>pydub 的一行程式：切片、＋6、overlay…</span></div>
+      <div><b>訊號改變</b><span>樣本被取出、相乘、相加、重新排列</span></div>
+      <div><b class="acc">聽到的結果</b><span>變短、變大聲、喀聲、破音、變尖…</span></div>
+    </div>
+  </div>
+
+  <section class="bench" id="anim">
+    <div class="bench-head"><span class="eyebrow">動畫講解</span><h2>先看三支短動畫</h2>
+      <p class="q">每支 45 秒左右，可以全螢幕播放，沒有旁白，適合邊播邊講。看完再往下動手做。</p></div>
+    <div class="anim" id="animGrid">
+      <figure><video controls playsinline preload="none" poster="media/w11-1-edit-is-math.jpg" src="media/w11-1-edit-is-math.mp4"></video><figcaption><b>1・剪輯，就是在改樣本</b>裁切、增益、淡入、混音與削波（11.1–11.3）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w11-2-podcast-editor.jpg" src="media/w11-2-podcast-editor.mp4"></video><figcaption><b>2・Podcast 自動剪輯器</b>偵測非靜音 → 壓縮停頓 → 調音量 → 匯出（11.9–11.17）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w11-3-stretch-vs-pitch.jpg" src="media/w11-3-stretch-vs-pitch.mp4"></video><figcaption><b>3・變速 vs 變調</b>直接加速、time_stretch、pitch_shift 差在哪（11.21–11.24）</figcaption></figure>
+    </div>
+  </section>
+
+  <div class="part"><b>基本操作</b><span>11.1–11.8：裁切、增益、淡入淡出、混音、正規化</span></div>
+
+  <section class="bench" id="crop">
+    <div class="bench-head"><span class="eyebrow">實驗 1・11.1、11.6</span><h2>裁切：取出一段樣本</h2>
+      <p class="q">裁切就是從樣本序列裡取一段。pydub 的切片單位是<b>毫秒</b>，<code>audio[5000:15000]</code> 是第 5 到 15 秒；<code>audio[5:15]</code> 只有 10 毫秒。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">起點<span class="mono" id="cAV"></span></span><input type="range" id="cA" min="0" max="2600" step="10" value="300"></label>
+        <label><span class="lab">終點<span class="mono" id="cBV"></span></span><input type="range" id="cB" min="0" max="2600" step="10" value="1500"></label>
+        <pre class="code" id="cCode"></pre>
+        <div class="row"><button class="primary" id="cPlay">▶ 播放切片</button><button id="cTrap">▶ audio[5:15]</button></div>
+        <div class="try"><b>動手：</b>先按 <code>audio[5:15]</code>：你以為是 10 秒，聽到了什麼？再把起點拖到一個字的正中間，播放時開頭有沒有「喀」一聲？</div>
+      </div>
+      <div class="stage"><canvas id="cCv" width="1200" height="220"></canvas><p class="cap">整段錄音，橘色是切片範圍</p>
+        <canvas id="cZm" width="1200" height="200"></canvas><p class="cap">切片放大：看頭尾是不是切在波形中間</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="cLen"></div><div class="k">切片長度</div></div><div class="stat"><div class="v" id="cN"></div><div class="k">樣本數（毫秒 × 22,050 ÷ 1000）</div></div><div class="stat"><div class="v" id="cEdge"></div><div class="k">開頭第一個樣本的值</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="gain">
+    <div class="bench-head"><span class="eyebrow">實驗 2・11.1、11.7</span><h2>增益：每個樣本乘同一個數</h2>
+      <p class="q">調音量就是乘法：新樣本 ＝ 樣本 × 10<sup>dB/20</sup>。+6 dB 約等於乘 2，−6 dB 約等於乘 0.5。乘完超過 ±1 的部分存不下，會被削平。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">增益<span class="mono" id="gnV"></span></span><input type="range" id="gn" min="-24" max="15" step="1" value="0"></label>
+        <pre class="code" id="gCode"></pre>
+        <button class="primary" id="gnPlay">▶ 播放</button>
+        <div class="try"><b>動手：</b>先預測：這段聲音的 Peak 約 −5 dBFS，加幾 dB 會開始削波？加到 +12 dB 時，聲音除了變大聲還多了什麼？</div>
+      </div>
+      <div class="stage"><canvas id="gnCv" width="1200" height="300"></canvas><p class="cap">紅線：±1（0 dBFS），超出的樣本被削平並標成紅色</p>
+        <div class="stats"><div class="stat"><div class="v" id="gnMul"></div><div class="k">振幅倍數</div></div><div class="stat"><div class="v acc" id="gnPk"></div><div class="k">max dBFS</div></div><div class="stat"><div class="v" id="gnClip"></div><div class="k">被削波的樣本</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="fade">
+    <div class="bench-head"><span class="eyebrow">實驗 3・11.1、11.8</span><h2>淡入淡出：隨時間變化的增益</h2>
+      <p class="q">淡入是把樣本乘上一條從 0 慢慢升到 1 的曲線（包絡）。切在波形中間時，聲音瞬間從 0 跳到某個值，就會聽到「喀」；淡入幾十毫秒就能消掉。Crossfade 則是前一段淡出、後一段淡入，兩段重疊相加。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="seg" id="fMode"></div>
+        <div id="fFadeCtl" class="ctrl">
+          <label><span class="lab">fade_in<span class="mono" id="fInV"></span></span><input type="range" id="fIn" min="0" max="1000" step="10" value="0"></label>
+          <label><span class="lab">fade_out<span class="mono" id="fOutV"></span></span><input type="range" id="fOut" min="0" max="1500" step="10" value="0"></label>
+        </div>
+        <div id="fXCtl" class="ctrl" hidden>
+          <label><span class="lab">crossfade<span class="mono" id="fXV"></span></span><input type="range" id="fX" min="0" max="1500" step="50" value="0"></label>
+        </div>
+        <pre class="code" id="fCode"></pre>
+        <button class="primary" id="fPlay">▶ 播放</button>
+        <div class="try"><b>動手：</b>fade_in 從 0 調到 10 ms、30 ms、300 ms，喀聲什麼時候消失？300 ms 之後聽起來還自然嗎？Crossfade 拉長時，總長度怎麼變？</div>
+      </div>
+      <div class="stage"><canvas id="fCv" width="1200" height="300"></canvas><p class="cap" id="fCap"></p>
+        <div class="stats"><div class="stat"><div class="v acc" id="fLen"></div><div class="k">輸出長度</div></div><div class="stat"><div class="v" id="fJump"></div><div class="k">第一個樣本跳多大</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="mix">
+    <div class="bench-head"><span class="eyebrow">實驗 4・11.2–11.3、11.7</span><h2>混音：逐點相加，小心削波</h2>
+      <p class="q"><code>voice.overlay(bgm)</code> 把兩段樣本逐點相加。兩段各自都沒有超過 0 dBFS，加起來卻可能超過。混音前先把各軌調小，留一點空間（headroom）。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">人聲增益<span class="mono" id="mVV"></span></span><input type="range" id="mV" min="-12" max="6" step="1" value="0"></label>
+        <label><span class="lab">音樂增益<span class="mono" id="mBV"></span></span><input type="range" id="mB" min="-24" max="6" step="1" value="0"></label>
+        <label class="chk"><input type="checkbox" id="mHead">混音後整體再 −6 dB（留 headroom）</label>
+        <pre class="code" id="mCode"></pre>
+        <div class="row"><button class="primary" id="mPlay">▶ 播放混音</button><button id="mPlayV">▶ 只有人聲</button></div>
+        <div class="try"><b>動手：</b>先預測：人聲 Peak 約 −5 dBFS、音樂約 −4 dBFS，兩個都 0 dB 疊起來會不會削波？要把音樂調到幾 dB 才不會？</div>
+      </div>
+      <div class="stage"><canvas id="mCv" width="1200" height="300"></canvas><p class="cap">白：人聲　橘：音樂　下方是相加結果，紅色是削波的位置</p>
+        <canvas id="mSum" width="1200" height="220"></canvas>
+        <div class="stats"><div class="stat"><div class="v" id="mPkV"></div><div class="k">人聲 max dBFS</div></div><div class="stat"><div class="v" id="mPkB"></div><div class="k">音樂 max dBFS</div></div><div class="stat"><div class="v acc" id="mPk"></div><div class="k">混音 max dBFS</div></div><div class="stat"><div class="v" id="mClip"></div><div class="k">被削波的樣本</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="norm">
+    <div class="bench-head"><span class="eyebrow">實驗 5・11.4、11.13–11.15</span><h2>三種「正規化」不是同一件事</h2>
+      <p class="q">Peak 正規化看最大的一瞬間；平均 dBFS 調整看整段 RMS（停頓也算進去）；LUFS 是依人耳加權、並排除太小聲片段的響度。同一段錄音，三種方法給的增益可能差很多。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">來源</div><div class="seg" id="nSrc"></div>
+        <div class="lab">試聽</div>
+        <div class="row" id="nPlays"></div>
+        <div class="try"><b>動手：</b>比較「有長停頓」和「停頓已壓縮」：平均 dBFS 法給的增益差多少？哪一種方法會讓 max dBFS 超過 0？這就是 11.13 說「長停頓會拉低平均值」的意思。</div>
+      </div>
+      <div class="stage"><canvas id="nCv" width="1200" height="200"></canvas>
+        <div class="tablewrap"><table class="tb" id="nTb"></table></div>
+        <p class="cap">LUFS 是簡化版：單聲道、BS.1770 的 K 加權與兩段門檻，數字可能和專業響度表差一點。</p></div>
+    </div>
+  </section>
+
+  <div class="part"><b>Podcast 自動剪輯</b><span>11.9–11.17：偵測非靜音、壓縮長停頓、調整音量</span></div>
+
+  <section class="bench" id="silence">
+    <div class="bench-head"><span class="eyebrow">實驗 6・11.9–11.14</span><h2>detect_nonsilent：哪裡在說話？</h2>
+      <p class="q">pydub 每隔一小段，計算接下來 <code>min_silence_len</code> 毫秒的 RMS；低於 <code>silence_thresh</code> 就算靜音。剩下的就是非靜音段。這裡的程式照 pydub 的演算法寫，步進 10 ms。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">來源</div><div class="seg" id="sSrc"></div>
+        <div class="lab">門檻</div><div class="seg" id="sMode"></div>
+        <label id="sFixL"><span class="lab">silence_thresh<span class="mono" id="sFixV"></span></span><input type="range" id="sFix" min="-70" max="-15" step="1" value="-40"></label>
+        <label id="sRelL"><span class="lab">audio.dBFS − ？<span class="mono" id="sRelV"></span></span><input type="range" id="sRel" min="4" max="30" step="1" value="14"></label>
+        <label><span class="lab">min_silence_len<span class="mono" id="sMinV"></span></span><input type="range" id="sMin" min="100" max="2000" step="100" value="800"></label>
+        <label><span class="lab">keep_gap_ms<span class="mono" id="sGapV"></span></span><input type="range" id="sGap" min="0" max="1000" step="50" value="300"></label>
+        <label><span class="lab">背景噪音<span class="mono" id="sNzV"></span></span><input type="range" id="sNz" min="0" max="10" step="1" value="0"></label>
+        <pre class="code" id="sCode"></pre>
+        <div class="row"><button id="sPlayA">▶ 原始</button><button class="primary" id="sPlayB">▶ 壓縮停頓後</button></div>
+        <div class="try"><b>動手：</b>① min_silence_len 從 300 試到 1200 ms，非靜音段數怎麼變？② 把背景噪音調大：固定門檻 −40 還切得出停頓嗎？換成相對門檻呢？③ 來源切到「整段靜音」，相對門檻會怎樣？</div>
+      </div>
+      <div class="stage"><canvas id="sCv" width="1200" height="200"></canvas><p class="cap">波形：綠色是非靜音段，灰色是被判定為靜音的範圍</p>
+        <canvas id="sDb" width="1200" height="180"></canvas><p class="cap">每 10 ms 的音量（dBFS），橘線是門檻</p>
+        <canvas id="sOut" width="1200" height="160"></canvas><p class="cap">compact_long_silence 的結果（同一個時間尺度，看它短了多少）</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="sThr"></div><div class="k">門檻（dBFS）</div></div><div class="stat"><div class="v" id="sSpans"></div><div class="k">非靜音段</div></div><div class="stat"><div class="v" id="sLenA"></div><div class="k">原始長度</div></div><div class="stat"><div class="v acc" id="sLenB"></div><div class="k">壓縮後</div></div></div>
+        <p id="sNote" class="muted" style="font-size:.9rem"></p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="podcast">
+    <div class="bench-head"><span class="eyebrow">實驗 7・11.15–11.17、11.27</span><h2>Podcast 自動剪輯器：用你的錄音試試</h2>
+      <p class="q">把講義 11.17 的完整流程搬到瀏覽器：壓縮長停頓 → 平均音量調到目標 → 淡入淡出 → 加片頭片尾。上傳一段 1–3 分鐘的說話錄音（WAV、MP3、M4A），檔案只在你的瀏覽器裡處理，不會上傳到任何地方。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label class="drop" id="drop">把檔案拖到這裡，或點這裡選擇檔案<input type="file" id="file" accept="audio/*" hidden></label>
+        <p id="pInfo" class="mono muted" style="font-size:.85rem">目前使用示範錄音</p>
+        <label><span class="lab">min_silence_len<span class="mono" id="pMinV"></span></span><input type="range" id="pMin" min="300" max="1500" step="100" value="800"></label>
+        <label><span class="lab">keep_gap_ms<span class="mono" id="pGapV"></span></span><input type="range" id="pGap" min="100" max="800" step="50" value="300"></label>
+        <label><span class="lab">target_dbfs<span class="mono" id="pTgtV"></span></span><input type="range" id="pTgt" min="-30" max="-10" step="1" value="-18"></label>
+        <label class="chk"><input type="checkbox" id="pIO" checked>加片頭片尾（示範音樂）</label>
+        <div class="row"><button id="pPlayA">▶ 原始</button><button class="primary" id="pPlayB">▶ 成品</button><button id="pDl">⬇ 下載成品 WAV</button></div>
+        <div class="try"><b>動手：</b>用自己的錄音跑一次，填作業的測量表：長度、門檻、min_silence_len、keep_gap_ms、dBFS、max dBFS。至少寫三條聆聽筆記：停頓自然嗎？有沒有切到字尾？音量穩嗎？</div>
+      </div>
+      <div class="stage">
+        <div class="pipe" id="pPipe"></div>
+        <div class="tablewrap"><table class="tb" id="pTb"></table></div>
+        <p id="pNote" style="font-size:.9rem"></p>
+        <canvas id="pA" width="1200" height="160"></canvas><p class="cap">處理前</p>
+        <canvas id="pB" width="1200" height="160"></canvas><p class="cap">處理後（同一個時間尺度）</p></div>
+    </div>
+  </section>
+
+  <div class="part"><b>混音與效果</b><span>11.18–11.24：背景音樂、濾波、變速變調</span></div>
+
+  <section class="bench" id="duck">
+    <div class="bench-head"><span class="eyebrow">實驗 8・11.18–11.19</span><h2>背景音樂：多小聲才不搶話？</h2>
+      <p class="q">講義用 <code>bgm - 18</code> 先把音樂整體壓低，再疊上人聲。Ducking 更進一步：有人說話時把音樂再壓低，停頓時再升回來。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">BGM 增益</div><div class="seg" id="dGain"></div>
+        <label class="chk"><input type="checkbox" id="dOn">開啟 Ducking</label>
+        <label><span class="lab">說話時再壓低<span class="mono" id="dDepV"></span></span><input type="range" id="dDep" min="0" max="18" step="1" value="10"></label>
+        <pre class="code" id="dCode"></pre>
+        <div class="row"><button class="primary" id="dPlay">▶ 播放混音</button><button id="dPlayB">▶ 只有音樂</button></div>
+        <div class="try"><b>動手：</b>比較 −12、−18、−24 dB：哪一個「聽得到音樂、又聽得清楚說話」？用下面的「人聲比音樂大多少」當證據，不要只憑喜好。開 Ducking 後，停頓時音樂會發生什麼事？</div>
+      </div>
+      <div class="stage"><canvas id="dCv" width="1200" height="300"></canvas><p class="cap">白：人聲　橘：音樂（已套增益）　綠線：音樂的增益曲線</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="dSmr"></div><div class="k">說話時，人聲比音樂大多少</div></div><div class="stat"><div class="v" id="dPk"></div><div class="k">混音 max dBFS</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="filter">
+    <div class="bench-head"><span class="eyebrow">實驗 9・11.20</span><h2>濾波：只動某一段頻率</h2>
+      <p class="q">這段錄音混了 60 Hz 的電源嗡嗡聲和高頻嘶嘶聲。High-pass 讓高於截止頻率的聲音通過，用來去低頻；Low-pass 讓低於截止頻率的通過，用來去高頻。回想第十章的頻譜：濾波就是改頻譜的形狀。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">high_pass_filter<span class="mono" id="hpV"></span></span><input type="range" id="hp" min="0" max="100" step="1" value="0"></label>
+        <label><span class="lab">low_pass_filter<span class="mono" id="lpV"></span></span><input type="range" id="lp" min="0" max="100" step="1" value="100"></label>
+        <div class="lab">濾波器斜率</div><div class="seg" id="fOrd"></div>
+        <pre class="code" id="flCode"></pre>
+        <div class="row"><button id="flPlayA">▶ 原始</button><button class="primary" id="flPlayB">▶ 濾波後</button></div>
+        <div class="try"><b>動手：</b>High-pass 拉到 100 Hz，嗡嗡聲還在嗎？說話聲有沒有變？Low-pass 拉到 1,500 Hz，嘶嘶聲沒了，但人聲聽起來像隔著什麼？pydub 的濾波器是一階，斜率很緩，切換成四階比較看看。</div>
+      </div>
+      <div class="stage"><canvas id="flCv" width="1200" height="320"></canvas><p class="cap">頻譜（對數頻率軸）：灰線是原始，橘線是濾波後，虛線是截止頻率</p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="stretch">
+    <div class="bench-head"><span class="eyebrow">實驗 10・11.21–11.24</span><h2>變速 vs 變調</h2>
+      <p class="q">直接加快播放，波形被壓短，每秒振動次數變多，時間和音高一起變。<code>librosa.effects.time_stretch</code> 和 <code>pitch_shift</code> 用 STFT 和相位聲碼器把兩件事拆開。這裡的相位聲碼器照 librosa 的作法寫（n_fft 1024、hop 256）。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="seg" id="tMode"></div>
+        <label id="tRateL"><span class="lab"><span id="tRateLab">rate</span><span class="mono" id="tRateV"></span></span><input type="range" id="tRate" min="0.5" max="2" step="0.05" value="1.25"></label>
+        <label id="tStepL" hidden><span class="lab">n_steps（半音）<span class="mono" id="tStepV"></span></span><input type="range" id="tStep" min="-12" max="12" step="1" value="4"></label>
+        <pre class="code" id="tCode"></pre>
+        <div class="row"><button id="tPlayA">▶ 原始</button><button class="primary" id="tPlayB">▶ 處理後</button></div>
+        <div class="try"><b>動手：</b>三種模式都設成「快 1.25 倍／高 4 個半音」，比較長度和音高。再把 rate 拉到 0.5 或 n_steps 拉到 ±12：程式沒出錯，聲音哪裡不自然？</div>
+      </div>
+      <div class="stage"><canvas id="tA" width="1200" height="220"></canvas><p class="cap">原始頻譜圖（0–4000 Hz），橫軸是時間</p>
+        <canvas id="tB" width="1200" height="220"></canvas><p class="cap">處理後頻譜圖，時間尺度和上面相同：看長度、看橫線的高度</p>
+        <div class="stats"><div class="stat"><div class="v" id="tLenA"></div><div class="k">原始長度</div></div><div class="stat"><div class="v acc" id="tLenB"></div><div class="k">處理後長度</div></div><div class="stat"><div class="v acc" id="tF0"></div><div class="k">基頻（原本 150 Hz）</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="check">
+    <div class="bench-head"><span class="eyebrow">檢核・11.28</span><h2>做完實驗，檢查一下</h2>
+      <p class="q">點選答案，會立刻告訴你對不對和原因。</p></div>
+    <div class="qz" id="qz"></div>
+    <p class="muted" style="margin-top:12px" id="qzScore"></p>
+  </section>
+</main>
+
+<footer><div class="wrap" style="display:grid;gap:12px">
+  <div class="links">
+    <a href="https://hackmd.io/WYh6ttxqTa6imF-B_Dn_cg" target="_blank" rel="noopener">講義：第 11 章｜聲音剪輯與訊號處理</a>
+    <a href="https://colab.research.google.com/github/willismax/MediaSystem-Python-Course/blob/main/course-115-v2/colab/W11_%E8%81%B2%E9%9F%B3%E5%89%AA%E8%BC%AF%E8%88%87%E8%A8%8A%E8%99%9F%E8%99%95%E7%90%86.ipynb" target="_blank" rel="noopener">Colab：W11 聲音剪輯與訊號處理</a>
+    <a href="../w10/">上一週：W10 聲音實驗室</a>
+  </div>
+  <p>頁面上的人聲、音樂都是即時合成的示範聲音；上傳的錄音只在你的瀏覽器裡處理。動畫原始檔（HyperFrames）在 repo 的 <code>course-115-v2/animations/w11/</code>。</p>
+</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SR=22050;
+let AC=null;function ctx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+/* Playback (edge:false skips the 300-sample edge fade, so cut clicks stay audible): render to a WAV and play it with an <audio> element, which phones play even with the
+   silent switch on (iOS mutes Web Audio in that case). Web Audio is the fallback. */
+let cur=null,url=null;const AEL=new Audio();AEL.preload='auto';AEL.setAttribute('playsinline','');
+function wavBlob(d,sr){const n=d.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+ for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,d[i]))*32767),true);return new Blob([b],{type:'audio/wav'})}
+function playWebAudio(d,sr){const ac=ctx();if(!ac)return;if(cur){try{cur.stop()}catch(e){}}const b=ac.createBuffer(1,d.length,sr);b.getChannelData(0).set(d);const s=ac.createBufferSource();s.buffer=b;s.connect(ac.destination);s.start();cur=s}
+function play(y,sr=SR,{edge=true}={}){const d=new Float32Array(y.length);for(let i=0;i<y.length;i++)d[i]=.9*Math.max(-1,Math.min(1,y[i]));
+ const n=edge?Math.min(300,d.length>>2):0;for(let i=0;i<n;i++){d[i]*=i/n;d[d.length-1-i]*=i/n}
+ if(cur){try{cur.stop()}catch(e){}cur=null}
+ try{AEL.pause();if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(wavBlob(d,sr));AEL.src=url;AEL.currentTime=0;const p=AEL.play();if(p&&p.catch)p.catch(()=>playWebAudio(d,sr))}catch(e){playWebAudio(d,sr)}}
+function rng(seed){return()=>{let t=(seed+=0x6D2B79F5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const tone=(f,sec,a=.3,sr=SR)=>Float32Array.from({length:Math.round(sr*sec)},(_,i)=>a*Math.sin(2*Math.PI*f*i/sr));
+function harm(f,sec,amps,decay=0,a=.3){const n=Math.round(SR*sec),y=new Float32Array(n);let m=0;for(let i=0;i<n;i++){const t=i/SR;let s=0;amps.forEach((A,k)=>s+=A*Math.sin(2*Math.PI*f*(k+1)*t));if(decay)s*=Math.exp(-t*decay);y[i]=s;m=Math.max(m,Math.abs(s))}for(let i=0;i<n;i++)y[i]*=a/m;return y}
+function clap(sec=.4,a=.6,seed=3){const r=rng(seed),n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>a*gauss(r)*Math.exp(-i/SR*45))}
+function sweep(f0,f1,sec,a=.3){const n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>{const t=i/SR;return a*Math.sin(2*Math.PI*(f0*t+(f1-f0)*t*t/(2*sec)))})}
+const cat=(...a)=>{const n=a.reduce((s,x)=>s+x.length,0),y=new Float32Array(n);let o=0;a.forEach(x=>{y.set(x,o);o+=x.length});return y};
+const add=(...a)=>{const n=Math.max(...a.map(x=>x.length)),y=new Float32Array(n);a.forEach(x=>{for(let i=0;i<x.length;i++)y[i]+=x[i]});return y};
+const sil=s=>new Float32Array(Math.round(SR*s));
+
+/* FFT (radix-2, in place) */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+ for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],xr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,xi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+xr;im[i+k]=ui+xi;re[i+k+len/2]=ur-xr;im[i+k+len/2]=ui-xi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+const hann=n=>Float32Array.from({length:n},(_,i)=>.5-.5*Math.cos(2*Math.PI*i/(n-1)));
+function spectrum(y,N=16384){const n=Math.min(N,1<<Math.floor(Math.log2(y.length))),re=new Float32Array(N),im=new Float32Array(N),off=0;for(let i=0;i<Math.min(y.length,N);i++)re[i]=y[i];fft(re,im);return Float32Array.from({length:N/2},(_,k)=>Math.hypot(re[k],im[k]))}
+function stft(y,nfft,hop,sr=SR){const w=hann(nfft),frames=[];for(let s=0;s+nfft<=y.length;s+=hop){const re=new Float32Array(nfft),im=new Float32Array(nfft);for(let i=0;i<nfft;i++)re[i]=y[s+i]*w[i];fft(re,im);frames.push(Float32Array.from({length:nfft/2},(_,k)=>Math.hypot(re[k],im[k])))}return frames}
+
+/* drawing */
+function cv(id){const c=$(id),g=c.getContext('2d');return[c,g]}
+function clear(g,c){g.fillStyle=css('--sunk');g.fillRect(0,0,c.width,c.height)}
+function drawWave(id,y,{x0=0,x1=y.length,col=css('--fg'),lw=3,clearIt=true,yScale=1,dots=null}={}){const[c,g]=cv(id);if(clearIt){clear(g,c);g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.moveTo(0,c.height/2);g.lineTo(c.width,c.height/2);g.stroke()}
+ const n=x1-x0,H=c.height/2-14;g.strokeStyle=col;g.lineWidth=lw;g.beginPath();
+ if(n>c.width*2){for(let px=0;px<c.width;px++){let mn=1,mx=-1;const a=x0+Math.floor(px/c.width*n),b=x0+Math.floor((px+1)/c.width*n);for(let i=a;i<b;i++){mn=Math.min(mn,y[i]);mx=Math.max(mx,y[i])}g.moveTo(px,c.height/2-mx*H*yScale);g.lineTo(px,c.height/2-mn*H*yScale)}}
+ else for(let i=0;i<n;i++){const X=i/(n-1)*c.width,Y=c.height/2-y[x0+i]*H*yScale;i?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke()}
+function drawSpec(id,y,fmax=4000){const[c,g]=cv(id);clear(g,c);const N=16384,S=spectrum(y,N),bin=SR/N,kmax=Math.min(S.length,Math.floor(fmax/bin));let m=0;for(let k=1;k<kmax;k++)m=Math.max(m,S[k]);
+ g.strokeStyle=css('--accent');g.lineWidth=2;g.beginPath();for(let k=0;k<kmax;k++){const X=k/kmax*c.width,Y=c.height-14-S[k]/m*(c.height-30);k?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke();
+ g.fillStyle=css('--muted');g.font='22px JetBrains Mono, monospace';for(let f=0;f<=fmax;f+=fmax/4)g.fillText(f+'',f/fmax*c.width+(f?-40:4),c.height-18<20?20:24)}
+function cmap(v){const c0=css('--sunk'),c1=css('--accent'),c2=css('--fg');const h=s=>{s=s.replace('#','');return[0,2,4].map(i=>parseInt(s.slice(i,i+2),16))};const a=h(c0),b=h(c1),d=h(c2);return v<.7?a.map((x,i)=>x+(b[i]-x)*v/.7):b.map((x,i)=>x+(d[i]-x)*(v-.7)/.3)}
+function drawSg(id,y,nfft,hop,fmax,sr=SR){const[c,g]=cv(id);const F=stft(y,nfft,hop,sr);if(!F.length){clear(g,c);return}const kmax=Math.min(nfft/2,Math.ceil(fmax/(sr/nfft)));let m=1e-12;F.forEach(f=>{for(let k=0;k<kmax;k++)m=Math.max(m,f[k])});
+ const im=g.createImageData(F.length,kmax);const lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ F.forEach((f,x)=>{for(let k=0;k<kmax;k++){const db=20*Math.log10(f[k]/m+1e-12),v=Math.max(0,Math.min(1,(db+60)/60)),col=lut[Math.round(v*255)],o=((kmax-1-k)*F.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=F.length;tmp.height=kmax;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(tmp,0,0,c.width,c.height);
+ g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(fmax+' Hz',8,26);g.fillText('0',8,c.height-10)}
+function seg(id,opts,val,cb,fmt=v=>v){const el=$(id);el.innerHTML=opts.map(o=>`<button data-v="${o}">${fmt(o)}</button>`).join('');const set=v=>{el.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)));cb(v)};el.addEventListener('click',e=>{const b=e.target.closest('button');if(b)set(isNaN(+b.dataset.v)?b.dataset.v:+b.dataset.v)});set(val);return set}
+
+/* ===================== W11 ===================== */
+const dB=x=>20*Math.log10(Math.max(x,1e-12)),fromDb=d=>10**(d/20);
+const fD=v=>v===-Infinity||!isFinite(v)?'−∞':v.toFixed(1).replace('-','−');
+const fS=n=>(n/SR).toFixed(2)+' s';
+function stats(y){let pk=0,s=0;for(let i=0;i<y.length;i++){const a=Math.abs(y[i]);if(a>pk)pk=a;s+=y[i]*y[i]}const rms=Math.sqrt(s/Math.max(1,y.length));return{pk,rms,dbfs:rms>0?dB(rms):-Infinity,max:pk>0?dB(pk):-Infinity}}
+const scale=(y,g)=>Float32Array.from(y,v=>v*g);
+const clipCount=y=>{let c=0;for(let i=0;i<y.length;i++)if(Math.abs(y[i])>1)c++;return c};
+const ms2n=(ms,sr=SR)=>Math.round(ms*sr/1000);
+const slice=(y,a,b,sr=SR)=>y.slice(Math.max(0,ms2n(a,sr)),Math.min(y.length,ms2n(b,sr)));
+function playRaw(y,sr=SR){play(y,sr,{edge:false})}
+
+/* ---- speech-like voice synthesizer (formant harmonics) ---- */
+const VOW={a:[[730,1,90],[1090,.5,110],[2440,.25,160]],i:[[270,1,60],[2290,.45,120],[3010,.3,160]],u:[[300,1,70],[870,.4,90],[2240,.15,150]],e:[[530,1,80],[1840,.5,120],[2480,.3,160]],o:[[570,1,80],[840,.6,90],[2410,.15,160]]};
+function vowel(v,f,dur,r){const n=Math.round(SR*dur),y=new Float32Array(n),F=VOW[v],K=Math.max(1,Math.floor(3800/f)),A=[];
+ for(let k=1;k<=K;k++){const h=k*f;let a=0;F.forEach(([fc,w,bw])=>a+=w*Math.exp(-(((h-fc)/bw)**2)/2));A.push((a+.03)/Math.pow(k,.5))}
+ let ph=0;const vib=4.5+r();for(let i=0;i<n;i++){const t=i/SR,fi=f*(1-.08*t/dur)*(1+.006*Math.sin(2*Math.PI*vib*t));ph+=2*Math.PI*fi/SR;let s=0;for(let k=0;k<K;k++)s+=A[k]*Math.sin((k+1)*ph);y[i]=s*Math.min(1,t/.025)*Math.min(1,(dur-t)/.06)}return y}
+function cons(c,r,f){if('sh'.includes(c)){const n=Math.round(SR*(c==='s'?.09:.07)),y=new Float32Array(n);let p=0;for(let i=0;i<n;i++){const w=gauss(r);y[i]=(w-p)*(c==='s'?.22:.1)*Math.sin(Math.PI*i/n);p=w}return y}
+ if('ktp'.includes(c)){const n=Math.round(SR*.04),y=new Float32Array(n),c0=Math.round(SR*.015);for(let i=c0;i<n;i++)y[i]=gauss(r)*.35*Math.exp(-(i-c0)/SR*140);return y}
+ return Float32Array.from(vowel('u',f,.05,r),v=>v*.5)}
+function voice(plan,{f0=150,seed=7,lead=.4,tail=.6}={}){const r=rng(seed),parts=[sil(lead)];
+ plan.forEach(p=>{if(typeof p==='number'){parts.push(sil(p));return}
+  const words=p.split(' '),syl=[];words.forEach((w,wi)=>{(w.match(/[^aeiou]*[aeiou]/g)||[]).forEach((s,j,arr)=>syl.push([s,j===arr.length-1&&wi<words.length-1]))});
+  syl.forEach(([s,gap],j)=>{const v=s.slice(-1),c=s.slice(0,-1),f=f0*(1.12-.25*j/Math.max(1,syl.length-1))*(1+.06*(r()-.5));if(c)parts.push(cons(c,r,f));parts.push(vowel(v,f,.12+.08*r(),r));if(gap)parts.push(sil(.03+.03*r()))});
+  parts.push(sil(.05))});
+ parts.push(sil(tail));const y=cat(...parts);let m=0;for(const v of y)m=Math.max(m,Math.abs(v));for(let i=0;i<y.length;i++)y[i]=y[i]/m*.56;return y}
+function addNoise(y,amp,seed=11){const r=rng(seed);return Float32Array.from(y,v=>v+amp*gauss(r))}
+function music(sec,seed=3){const n=Math.round(SR*sec),y=new Float32Array(n);const prog=[[220,277.18,329.63],[196,246.94,293.66],[174.61,220,261.63],[196,246.94,293.66]];
+ for(let i=0;i<n;i++){const t=i/SR,ch=prog[Math.floor(t/2)%4];let s=0;ch.forEach(f=>s+=Math.sin(2*Math.PI*f*t)+.25*Math.sin(4*Math.PI*f*t));
+  const st=Math.floor(t*4)%8,tt=(t*4)%1,af=ch[st%3]*(st>3?4:2);y[i]=.12*s+.3*Math.sin(2*Math.PI*af*t)*Math.exp(-tt*5)*Math.min(1,tt*80)}
+ let m=0;for(const v of y)m=Math.max(m,Math.abs(v));for(let i=0;i<n;i++)y[i]*=.63/m;return y}
+
+/* demo material */
+const SHORT=voice(['kana sito mepa',.25,'runa sole'],{lead:.25,tail:.3,seed:5});
+const POD_PLAN=['kana sito',.25,'mepa runa',1.6,'sola kemi tosa',.35,'hanu pako',2.2,'tika semo',.5,'luna mesa kopi',1.2,'naso teki',.3,'paru mina',2.6,'kosa limu'];
+const POD_CLEAN=voice(POD_PLAN,{lead:.9,tail:1.6,seed:7});
+const POD=addNoise(POD_CLEAN,.002,21);
+const BGM=music(24);
+const NOISE=(()=>{const r=rng(99);return Float32Array.from({length:POD_CLEAN.length},()=>gauss(r))})();
+
+/* ---- pydub-equivalent algorithms ---- */
+function prefixSq(y){const p=new Float64Array(y.length+1);for(let i=0;i<y.length;i++)p[i+1]=p[i]+y[i]*y[i];return p}
+function rmsDb(P,a,b){const n=b-a;if(n<=0)return-Infinity;const r=Math.sqrt(Math.max(0,P[b]-P[a])/n);return r>0?dB(r):-Infinity}
+/* pydub.silence.detect_silence / detect_nonsilent (seek_step in ms) */
+function detectSilence(y,minSil,thresh,step=10,sr=SR){const len=Math.floor(y.length*1000/sr);if(len<minSil)return[];const P=prefixSq(y),last=len-minSil,starts=[];
+ const idx=[];for(let i=0;i<=last;i+=step)idx.push(i);if(last%step)idx.push(last);
+ idx.forEach(i=>{if(rmsDb(P,ms2n(i,sr),Math.min(y.length,ms2n(i+minSil,sr)))<=thresh)starts.push(i)});if(!starts.length)return[];
+ const out=[];let rs=starts[0],prev=starts[0];for(let j=1;j<starts.length;j++){const s=starts[j],cont=s===prev+step,gap=s>prev+minSil;if(!cont&&gap){out.push([rs,prev+minSil]);rs=s}prev=s}out.push([rs,prev+minSil]);return out}
+function detectNonsilent(y,minSil,thresh,step=10,sr=SR){const len=Math.floor(y.length*1000/sr),S=detectSilence(y,minSil,thresh,step,sr);if(!S.length)return[[0,len]];if(S.length===1&&S[0][0]===0&&S[0][1]>=len)return[];
+ const out=[];let pe=0;S.forEach(([a,b])=>{out.push([pe,a]);pe=b});if(pe<len)out.push([pe,len]);if(out.length&&out[0][0]===0&&out[0][1]===0)out.shift();return out}
+function relThreshold(y,off=14){const s=stats(y);if(!y.length||s.rms===0)return null;return s.dbfs-off}
+function compact(y,spans,gapMs,sr=SR){if(!spans.length)return null;const g=new Float32Array(ms2n(gapMs,sr)),parts=[];spans.forEach(([a,b],i)=>{if(i)parts.push(g);parts.push(slice(y,a,b,sr))});return cat(...parts)}
+function fadeLin(y,inMs,outMs,sr=SR){const o=Float32Array.from(y),a=Math.min(o.length,ms2n(inMs,sr)),b=Math.min(o.length,ms2n(outMs,sr));for(let i=0;i<a;i++)o[i]*=i/a;for(let i=0;i<b;i++)o[o.length-1-i]*=i/b;return o}
+function crossfade(a,b,ms,sr=SR){const n=Math.min(ms2n(ms,sr),a.length,b.length),o=new Float32Array(a.length+b.length-n);o.set(a.subarray(0,a.length-n));for(let i=0;i<n;i++){const t=i/n;o[a.length-n+i]=a[a.length-n+i]*(1-t)+b[i]*t}o.set(b.subarray(n),a.length);return o}
+
+/* filters: first order like pydub, plus RBJ biquads */
+function hp1(y,fc,sr=SR){const RC=1/(2*Math.PI*fc),dt=1/sr,a=RC/(RC+dt),o=new Float32Array(y.length);o[0]=y[0];for(let i=1;i<y.length;i++)o[i]=a*(o[i-1]+y[i]-y[i-1]);return o}
+function lp1(y,fc,sr=SR){const RC=1/(2*Math.PI*fc),dt=1/sr,a=dt/(RC+dt),o=new Float32Array(y.length);o[0]=a*y[0];for(let i=1;i<y.length;i++)o[i]=o[i-1]+a*(y[i]-o[i-1]);return o}
+function biquad(y,type,f,Q,gainDb=0,sr=SR){const A=10**(gainDb/40),w=2*Math.PI*f/sr,cs=Math.cos(w),sn=Math.sin(w),al=sn/(2*Q);let b0,b1,b2,a0,a1,a2;
+ if(type==='lp'){b0=(1-cs)/2;b1=1-cs;b2=(1-cs)/2;a0=1+al;a1=-2*cs;a2=1-al}
+ else if(type==='hp'){b0=(1+cs)/2;b1=-(1+cs);b2=(1+cs)/2;a0=1+al;a1=-2*cs;a2=1-al}
+ else{const sq=2*Math.sqrt(A)*al;b0=A*((A+1)+(A-1)*cs+sq);b1=-2*A*((A-1)+(A+1)*cs);b2=A*((A+1)+(A-1)*cs-sq);a0=(A+1)-(A-1)*cs+sq;a1=2*((A-1)-(A+1)*cs);a2=(A+1)-(A-1)*cs-sq}
+ const o=new Float32Array(y.length);let x1=0,x2=0,y1=0,y2=0;for(let i=0;i<y.length;i++){const x=y[i],v=(b0*x+b1*x1+b2*x2-a1*y1-a2*y2)/a0;x2=x1;x1=x;y2=y1;y1=v;o[i]=v}return o}
+const bw4=(y,type,f,sr=SR)=>biquad(biquad(y,type,f,.5412,0,sr),type,f,1.3066,0,sr);
+function lufs(y,sr=SR){const k=biquad(biquad(y,'hs',1681.97,.7071,4,sr),'hp',38.13,.5,0,sr),B=Math.round(.4*sr),H=Math.round(.1*sr),z=[];
+ for(let s=0;s+B<=k.length;s+=H){let a=0;for(let i=s;i<s+B;i++)a+=k[i]*k[i];z.push(a/B)}
+ const L=v=>-.691+10*Math.log10(v),g1=z.filter(v=>v>0&&L(v)>-70);if(!g1.length)return-Infinity;const rel=L(g1.reduce((a,b)=>a+b,0)/g1.length)-10,g2=g1.filter(v=>L(v)>rel);return L(g2.reduce((a,b)=>a+b,0)/g2.length)}
+
+/* phase vocoder, after librosa.phase_vocoder */
+function stftC(y,n,hop){const w=hann(n),pad=new Float32Array(y.length+n),R=[],I=[];pad.set(y,n/2);
+ for(let s=0;s+n<=pad.length;s+=hop){const re=new Float32Array(n),im=new Float32Array(n);for(let i=0;i<n;i++)re[i]=pad[s+i]*w[i];fft(re,im);R.push(re.slice(0,n/2+1));I.push(im.slice(0,n/2+1))}return[R,I]}
+function istft(R,I,n,hop,len){const w=hann(n),T=R.length,out=new Float32Array(hop*(T-1)+n),ws=new Float32Array(out.length);
+ for(let t=0;t<T;t++){const re=new Float32Array(n),im=new Float32Array(n);for(let k=0;k<=n/2;k++){re[k]=R[t][k];im[k]=-I[t][k];if(k&&k<n/2){re[n-k]=R[t][k];im[n-k]=I[t][k]}}
+  fft(re,im);const o=t*hop;for(let i=0;i<n;i++){out[o+i]+=re[i]/n*w[i];ws[o+i]+=w[i]*w[i]}}
+ for(let i=0;i<out.length;i++)if(ws[i]>1e-3)out[i]/=ws[i];return out.slice(n/2,Math.min(out.length,n/2+len))}
+function timeStretch(y,rate,n=1024,hop=256){const[R,I]=stftC(y,n,hop),T=R.length,K=n/2+1,adv=Float32Array.from({length:K},(_,k)=>2*Math.PI*hop*k/n),acc=Float32Array.from({length:K},(_,k)=>Math.atan2(I[0][k],R[0][k])),OR=[],OI=[];
+ for(let t=0;t<T-1;t+=rate){const t0=Math.floor(t),a=t-t0,re=new Float32Array(K),im=new Float32Array(K);
+  for(let k=0;k<K;k++){const m=(1-a)*Math.hypot(R[t0][k],I[t0][k])+a*Math.hypot(R[t0+1][k],I[t0+1][k]);re[k]=m*Math.cos(acc[k]);im[k]=m*Math.sin(acc[k]);
+   let dp=Math.atan2(I[t0+1][k],R[t0+1][k])-Math.atan2(I[t0][k],R[t0][k])-adv[k];dp-=2*Math.PI*Math.round(dp/(2*Math.PI));acc[k]+=adv[k]+dp}OR.push(re);OI.push(im)}
+ return istft(OR,OI,n,hop,Math.round(y.length/rate))}
+function speedUp(y,s){const n=Math.floor(y.length/s),o=new Float32Array(n);for(let j=0;j<n;j++){const x=j*s,i=Math.floor(x),a=x-i;o[j]=(y[i]||0)*(1-a)+(y[i+1]||0)*a}return o}
+const pitchShift=(y,st)=>speedUp(timeStretch(y,2**(-st/12)),2**(st/12));
+
+/* ---- drawing helpers ---- */
+function shade(id,ranges,total,col,alpha=.22){const[c,g]=cv(id);g.save();g.globalAlpha=alpha;g.fillStyle=col;ranges.forEach(([a,b])=>g.fillRect(a/total*c.width,0,Math.max(1,(b-a)/total*c.width),c.height));g.restore()}
+function hline(id,v,col,dash=[12,8],label=''){const[c,g]=cv(id),H=c.height/2-14;[v,-v].forEach((vv,j)=>{const yy=c.height/2-vv*H;g.strokeStyle=col;g.lineWidth=2;g.setLineDash(dash);g.beginPath();g.moveTo(0,yy);g.lineTo(c.width,yy);g.stroke();g.setLineDash([]);if(label&&!j){g.fillStyle=col;g.font='22px JetBrains Mono, monospace';g.fillText(label,c.width-150,yy-8)}})}
+/* waveform drawn into the first (len/total) of the canvas, so different lengths share one time scale */
+function waveT(id,y,total,{col=css('--fg'),lw=2,clearIt=true,amp=1,clipCol=null}={}){const[c,g]=cv(id);if(clearIt){clear(g,c);g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.moveTo(0,c.height/2);g.lineTo(c.width,c.height/2);g.stroke()}
+ const W=Math.max(1,Math.round(c.width*y.length/total)),H=c.height/2-14;g.lineWidth=lw;
+ for(let px=0;px<W;px++){const a=Math.floor(px/W*y.length),b=Math.max(a+1,Math.floor((px+1)/W*y.length));let mn=Infinity,mx=-Infinity;for(let i=a;i<b&&i<y.length;i++){const v=y[i]*amp;if(v<mn)mn=v;if(v>mx)mx=v}if(mn===Infinity)continue;
+  const over=clipCol&&(mx>1||mn<-1);mn=Math.max(-1.08,mn);mx=Math.min(1.08,mx);g.strokeStyle=over?clipCol:col;g.beginPath();g.moveTo(px+.5,c.height/2-mx*H);g.lineTo(px+.5,c.height/2-mn*H+.5);g.stroke()}}
+function sgT(id,y,total,fmax=4000,sr=SR,nfft=1024,hop=256){const[c,g]=cv(id);clear(g,c);const F=stft(y,nfft,hop,sr);if(!F.length)return;const kmax=Math.min(nfft/2,Math.ceil(fmax/(sr/nfft)));let m=1e-12;F.forEach(f=>{for(let k=0;k<kmax;k++)m=Math.max(m,f[k])});
+ const im=g.createImageData(F.length,kmax),lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ F.forEach((f,x)=>{for(let k=0;k<kmax;k++){const v=Math.max(0,Math.min(1,(20*Math.log10(f[k]/m+1e-12)+60)/60)),col=lut[Math.round(v*255)],o=((kmax-1-k)*F.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=F.length;tmp.height=kmax;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(tmp,0,0,c.width*y.length/total,c.height);
+ g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(fmax+' Hz',8,26)}
+function welch(y,n=4096){const F=stft(y,n,n/2),K=n/2,S=new Float32Array(K);F.forEach(f=>{for(let k=0;k<K;k++)S[k]+=f[k]*f[k]});for(let k=0;k<K;k++)S[k]=10*Math.log10(S[k]/Math.max(1,F.length)+1e-12);return S}
+function logSpec(id,list,marks=[],sr=SR){const[c,g]=cv(id);clear(g,c);const n=4096,fl=30,fh=sr/2,X=f=>Math.log(f/fl)/Math.log(fh/fl)*c.width,Ss=list.map(([y])=>welch(y,n));let mx=-1e9;Ss.forEach(S=>S.forEach((v,k)=>{if(k*sr/n>=fl)mx=Math.max(mx,v)}));const Y=v=>12+(mx-v)/80*(c.height-44);
+ g.font='20px JetBrains Mono, monospace';[50,100,200,500,1000,2000,5000,10000].forEach(f=>{g.strokeStyle=css('--line');g.lineWidth=1;g.beginPath();g.moveTo(X(f),0);g.lineTo(X(f),c.height-30);g.stroke();g.fillStyle=css('--muted');g.fillText(f>=1000?f/1000+'k':f,X(f)-14,c.height-8)});
+ list.forEach(([,col,lw],j)=>{g.strokeStyle=col;g.lineWidth=lw;g.beginPath();let first=true;for(let k=1;k<n/2;k++){const f=k*sr/n;if(f<fl)continue;const yy=Math.min(c.height-32,Y(Ss[j][k]));first?g.moveTo(X(f),yy):g.lineTo(X(f),yy);first=false}g.stroke()});
+ marks.forEach(f=>{g.strokeStyle=css('--accent');g.lineWidth=2;g.setLineDash([8,8]);g.beginPath();g.moveTo(X(f),0);g.lineTo(X(f),c.height-30);g.stroke();g.setLineDash([])})}
+
+/* ===== 1 crop ===== */
+const cLenMs=Math.floor(SHORT.length*1000/SR);$('#cA').max=$('#cB').max=cLenMs;
+function cropUpd(){let a=+$('#cA').value,b=+$('#cB').value;if(b<a+20){b=Math.min(cLenMs,a+20);$('#cB').value=b}
+ $('#cAV').textContent=a+' ms';$('#cBV').textContent=b+' ms';$('#cCode').textContent=`clip = audio[${a}:${b}]   # 毫秒`;
+ const y=slice(SHORT,a,b);$('#cLen').textContent=((b-a)/1000).toFixed(2)+' s';$('#cN').textContent=y.length.toLocaleString('en-US');$('#cEdge').textContent=(y[0]||0).toFixed(3).replace('-','−');
+ waveT('#cCv',SHORT,SHORT.length,{amp:1.6});shade('#cCv',[[ms2n(a),ms2n(b)]],SHORT.length,css('--accent'),.28);
+ const m=Math.max(1e-6,stats(y).pk);waveT('#cZm',y,y.length,{col:css('--accent'),amp:.9/m})}
+['#cA','#cB'].forEach(s=>$(s).addEventListener('input',cropUpd));
+$('#cPlay').onclick=()=>playRaw(slice(SHORT,+$('#cA').value,+$('#cB').value));
+$('#cTrap').onclick=()=>{$('#cCode').textContent='clip = audio[5:15]   # 只有 10 毫秒！';const y=slice(SHORT,305,315);playRaw(cat(y,sil(.3)))};
+
+/* ===== 2 gain ===== */
+function gainSig(){return scale(SHORT,fromDb(+$('#gn').value))}
+function gainUpd(){const d=+$('#gn').value,y=gainSig(),s=stats(y),cl=clipCount(y);$('#gnV').textContent=(d>0?'+':'')+d+' dB';$('#gnMul').textContent='× '+fromDb(d).toFixed(d<-12?3:2);
+ $('#gnPk').textContent=fD(s.max);$('#gnClip').textContent=cl.toLocaleString('en-US');$('#gnPk').style.color=s.max>0?css('--bad'):'';
+ $('#gCode').textContent=`louder = clip ${d<0?'-':'+'} ${Math.abs(d)}   # = clip.apply_gain(${d})`;
+ waveT('#gnCv',y,y.length,{clipCol:css('--bad')});hline('#gnCv',1,css('--bad'),[10,6],'0 dBFS')}
+$('#gn').addEventListener('input',gainUpd);$('#gnPlay').onclick=()=>play(gainSig());
+
+/* ===== 3 fade / crossfade ===== */
+let fMode='fade';const F_SRC=slice(SHORT,380,2400),X_A=slice(SHORT,0,1700),X_B=BGM.slice(0,ms2n(3000));
+function fadeSig(){return fMode==='fade'?fadeLin(F_SRC,+$('#fIn').value,+$('#fOut').value):crossfade(X_A,X_B,+$('#fX').value)}
+function fadeUpd(){$('#fInV').textContent=$('#fIn').value+' ms';$('#fOutV').textContent=$('#fOut').value+' ms';$('#fXV').textContent=$('#fX').value+' ms';
+ $('#fFadeCtl').hidden=fMode!=='fade';$('#fXCtl').hidden=fMode==='fade';const y=fadeSig();$('#fLen').textContent=fS(y.length);
+ const[c,g]=cv('#fCv');if(fMode==='fade'){const fi=+$('#fIn').value,fo=+$('#fOut').value;$('#fCode').textContent=`clip = clip.fade_in(${fi}).fade_out(${fo})`;$('#fJump').textContent=Math.abs(y[0]).toFixed(3);
+  waveT('#fCv',y,y.length,{amp:1.5});const n=y.length,a=ms2n(fi),b=ms2n(fo),H=c.height/2-14;g.strokeStyle=css('--good');g.lineWidth=4;g.beginPath();for(let px=0;px<=c.width;px+=2){const i=px/c.width*n;let e=1;if(i<a)e=i/a;if(i>n-b)e=Math.min(e,(n-i)/b);const yy=c.height/2-e*H;px?g.lineTo(px,yy):g.moveTo(px,yy)}g.stroke();
+  $('#fCap').textContent='白：處理後的波形（放大 1.5 倍）　綠線：增益包絡（0 到 1）。這段刻意從字的中間開始切。'}
+ else{const x=+$('#fX').value,n=ms2n(x);$('#fCode').textContent=`combined = part_a.append(part_b, crossfade=${x})`;$('#fJump').textContent='—';
+  waveT('#fCv',y,y.length,{amp:1.3});const H=c.height/2-14,la=X_A.length,tot=y.length;g.lineWidth=4;
+  [[css('--fg'),i=>i<la-n?1:i<la?(la-i)/n:0],[css('--accent'),i=>i<la-n?0:i<la?(i-(la-n))/n:1]].forEach(([col,f])=>{g.strokeStyle=col;g.beginPath();for(let px=0;px<=c.width;px+=2){const yy=c.height/2-f(px/c.width*tot)*H;px?g.lineTo(px,yy):g.moveTo(px,yy)}g.stroke()});
+  $('#fCap').textContent=`白線：A（人聲）的增益　橘線：B（音樂）的增益。A ${fS(X_A.length)} ＋ B ${fS(X_B.length)} − 重疊 ${(x/1000).toFixed(2)} s`}}
+seg('#fMode',['fade','crossfade'],'fade',v=>{fMode=v;fadeUpd()},v=>v==='fade'?'淡入淡出':'Crossfade 接兩段');
+['#fIn','#fOut','#fX'].forEach(s=>$(s).addEventListener('input',fadeUpd));$('#fPlay').onclick=()=>playRaw(fadeSig());
+
+/* ===== 4 mix ===== */
+const M_V=SHORT,M_B=BGM.slice(0,SHORT.length);
+function mixSig(){const v=scale(M_V,fromDb(+$('#mV').value)),b=scale(M_B,fromDb(+$('#mB').value)),h=$('#mHead').checked?fromDb(-6):1;return[v,b,Float32Array.from(v,(x,i)=>(x+b[i])*h)]}
+function mixUpd(){const dv=+$('#mV').value,db=+$('#mB').value,h=$('#mHead').checked;$('#mVV').textContent=(dv>0?'+':'')+dv+' dB';$('#mBV').textContent=(db>0?'+':'')+db+' dB';
+ const[v,b,s]=mixSig(),S=stats(s),cl=clipCount(s);$('#mPkV').textContent=fD(stats(v).max);$('#mPkB').textContent=fD(stats(b).max);$('#mPk').textContent=fD(S.max);$('#mPk').style.color=S.max>0?css('--bad'):'';$('#mClip').textContent=cl.toLocaleString('en-US');
+ $('#mCode').textContent=`mixed = (voice ${dv<0?'-':'+'} ${Math.abs(dv)}).overlay(bgm ${db<0?'-':'+'} ${Math.abs(db)})`+(h?'\nmixed = mixed - 6   # headroom':'');
+ waveT('#mCv',b,b.length,{col:css('--accent')});waveT('#mCv',v,v.length,{col:css('--fg'),clearIt:false});waveT('#mSum',s,s.length,{col:css('--good'),clipCol:css('--bad')});hline('#mSum',1,css('--bad'),[10,6],'0 dBFS')}
+['#mV','#mB','#mHead'].forEach(s=>$(s).addEventListener('input',mixUpd));$('#mPlay').onclick=()=>play(mixSig()[2]);$('#mPlayV').onclick=()=>play(mixSig()[0]);
+
+/* ===== 5 normalize ===== */
+let nKey='long';const N_SRC={long:POD,short:null};let nOut={};
+function nSource(){if(nKey==='long')return POD;if(!N_SRC.short){const th=relThreshold(POD,14);N_SRC.short=compact(POD,detectNonsilent(POD,800,th),300)}return N_SRC.short}
+function normUpd(){const y=nSource(),s=stats(y),L=lufs(y);const rows=[['Peak 正規化','max dBFS → −1',-1-s.max],['平均 dBFS 調整','dBFS → −18',-18-s.dbfs],['LUFS 響度','LUFS → −16',-16-L]];
+ nOut={};const tb=[`<tr><th>方法</th><th>目標</th><th>增益</th><th>處理後 dBFS</th><th>max dBFS</th></tr>`,`<tr><td>原始</td><td class="muted">—</td><td class="num">—</td><td class="num">${fD(s.dbfs)}</td><td class="num">${fD(s.max)}</td></tr>`];
+ rows.forEach(([name,tgt,gn],i)=>{const o=scale(y,fromDb(gn)),so=stats(o);nOut[i]=o;const bad=so.max>0;tb.push(`<tr${bad?' class="bad"':''}><td>${name}</td><td class="muted">${tgt}</td><td class="num">${gn>=0?'+':''}${fD(gn)} dB</td><td class="num">${fD(so.dbfs)}</td><td class="num">${fD(so.max)}${bad?'　削波':''}</td></tr>`)});
+ tb.push(`<tr><td colspan="5" class="muted">原始 LUFS（簡化）：${fD(L)}　長度 ${fS(y.length)}</td></tr>`);$('#nTb').innerHTML=tb.join('');waveT('#nCv',y,POD.length,{amp:1.4})}
+seg('#nSrc',['long','short'],'long',v=>{nKey=v;normUpd()},v=>v==='long'?'有長停頓':'停頓已壓縮');
+$('#nPlays').innerHTML=['原始','Peak','平均 dBFS','LUFS'].map((l,i)=>`<button data-i="${i-1}">▶ ${l}</button>`).join('');
+$('#nPlays').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.i;play(i<0?nSource():nOut[i])});
+
+/* ===== 6 silence detection ===== */
+let sKey='demo',sMode='rel',sCache=null;
+function sSource(){if(sKey==='mute')return new Float32Array(Math.round(SR*6));const nz=+$('#sNz').value*.004;return nz?Float32Array.from(POD,(v,i)=>v+nz*NOISE[i]):POD}
+function silUpd(){const y=sSource(),minS=+$('#sMin').value,gap=+$('#sGap').value,off=+$('#sRel').value,fx=+$('#sFix').value;
+ $('#sFixV').textContent=fx+' dBFS';$('#sRelV').textContent=off+' dB';$('#sMinV').textContent=minS+' ms';$('#sGapV').textContent=gap+' ms';$('#sNzV').textContent=$('#sNz').value==='0'?'無':'×'+$('#sNz').value;
+ $('#sFixL').hidden=sMode!=='fix';$('#sRelL').hidden=sMode!=='rel';const s=stats(y);
+ const th=sMode==='fix'?fx:relThreshold(y,off);
+ $('#sCode').textContent=sMode==='fix'?`spans = detect_nonsilent(audio, min_silence_len=${minS},\n                         silence_thresh=${fx})`:`threshold = audio.dBFS - ${off}   # ${fD(s.dbfs)} − ${off} = ${th===null?'None':fD(th)}\nspans = detect_nonsilent(audio, min_silence_len=${minS},\n                         silence_thresh=threshold)`;
+ const note=$('#sNote');const total=POD.length;
+ waveT('#sCv',y,Math.max(total,y.length),{amp:1.5});
+ if(th===null){$('#sThr').textContent='None';$('#sSpans').textContent='—';$('#sLenA').textContent=fS(y.length);$('#sLenB').textContent='—';sCache=null;
+  note.textContent=`整段靜音：audio.dBFS 是 −∞，「−∞ − ${off}」沒有意義。get_relative_threshold() 應該回傳 None，程式先檢查再往下做。`;note.style.color=css('--bad');
+  const[c,g]=cv('#sDb');clear(g,c);const[c2,g2]=cv('#sOut');clear(g2,c2);return}
+ const spans=detectNonsilent(y,minS,th),sl=detectSilence(y,minS,th),out=compact(y,spans,gap,SR);sCache=out;
+ shade('#sCv',sl.map(([a,b])=>[ms2n(a),ms2n(b)]),Math.max(total,y.length),css('--muted'),.25);shade('#sCv',spans.map(([a,b])=>[ms2n(a),ms2n(b)]),Math.max(total,y.length),css('--good'),.22);
+ $('#sThr').textContent=fD(th);$('#sSpans').textContent=spans.length+' 段';$('#sLenA').textContent=fS(y.length);$('#sLenB').textContent=out?fS(out.length):'—';
+ // dB envelope
+ const[c,g]=cv('#sDb');clear(g,c);const P=prefixSq(y),step=ms2n(10),lo=-80,hi=0,Y=v=>10+(hi-Math.max(lo,v))/(hi-lo)*(c.height-20);g.strokeStyle=css('--fg');g.lineWidth=2;g.beginPath();
+ for(let i=0,j=0;i<y.length;i+=step,j++){const x=i/Math.max(total,y.length)*c.width,v=rmsDb(P,i,Math.min(y.length,i+step));j?g.lineTo(x,Y(v)):g.moveTo(x,Y(v))}g.stroke();
+ g.strokeStyle=css('--accent');g.lineWidth=3;g.beginPath();g.moveTo(0,Y(th));g.lineTo(c.width,Y(th));g.stroke();g.fillStyle=css('--accent');g.font='22px JetBrains Mono, monospace';g.fillText(fD(th)+' dBFS',c.width-200,Y(th)-8);
+ g.fillStyle=css('--muted');g.fillText('0',6,22);g.fillText('−80',6,c.height-8);
+ if(out){waveT('#sOut',out,Math.max(total,y.length),{col:css('--accent'),amp:1.5})}else{const[c2,g2]=cv('#sOut');clear(g2,c2)}
+ let msg='';if(!spans.length)msg='沒有找到任何非靜音段：門檻太高，整段都被當成靜音。';else if(spans.length===1&&sl.length===0)msg='整段只有一個非靜音段：門檻太低（背景噪音也被當成說話），停頓一個都沒切掉。';
+ else msg=`切出 ${spans.length} 段，長度少了 ${((y.length-(out?out.length:0))/SR).toFixed(1)} 秒。示範錄音有 4 個超過 1 秒的停頓，比 min_silence_len 短的停頓會留在段落裡，不會被壓縮。`;
+ note.textContent=msg;note.style.color=!spans.length||(spans.length===1&&!sl.length)?css('--bad'):''}
+seg('#sSrc',['demo','mute'],'demo',v=>{sKey=v;silUpd()},v=>v==='demo'?'示範錄音':'整段靜音');
+seg('#sMode',['fix','rel'],'rel',v=>{sMode=v;silUpd()},v=>v==='fix'?'固定 silence_thresh':'相對 audio.dBFS − 14');
+['#sFix','#sRel','#sMin','#sGap','#sNz'].forEach(s=>$(s).addEventListener('input',silUpd));
+$('#sPlayA').onclick=()=>play(sSource());$('#sPlayB').onclick=()=>{if(sCache)play(sCache)};
+
+/* ===== 7 podcast editor ===== */
+let pY=POD,pSr=SR,pName='示範錄音',pOut=null;
+function resampleTo(y,from,to){if(from===to)return y;return speedUp(y,from/to)}
+function podcast(){const y=pY,sr=pSr,minS=+$('#pMin').value,gap=+$('#pGap').value,tgt=+$('#pTgt').value,rows=[['原始',y]];
+ const th=relThreshold(y,14);if(th===null)return{rows,err:'整段靜音（dBFS = −∞），沒有東西可以剪。'};
+ const spans=detectNonsilent(y,minS,th,10,sr);let p=compact(y,spans,gap,sr);if(!p)return{rows,err:'找不到非靜音段。'};rows.push(['compact_long_silence',p]);
+ const s=stats(p);p=scale(p,fromDb(tgt-s.dbfs));rows.push([`shift_average_dbfs(${tgt})`,p]);
+ p=fadeLin(p,300,800,sr);rows.push(['fade_in(300).fade_out(800)',p]);
+ if($('#pIO').checked){const intro=fadeLin(resampleTo(BGM.slice(0,ms2n(3000)),SR,sr),500,1000,sr),outro=fadeLin(resampleTo(BGM.slice(ms2n(8000),ms2n(12000)),SR,sr),1000,2000,sr);p=cat(scale(intro,.6),p,scale(outro,.6));rows.push(['intro + processed + outro',p])}
+ return{rows,th,spans,out:p}}
+function podUpd(){$('#pMinV').textContent=$('#pMin').value+' ms';$('#pGapV').textContent=$('#pGap').value+' ms';$('#pTgtV').textContent=$('#pTgt').value+' dBFS';
+ const r=podcast(),sr=pSr;pOut=r.out||null;
+ $('#pPipe').innerHTML=['detect_nonsilent','壓縮長停頓','調平均音量','淡入淡出',$('#pIO').checked?'片頭片尾':null,'匯出'].filter(Boolean).map(s=>`<span>${s}</span>`).join('<i>→</i>');
+ $('#pTb').innerHTML='<tr><th>步驟</th><th>長度</th><th>dBFS</th><th>max dBFS</th></tr>'+r.rows.map(([n,y])=>{const s=stats(y),bad=s.max>0;return`<tr${bad?' class="bad"':''}><td class="mono">${n}</td><td class="num">${(y.length/sr).toFixed(2)} s</td><td class="num">${fD(s.dbfs)}</td><td class="num">${fD(s.max)}</td></tr>`}).join('');
+ const note=$('#pNote');if(r.err){note.textContent=r.err;note.style.color=css('--bad')}
+ else{const last=stats(r.rows[r.rows.length-1][1]),cl=clipCount(r.out);note.style.color=cl?css('--bad'):css('--muted');
+  note.textContent=`門檻 ${fD(r.th)} dBFS（audio.dBFS − 14）、找到 ${r.spans.length} 段。`+(cl?`有 ${cl.toLocaleString('en-US')} 個樣本超過 0 dBFS，匯出時會削波：把 target_dbfs 調低，或先限制峰值。`:'max dBFS 沒有超過 0，不會削波。')}
+ const tot=Math.max(pY.length,pOut?pOut.length:0);const mA=stats(pY).pk||1;waveT('#pA',pY,tot,{amp:.9/mA});if(pOut)waveT('#pB',pOut,tot,{col:css('--accent'),amp:.9/Math.max(mA,stats(pOut).pk),clipCol:css('--bad')});else{const[c,g]=cv('#pB');clear(g,c)}}
+['#pMin','#pGap','#pTgt','#pIO'].forEach(s=>$(s).addEventListener('input',podUpd));
+$('#pPlayA').onclick=()=>play(pY,pSr);$('#pPlayB').onclick=()=>{if(pOut)play(pOut,pSr)};
+$('#pDl').onclick=()=>{if(!pOut)return;const a=document.createElement('a'),d=Float32Array.from(pOut,v=>Math.max(-1,Math.min(1,v)));a.href=URL.createObjectURL(wavBlob(d,pSr));a.download=(pName.replace(/\.[^.]+$/,'')||'podcast')+'_result.wav';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+async function loadFile(f){const ac=ctx();if(!ac){$('#pInfo').textContent='這個瀏覽器無法讀取音訊。';return}$('#pInfo').textContent='讀取中…';
+ try{const buf=await ac.decodeAudioData(await f.arrayBuffer());const n=buf.length,ch=buf.numberOfChannels,y=new Float32Array(n);for(let c=0;c<ch;c++){const d=buf.getChannelData(c);for(let i=0;i<n;i++)y[i]+=d[i]/ch}
+  const maxN=buf.sampleRate*240;pY=y.length>maxN?y.slice(0,maxN):y;pSr=buf.sampleRate;pName=f.name;
+  $('#pInfo').textContent=`${f.name}｜${pSr} Hz｜${(n/pSr).toFixed(1)} 秒｜${ch} 聲道（混成單聲道）`+(y.length>maxN?'｜只處理前 4 分鐘':'');podUpd()}
+ catch(e){$('#pInfo').textContent='讀不到這個檔案，請換成 WAV、MP3 或 M4A 再試一次。'}}
+$('#file').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0])});
+const dr=$('#drop');dr.addEventListener('dragover',e=>{e.preventDefault();dr.classList.add('over')});dr.addEventListener('dragleave',()=>dr.classList.remove('over'));dr.addEventListener('drop',e=>{e.preventDefault();dr.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
+
+/* ===== 8 BGM + ducking ===== */
+let dG=-18;const D_V=POD.slice(0,ms2n(14000)),D_B=BGM.slice(0,D_V.length);
+const D_SPANS=detectNonsilent(D_V,300,relThreshold(D_V,14));
+function duckCurve(){const n=D_V.length,g=new Float32Array(n),dep=$('#dOn').checked?+$('#dDep').value:0,tgt=new Float32Array(n).fill(dG);
+ if(dep)D_SPANS.forEach(([a,b])=>{for(let i=ms2n(a);i<Math.min(n,ms2n(b));i++)tgt[i]=dG-dep});
+ const at=Math.exp(-1/(SR*.08)),rl=Math.exp(-1/(SR*.4));let cur=dG;for(let i=0;i<n;i++){const k=tgt[i]<cur?at:rl;cur=tgt[i]+(cur-tgt[i])*k;g[i]=cur}return g}
+function duckSig(){const g=duckCurve(),b=Float32Array.from(D_B,(v,i)=>v*fromDb(g[i]));return[b,Float32Array.from(D_V,(v,i)=>v+b[i]),g]}
+function duckUpd(){$('#dDepV').textContent='−'+$('#dDep').value+' dB';$('#dDep').disabled=!$('#dOn').checked;const[b,m,g]=duckSig();
+ $('#dCode').textContent=`canvas = AudioSegment.silent(duration=len(voice))\ncanvas = canvas.overlay(bgm ${dG<0?'-':'+'} ${Math.abs(dG)}, loop=True)\nmixed  = canvas.overlay(voice)`+($('#dOn').checked?`\n# ducking：說話時 bgm 再 −${$('#dDep').value} dB`:'');
+ let sv=0,sb=0,n=0;D_SPANS.forEach(([a,c])=>{for(let i=ms2n(a);i<Math.min(D_V.length,ms2n(c));i++){sv+=D_V[i]**2;sb+=b[i]**2;n++}});
+ $('#dSmr').textContent='+'+(10*Math.log10(sv/Math.max(sb,1e-12))).toFixed(1)+' dB';$('#dPk').textContent=fD(stats(m).max);
+ waveT('#dCv',D_V,D_V.length,{amp:1.3});waveT('#dCv',b,b.length,{col:css('--accent'),clearIt:false,amp:1.3});
+ const[c,gg]=cv('#dCv');gg.strokeStyle=css('--good');gg.lineWidth=3;gg.beginPath();for(let px=0;px<=c.width;px+=3){const v=g[Math.min(g.length-1,Math.floor(px/c.width*g.length))],yy=10+(-v)/40*(c.height-20);px?gg.lineTo(px,yy):gg.moveTo(px,yy)}gg.stroke();
+ gg.fillStyle=css('--good');gg.font='20px JetBrains Mono, monospace';gg.fillText('BGM 增益（0 ~ −40 dB）',10,c.height-10)}
+seg('#dGain',[-12,-18,-24],-18,v=>{dG=v;duckUpd()},v=>'bgm '+(v+'').replace('-','− ')+' dB');['#dOn','#dDep'].forEach(s=>$(s).addEventListener('input',duckUpd));
+$('#dPlay').onclick=()=>play(duckSig()[1]);$('#dPlayB').onclick=()=>play(duckSig()[0]);
+
+/* ===== 9 filters ===== */
+let fOrd=1;const FL_SRC=(()=>{const v=slice(POD_CLEAN,900,6200),r=rng(5);return Float32Array.from(v,(x,i)=>x+.06*Math.sin(2*Math.PI*60*i/SR)+.03*Math.sin(2*Math.PI*120*i/SR)+.025*gauss(r))})();
+const hpF=p=>p<=0?0:Math.round(20*Math.pow(25,p/100)),lpF=p=>p>=100?0:Math.round(800*Math.pow(12.5,p/100));
+function filtSig(){const h=hpF(+$('#hp').value),l=lpF(+$('#lp').value);let y=FL_SRC;if(h)y=fOrd===1?hp1(y,h):bw4(y,'hp',h);if(l)y=fOrd===1?lp1(y,l):bw4(y,'lp',l);return y}
+function filtUpd(){const h=hpF(+$('#hp').value),l=lpF(+$('#lp').value);$('#hpV').textContent=h?h+' Hz':'關';$('#lpV').textContent=l?l.toLocaleString('en-US')+' Hz':'關';
+ const lines=[];if(h)lines.push(`audio = audio.high_pass_filter(${h})`);if(l)lines.push(`audio = audio.low_pass_filter(${l})`);if(fOrd===4&&lines.length)lines.push('# 四階：pydub 沒有，這裡用兩個 biquad 串接');$('#flCode').textContent=lines.join('\n')||'# 兩個濾波器都關閉';
+ logSpec('#flCv',[[FL_SRC,css('--muted'),2],[filtSig(),css('--accent'),3]],[h,l].filter(Boolean))}
+seg('#fOrd',[1,4],1,v=>{fOrd=v;filtUpd()},v=>v===1?'一階（pydub）':'四階（陡）');['#hp','#lp'].forEach(s=>$(s).addEventListener('input',filtUpd));
+$('#flPlayA').onclick=()=>play(FL_SRC);$('#flPlayB').onclick=()=>play(filtSig());
+
+/* ===== 10 stretch vs pitch ===== */
+let tMode='speed',tCache=null,tKey='';const T_SRC=slice(SHORT,200,2650);
+function tSig(){const r=+$('#tRate').value,s=+$('#tStep').value,k=tMode+r+'|'+s;if(k===tKey&&tCache)return tCache;tKey=k;
+ tCache=tMode==='speed'?speedUp(T_SRC,r):tMode==='stretch'?timeStretch(T_SRC,r):pitchShift(T_SRC,s);return tCache}
+function tUpd(){const r=+$('#tRate').value,s=+$('#tStep').value;$('#tRateV').textContent='× '+r.toFixed(2);$('#tStepV').textContent=(s>0?'+':'')+s;
+ $('#tRateL').hidden=tMode==='pitch';$('#tStepL').hidden=tMode!=='pitch';$('#tRateLab').textContent=tMode==='speed'?'播放速度':'rate';
+ $('#tCode').textContent=tMode==='speed'?`# 改取樣率直接加速（像快轉）\nfast = audio._spawn(audio.raw_data, overrides={\n    "frame_rate": int(audio.frame_rate * ${r})})`:tMode==='stretch'?`y_fast = librosa.effects.time_stretch(y, rate=${r})`:`y_high = librosa.effects.pitch_shift(y, sr=sr, n_steps=${s})`;
+ const y=tSig(),tot=Math.max(T_SRC.length,y.length),f0=tMode==='speed'?150*r:tMode==='stretch'?150:150*2**(s/12);
+ $('#tLenA').textContent=fS(T_SRC.length);$('#tLenB').textContent=fS(y.length);$('#tF0').textContent=Math.round(f0)+' Hz';
+ sgT('#tA',T_SRC,tot);sgT('#tB',y,tot)}
+seg('#tMode',['speed','stretch','pitch'],'speed',v=>{tMode=v;tUpd()},v=>({speed:'直接加速',stretch:'time_stretch',pitch:'pitch_shift'})[v]);
+['#tRate','#tStep'].forEach(s=>$(s).addEventListener('change',tUpd));['#tRate','#tStep'].forEach(s=>$(s).addEventListener('input',()=>{$('#tRateV').textContent='× '+(+$('#tRate').value).toFixed(2);$('#tStepV').textContent=(+$('#tStep').value>0?'+':'')+$('#tStep').value}));
+$('#tPlayA').onclick=()=>play(T_SRC);$('#tPlayB').onclick=()=>play(tSig());
+
+/* ===== quiz ===== */
+const QZ=[
+ ['<code>audio[5:15]</code> 取出的是？',['10 秒','10 毫秒','10 個樣本','第 5 到 15 秒'],1,'pydub 的切片單位是毫秒。要 10 秒得寫 audio[5000:15000]。'],
+ ['<code>audio + 6</code> 和 <code>audio + audio2</code> 差在哪？',['兩個都是混音','前者增益 +6 dB，後者把兩段接起來','前者在後面接 6 秒靜音','後者讓兩段同時播放'],1,'加數字是增益；加另一段聲音是串接（append）。同時播放要用 overlay。'],
+ ['兩段 max 都是 −3 dBFS 的聲音用 overlay 疊在一起，最可能？',['max 變 −6 dBFS','相加後可能超過 0 dBFS 而削波','自動正規化','長度變兩倍'],1,'混音是逐點相加，波峰對到波峰就會超過 1。混音前先留 headroom。'],
+ ['錄音裡有很多長停頓，直接用 shift_average_dbfs 調到 −18，會？',['剛剛好','說話的部分被調得太大聲，可能削波','停頓被刪掉','完全不受影響'],1,'停頓把平均 dBFS 拉低，算出來的增益就太大。先壓縮停頓，或改用有門檻的 LUFS。'],
+ ['整段靜音的 <code>audio.dBFS</code> 是 −∞，相對門檻 <code>audio.dBFS − 14</code> 會？',['等於 −14','沒有意義，要先檢查再處理','等於 0','pydub 會自動改成 −40'],1,'RMS 是 0，log 是 −∞。get_relative_threshold() 遇到這種情況應該回傳 None。'],
+ ['high-pass 100 Hz 最適合處理什麼？',['嘶嘶聲','冷氣、電源的低頻嗡嗡聲','削波','停頓太長'],1,'High-pass 讓 100 Hz 以上通過，衰減更低的頻率。嘶嘶聲在高頻，要用 low-pass。'],
+ ['只想讓旁白變短、音高不變，該用？',['改取樣率直接加速','librosa.effects.time_stretch','librosa.effects.pitch_shift','low_pass_filter'],1,'直接加速會一起提高音高；time_stretch 用相位聲碼器只改長度。'],
+ ['time_stretch(rate=0.5) 程式沒報錯，聲音卻怪怪的，原因是？',['程式一定寫錯了','極端倍率下相位聲碼器會產生拖影、金屬聲等瑕疵','取樣率變了','音量太大'],1,'數字正確不等於聽起來自然。極端參數要用耳朵檢查，並設停止條件。']];
+$('#qz').innerHTML=QZ.map(([q,o],i)=>`<div class="qcard"><p>${i+1}．${q}</p><div class="opts">${o.map((t,j)=>`<button data-q="${i}" data-j="${j}">${t}</button>`).join('')}</div><p class="fb" id="qf${i}"></p></div>`).join('');
+const qDone={};$('#qz').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.q,j=+b.dataset.j,[,,ans,why]=QZ[i];
+ b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(j===ans?'right':'wrong');$('#qf'+i).textContent=(j===ans?'答對。':'再想想。')+why;if(j===ans)qDone[i]=1;
+ $('#qzScore').textContent=`答對 ${Object.keys(qDone).length}／${QZ.length} 題`});
+
+/* theme toggle: follows the system until the viewer picks one; the choice is remembered */
+const root=document.documentElement,darkQ=matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkQ.matches;
+function themeLabel(){$('#themeBtn').textContent=isDark()?'☀ 淺色':'☾ 深色'}
+try{const t=localStorage.getItem('w11-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+$('#themeBtn').onclick=()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('w11-theme',t)}catch(e){}themeLabel()};
+darkQ.addEventListener('change',themeLabel);themeLabel();
+
+/* nav + redraw */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-40% 0px -55% 0px'});
+document.querySelectorAll('section.bench').forEach(s=>io.observe(s));
+const redraw=()=>{cropUpd();gainUpd();fadeUpd();mixUpd();normUpd();silUpd();podUpd();duckUpd();filtUpd();tUpd()};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+redraw();
+if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+/* videos: hide a card whose file is missing */
+const vids=[...document.querySelectorAll('#animGrid video')];
+Promise.all(vids.map(v=>fetch(v.getAttribute('src'),{method:'HEAD'}).then(r=>r.ok).catch(()=>true).then(ok=>{if(!ok)v.closest('figure').hidden=true;return ok}))).then(oks=>{if(!oks.some(Boolean)){$('#anim').hidden=true;const a=document.querySelector('#nav a[href="#anim"]');if(a){a.hidden=true;if(a.nextElementSibling)a.nextElementSibling.hidden=true}}});
+})();
+</script>
+
+</body>
+</html>

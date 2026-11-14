@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W11-3 變速 vs 變調</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w11-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; top: 506px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 26px; line-height: 46px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      .res { display: inline-flex; gap: 10px; align-items: baseline; margin-right: 26px; }
+      .res b { font-weight: 900; }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      svg text { font-family: var(--sans); }
+      #title { position: absolute; left: 64px; top: 72px; font-size: 56px; font-weight: 900; }
+      #sub { position: absolute; left: 66px; top: 152px; font-size: 26px; color: var(--muted); }
+      #viz { position: absolute; left: 0; top: 0; }
+      #table { position: absolute; left: 50%; top: 190px; width: 980px; margin-left: -490px; border-collapse: collapse; font-size: 30px; }
+      #table th { font-size: 22px; color: var(--muted); font-weight: 500; text-align: left; padding: 0 24px 12px; border-bottom: 1.5px solid var(--line); }
+      #table td { padding: 20px 24px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+      #table td:first-child { font-weight: 900; }
+      #table .sm { font-size: 20px; color: var(--muted); font-weight: 500; }
+      #tnote { position: absolute; left: 0; right: 0; top: 520px; text-align: center; font-size: 30px; font-weight: 900; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w11-3" data-start="0" data-duration="44" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="44" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W11</span><span class="num">3 / 3</span></div>
+      </div>
+
+      <!-- 三個面板：長度、波形、頻譜圖 -->
+      <div id="panels" class="scene clip" data-start="0" data-duration="44" data-track-index="1">
+        <svg id="viz" width="1280" height="720" viewBox="0 0 1280 720"></svg>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="5" data-track-index="2">
+        <h1 id="title">變速 <span class="muted">vs</span> <span class="acc">變調</span></h1>
+        <div class="card" id="s0c">
+          <div class="row"><span>聲音的「長度」和「音高」，能不能<span class="acc">分開改</span>？</span></div>
+          <div class="row"><span class="muted">原始：</span><code>4.0 s</code><span class="muted">・</span><code>220 Hz</code><span class="note">（示範用的四個音）</span></div>
+        </div>
+      </div>
+
+      <div id="s1" class="scene clip" data-start="5" data-duration="9" data-track-index="2">
+        <div class="head" id="s1h"><span class="badge">1</span><span>直接加快播放（改取樣率）</span></div>
+        <div class="card" id="s1c">
+          <div class="row"><code>sf.write("fast.wav", y, <span class="acc">int(sr * 1.25)</span>)</code><span class="note">同一串樣本，播得比較快</span></div>
+          <div class="row" id="s1r"><span class="res"><span>長度</span><b class="acc">↓ 變短</b></span><span class="res"><span>音高</span><b class="acc">↑ 變高</b><span class="note">×1.25 ≈ +3.9 半音（花栗鼠聲）</span></span></div>
+        </div>
+      </div>
+
+      <div id="s2" class="scene clip" data-start="14" data-duration="8" data-track-index="2">
+        <div class="head" id="s2h"><span class="badge">2</span><span><code>time_stretch(rate=1.25)</code></span></div>
+        <div class="card" id="s2c">
+          <div class="row"><code>librosa.effects.time_stretch(y, <span class="acc">rate=1.25</span>)</code><span class="note">只改時間</span></div>
+          <div class="row" id="s2r"><span class="res"><span>長度</span><b class="acc">↓ 變短</b></span><span class="res"><span>音高</span><b class="good">＝ 不變</b></span></div>
+        </div>
+      </div>
+
+      <div id="s3" class="scene clip" data-start="22" data-duration="8" data-track-index="2">
+        <div class="head" id="s3h"><span class="badge">3</span><span><code>pitch_shift(n_steps=+4)</code></span></div>
+        <div class="card" id="s3c">
+          <div class="row"><code>librosa.effects.pitch_shift(y, sr=sr, <span class="acc">n_steps=4</span>)</code><span class="note">只改頻率</span></div>
+          <div class="row" id="s3r"><span class="res"><span>長度</span><b class="good">＝ 不變</b></span><span class="res"><span>音高</span><b class="acc">↑ 變高</b><span class="note">2<sup>4/12</sup> ≈ ×1.26（+4 半音）</span></span></div>
+        </div>
+      </div>
+
+      <div id="s4" class="scene clip" data-start="30" data-duration="6.6" data-track-index="2">
+        <div class="head" id="s4h"><span>整理：長度和音高可以分開改</span></div>
+        <table id="table">
+          <tr><th>做法</th><th>長度</th><th>音高</th></tr>
+          <tr id="tr1"><td>直接加快播放 <span class="sm">改取樣率</span></td><td class="acc">變短</td><td class="acc">變高</td></tr>
+          <tr id="tr2"><td><code>time_stretch</code></td><td class="acc">變短</td><td class="good">不變</td></tr>
+          <tr id="tr3"><td><code>pitch_shift</code></td><td class="good">不變</td><td class="acc">變高</td></tr>
+        </table>
+      </div>
+
+      <div id="s5" class="scene clip" data-start="36.6" data-duration="7.4" data-track-index="2">
+        <div class="head" id="s5h"><span>怎麼做到的？STFT ＋ 相位聲碼器</span></div>
+        <div class="card" id="s5c">
+          <div class="row" id="s5r1"><span><b class="acc">STFT</b> 把聲音切成一格一格：</span><span class="acc">短時間窗</span><span>×</span><span class="good">頻率分量</span></div>
+          <div class="row" id="s5r2"><span><b>相位聲碼器</b> 在格子上分別搬動「時間」或「頻率」</span></div>
+          <div class="row" id="s5r3"><span class="bad">參數太極端 → 金屬聲、拖影（糊掉）等瑕疵</span></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var el = W11.el;
+        var tl = gsap.timeline({ paused: true });
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+        function count(node, t, a, b, dur, digits, unit, pre) {
+          tl.to(node, { numText: { from: a, to: b, digits: digits, suffix: unit, prefix: pre || "" }, duration: dur, ease: "power2.inOut" }, t);
+        }
+
+        var svg = document.getElementById("viz");
+        var C = { surface: "#1b1b1a", line: "#33322f", text: "#f2f0ea", muted: "#9c988f", acc: "#ff7a1a", good: "#5fc48a" };
+        function box(x, y, w, h, label) {
+          var g = el("g", { opacity: 0 }, svg);
+          el("rect", { x: x, y: y, width: w, height: h, rx: 14, fill: C.surface, stroke: C.line, "stroke-width": 1.5 }, g);
+          el("text", { x: x + 20, y: y + 34, fill: C.muted, "font-size": 22 }, g, label);
+          return g;
+        }
+
+        /* ---------- 長度 ---------- */
+        var gLen = box(64, 160, 500, 120, "長度");
+        var LEN_W = 400;
+        el("rect", { x: 84, y: 208, width: LEN_W, height: 44, rx: 8, fill: "none", stroke: C.muted, "stroke-width": 1.5, "stroke-dasharray": "5 5" }, gLen);
+        var lenBar = el("rect", { x: 84, y: 208, width: LEN_W, height: 44, rx: 8, fill: C.acc }, gLen);
+        var lenTxt = el("text", { id: "lenTxt", x: 544, y: 194, fill: C.text, "font-size": 26, "text-anchor": "end", "font-family": "JetBrains Mono", "font-weight": 700 }, gLen, "4.0 s");
+
+        /* ---------- 波形（放大 20 ms） ---------- */
+        var gWave = box(64, 296, 500, 186, "波形（放大看 20 毫秒）");
+        var perTxt = el("text", { id: "perTxt", x: 544, y: 330, fill: C.text, "font-size": 26, "text-anchor": "end", "font-family": "JetBrains Mono", "font-weight": 700 }, gWave, "週期 T = 4.5 ms");
+        var hzTxt = el("text", { id: "hzTxt", x: 544, y: 468, fill: C.muted, "font-size": 22, "text-anchor": "end", "font-family": "JetBrains Mono", "font-weight": 700 }, gWave, "220 Hz");
+        var defs = el("defs", {}, svg);
+        var cp = el("clipPath", { id: "win" }, defs);
+        el("rect", { x: 84, y: 344, width: 440, height: 104 }, cp);
+        var WCY = 396, PER = 100; // 20 ms ↔ 440 px，220 Hz → 週期 4.545 ms ↔ 100 px
+        function wavePath(x0, cycles) {
+          var d = "";
+          for (var k = 0; k <= cycles * 60; k++) {
+            var th = (2 * Math.PI * k) / 60;
+            var yv = 0.72 * Math.sin(th) + 0.24 * Math.sin(2 * th + 0.5);
+            d += (k ? "L" : "M") + (x0 + (k / 60) * PER).toFixed(2) + "," + (WCY - yv * 46).toFixed(2);
+          }
+          return d;
+        }
+        var wclip = el("g", { "clip-path": "url(#win)" }, gWave);
+        el("line", { x1: 84, x2: 524, y1: WCY, y2: WCY, stroke: C.line, "stroke-width": 1.5 }, wclip);
+        var ghostWave = el("path", { d: wavePath(84, 7), fill: "none", stroke: C.muted, "stroke-width": 2, opacity: 0, "vector-effect": "non-scaling-stroke" }, wclip);
+        var wave = el("path", { d: wavePath(84, 7), fill: "none", stroke: C.acc, "stroke-width": 3.5, "vector-effect": "non-scaling-stroke" }, wclip);
+        // 一個週期的括號
+        var per = el("path", { d: "M84,456 v8 H184 v-8", fill: "none", stroke: C.acc, "stroke-width": 2.5 }, gWave);
+
+        /* ---------- 頻譜圖 ---------- */
+        var gSp = box(600, 160, 616, 322, "頻譜圖（時間 × 頻率）");
+        var PX = 660, PY = 456, PPS = 132, PPH = 0.155; // 每秒 132 px；每 Hz 0.155 px（0～1500 Hz）
+        var grid = el("g", {}, gSp);
+        for (var t = 0; t <= 16; t++) el("line", { x1: PX + t * 0.25 * PPS, x2: PX + t * 0.25 * PPS, y1: PY - 1500 * PPH, y2: PY, stroke: C.line, "stroke-width": 1 }, grid);
+        for (var f = 0; f <= 1500; f += 250) el("line", { x1: PX, x2: PX + 4 * PPS, y1: PY - f * PPH, y2: PY - f * PPH, stroke: C.line, "stroke-width": 1 }, grid);
+        el("text", { x: PX + 4 * PPS, y: PY + 22, fill: C.muted, "font-size": 18, "text-anchor": "end" }, gSp, "時間 →");
+        el("text", { x: 616, y: PY - 1500 * PPH + 16, fill: C.muted, "font-size": 18 }, gSp, "頻率");
+        el("text", { x: 626, y: PY - 1500 * PPH + 40, fill: C.muted, "font-size": 18 }, gSp, "↑");
+
+        var notes = [220, 247, 294, 262];
+        var cells = [], ghosts = [];
+        var gGhost = el("g", { opacity: 0 }, gSp);
+        var gCells = el("g", {}, gSp);
+        notes.forEach(function (f0, n) {
+          for (var fr = 0; fr < 4; fr++) {
+            for (var h = 1; h <= 4; h++) {
+              var t0 = n + fr * 0.25;
+              var c = { t: t0, f: f0 * h, op: [1, 0.72, 0.5, 0.34][h - 1] };
+              var attrs = { x: PX + t0 * PPS + 2, y: PY - c.f * PPH - 5, width: 0.25 * PPS - 4, height: 10, rx: 3 };
+              c.el = el("rect", Object.assign({ fill: C.acc, opacity: c.op }, attrs), gCells);
+              ghosts.push(el("rect", Object.assign({ fill: "none", stroke: C.muted, "stroke-width": 1.2 }, attrs), gGhost));
+              cells.push(c);
+            }
+          }
+        });
+        // 解說用的高亮帶（STFT 段落）
+        var bandT = el("rect", { x: PX + 2.0 * PPS, y: PY - 1500 * PPH, width: 0.25 * PPS, height: 1500 * PPH, fill: "rgba(255,122,26,0.16)", stroke: C.acc, "stroke-width": 2, opacity: 0 }, gSp);
+        var bandF = el("rect", { x: PX, y: PY - 247 * 2 * PPH - 12, width: 4 * PPS, height: 24, fill: "rgba(95,196,138,0.14)", stroke: C.good, "stroke-width": 2, opacity: 0 }, gSp);
+        var bandTl = el("text", { x: PX + 2.125 * PPS, y: PY - 1500 * PPH - 8, fill: C.acc, "font-size": 18, "text-anchor": "middle", "font-weight": 900, opacity: 0 }, gSp, "一個時間窗");
+
+        /* ---------- 操作：timeScale（長度倍數）、fScale（頻率倍數） ---------- */
+        function apply(t, ts, fs, dur) {
+          dur = dur || 1.6;
+          tl.to(cells.map(function (c) { return c.el; }), {
+            attr: {
+              x: function (i) { return PX + cells[i].t * ts * PPS + 2 * ts; },
+              width: function () { return (0.25 * PPS - 4) * ts; },
+              y: function (i) { return PY - cells[i].f * fs * PPH - 5; },
+            },
+            duration: dur, ease: "power2.inOut",
+          }, t);
+          tl.to(lenBar, { attr: { width: LEN_W * ts }, duration: dur, ease: "power2.inOut" }, t);
+          tl.to(wave, { scaleX: 1 / fs, svgOrigin: "84 " + WCY, duration: dur, ease: "power2.inOut" }, t);
+          tl.to(per, { attr: { d: "M84,456 v8 H" + (84 + PER / fs).toFixed(1) + " v-8" }, duration: dur, ease: "power2.inOut" }, t);
+        }
+        var state = { ts: 1, fs: 1 };
+        function op(t, ts, fs, dur) {
+          dur = dur || 1.6;
+          var len0 = 4.0 * state.ts, len1 = 4.0 * ts;
+          var hz0 = 220 * state.fs, hz1 = 220 * fs;
+          apply(t, ts, fs, dur);
+          count(lenTxt, t, len0, len1, dur, 1, " s");
+          count(perTxt, t, 1000 / hz0, 1000 / hz1, dur, 1, " ms", "週期 T = ");
+          count(hzTxt, t, hz0, hz1, dur, 0, " Hz");
+          state = { ts: ts, fs: fs };
+        }
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        tl.fromTo([gLen, gWave, gSp], { opacity: 0 }, { opacity: 1, duration: 0.6, stagger: 0.3 }, 1.6);
+        inn(1.2, "#s0c", 0.6);
+        out(4.6, ["#title", "#s0c"], 0.35);
+
+        // 1 直接加快（5–14）
+        inn(5.1, "#s1h", 0.6);
+        inn(5.7, "#s1c", 0.6);
+        tl.set("#s1r", { opacity: 0 }, 5.7);
+        tl.to([gGhost, ghostWave], { opacity: 0.6, duration: 0.4 }, 6.6);
+        op(7.2, 1 / 1.25, 1.25);
+        inn(9.0, "#s1r", 0.5);
+        out(13.3, ["#s1h", "#s1c"], 0.35);
+        op(13.3, 1, 1, 0.7);
+
+        // 2 time_stretch（14–22）
+        inn(14.1, "#s2h", 0.6);
+        inn(14.7, "#s2c", 0.6);
+        tl.set("#s2r", { opacity: 0 }, 14.7);
+        op(15.8, 1 / 1.25, 1);
+        inn(17.6, "#s2r", 0.5);
+        out(21.3, ["#s2h", "#s2c"], 0.35);
+        op(21.3, 1, 1, 0.7);
+
+        // 3 pitch_shift（22–30）
+        inn(22.1, "#s3h", 0.6);
+        inn(22.7, "#s3c", 0.6);
+        tl.set("#s3r", { opacity: 0 }, 22.7);
+        op(23.8, 1, Math.pow(2, 4 / 12));
+        inn(25.6, "#s3r", 0.5);
+        out(29.6, ["#s3h", "#s3c"], 0.35);
+        tl.to([gLen, gWave, gSp], { opacity: 0, duration: 0.4 }, 29.6);
+
+        // 4 整理表（30–36.6）
+        inn(30.1, "#s4h", 0.6);
+        inn(30.6, "#table tr:first-child", 0.4);
+        inn(31.0, "#tr1", 0.5);
+        inn(31.6, "#tr2", 0.5);
+        inn(32.2, "#tr3", 0.5);
+        out(36.2, ["#s4h", "#table"], 0.35);
+
+        // 5 STFT（36.6–44）
+        op(36.0, 1, 1, 0.3);
+        tl.to([gGhost, ghostWave], { opacity: 0, duration: 0.2 }, 36.0);
+        inn(36.7, "#s5h", 0.6);
+        tl.to([gLen, gWave, gSp], { opacity: 1, duration: 0.5 }, 36.8);
+        tl.to([gLen, gWave], { opacity: 0.3, duration: 0.4 }, 37.6);
+        inn(37.4, "#s5c", 0.6);
+        tl.set(["#s5r2", "#s5r3"], { opacity: 0 }, 37.4);
+        tl.to([bandT, bandTl], { opacity: 1, duration: 0.4 }, 38.0);
+        tl.to(bandF, { opacity: 1, duration: 0.4 }, 38.5);
+        inn(39.6, "#s5r2", 0.5);
+        inn(41.2, "#s5r3", 0.5);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w11-3"] = tl;
+      })();
+    </script>
+  </body>
+</html>

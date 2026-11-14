@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W11-2 Podcast 自動剪輯器</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w11-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 38px; font-weight: 900; line-height: 1.2; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; top: 548px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 26px; line-height: 44px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      svg text { font-family: var(--sans); }
+      #title { position: absolute; left: 64px; top: 72px; font-size: 56px; font-weight: 900; }
+      #sub { position: absolute; left: 66px; top: 150px; font-size: 24px; color: var(--muted); }
+      #track { position: absolute; left: 64px; top: 196px; }
+      #meter { position: absolute; right: 64px; top: 64px; text-align: right; }
+      #meter .lbl { font-size: 18px; color: var(--muted); }
+      #meter .val { font-family: var(--mono); font-weight: 700; font-size: 50px; line-height: 1.1; color: var(--text); }
+      #meter .demo { display: inline-block; margin-top: 4px; font-size: 16px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; line-height: 24px; }
+      #chips { position: absolute; left: 64px; right: 64px; top: 486px; display: flex; gap: 10px; align-items: center; }
+      .chip { font-size: 20px; line-height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid var(--line); color: var(--muted); background: var(--surface); white-space: nowrap; }
+      .chev { color: var(--line); font-size: 20px; }
+      .chipon { position: absolute; top: 0; height: 38px; border-radius: 19px; border: 1.5px solid var(--accent); background: rgba(255, 122, 26, 0.14); }
+      #file { position: absolute; left: 50%; top: 250px; width: 560px; margin-left: -280px; background: var(--surface); border: 1.5px solid var(--good); border-radius: 18px; padding: 26px 34px; text-align: center; }
+      #file .fn { font-family: var(--mono); font-weight: 700; font-size: 40px; color: var(--text); }
+      #file .meta { font-size: 24px; color: var(--muted); margin-top: 8px; }
+      #file .save { font-size: 30px; font-weight: 900; color: var(--good); margin-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w11-2" data-start="0" data-duration="42" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="42" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W11</span><span class="num">2 / 3</span></div>
+      </div>
+
+      <!-- 時間軸舞台＋總長度計數器（整支都在） -->
+      <div id="stage" class="scene clip" data-start="0" data-duration="42" data-track-index="1">
+        <svg id="track" width="1152" height="290" viewBox="0 0 1152 290"></svg>
+        <div id="meter">
+          <div class="lbl">總長度</div>
+          <div class="val"><span id="dur">62.0</span> s</div>
+          <div class="demo">示範數據</div>
+        </div>
+        <div id="chips">
+          <span class="chip" id="c1">① 偵測</span><span class="chev">›</span>
+          <span class="chip" id="c2">② 壓縮停頓</span><span class="chev">›</span>
+          <span class="chip" id="c3">③ 音量</span><span class="chev">›</span>
+          <span class="chip" id="c4">④ 淡入淡出＋片頭尾</span><span class="chev">›</span>
+          <span class="chip" id="c5">⑤ 匯出 MP3</span>
+          <div class="chipon" id="chipon"></div>
+        </div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.6" data-track-index="2">
+        <h1 id="title">Podcast <span class="acc">自動剪輯器</span></h1>
+        <p id="sub">把錄音裡的長停頓剪短、音量拉齊、加上片頭片尾</p>
+      </div>
+
+      <div id="s1" class="scene clip" data-start="4.6" data-duration="7.6" data-track-index="2">
+        <div class="head" id="s1h"><span class="badge">1</span><span>偵測非靜音段</span></div>
+        <div class="card" id="s1c">
+          <div class="row"><code>thresh = audio.dBFS <span class="acc">- 14</span></code><span class="note">平均 −24 dBFS − 14 → 門檻 −38 dBFS</span></div>
+          <div class="row"><code>detect_nonsilent(audio, <span class="acc">min_silence_len=800</span>, silence_thresh=thresh)</code></div>
+        </div>
+      </div>
+
+      <div id="s2" class="scene clip" data-start="12.2" data-duration="7.2" data-track-index="2">
+        <div class="head" id="s2h"><span class="badge">2</span><span>長停頓壓成 300 ms</span></div>
+        <div class="card" id="s2c">
+          <div class="row"><code>gap = AudioSegment.silent(duration=<span class="acc">300</span>)</code><span class="note">頭尾的靜音直接丟掉</span></div>
+          <div class="row"><code>out = chunks[0] + gap + chunks[1] + gap + …</code></div>
+        </div>
+      </div>
+
+      <div id="s3" class="scene clip" data-start="19.4" data-duration="7.2" data-track-index="2">
+        <div class="head" id="s3h"><span class="badge">3</span><span>平均音量調到 −18 dBFS</span></div>
+        <div class="card" id="s3c">
+          <div class="row"><code>change = <span class="acc">-18.0</span> - out.dBFS</code><span class="note">−18 − (−23.1) = +5.1 dB</span></div>
+          <div class="row"><code>out = out.apply_gain(change)</code><span class="note">整段乘同一個倍數，大小聲的相對關係不變</span></div>
+        </div>
+      </div>
+
+      <div id="s4" class="scene clip" data-start="26.6" data-duration="7.8" data-track-index="2">
+        <div class="head" id="s4h"><span class="badge">4</span><span>淡入 300 ms／淡出 800 ms，加片頭片尾</span></div>
+        <div class="card" id="s4c">
+          <div class="row"><code>out = out.fade_in(<span class="acc">300</span>).fade_out(<span class="acc">800</span>)</code></div>
+          <div class="row"><code>final = intro + out + outro</code><span class="note">片頭 3.0 s、片尾 2.5 s（示範）</span></div>
+        </div>
+      </div>
+
+      <div id="s5" class="scene clip" data-start="34.4" data-duration="7.6" data-track-index="2">
+        <div class="head" id="s5h"><span class="badge">5</span><span>匯出 MP3</span></div>
+        <div id="file">
+          <div class="fn">podcast_result.mp3</div>
+          <div class="meta">MP3・192 kbps・41.3 s</div>
+          <div class="save">62.0 s → 41.3 s（短了 33%）</div>
+        </div>
+        <div class="card" id="s5c">
+          <div class="row"><code>final.export(<span class="acc">"podcast_result.mp3"</span>, format="mp3", bitrate="192k")</code></div>
+          <div class="row"><span class="note">同一套參數可以批次處理每一集：門檻、停頓長度、目標音量都寫成變數</span></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 先等字型載入，再量 chips 的寬度、建立時間軸（最後才註冊）
+      Promise.all([
+        document.fonts.load('500 20px "Noto Sans TC"'),
+        document.fonts.load('900 38px "Noto Sans TC"'),
+        document.fonts.load('500 20px "JetBrains Mono"'),
+        document.fonts.load('700 20px "JetBrains Mono"'),
+      ]).then(function () {
+        var el = W11.el;
+        var tl = gsap.timeline({ paused: true });
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+        function count(t, from, to, dur) {
+          tl.to("#dur", { numText: { from: from, to: to, digits: 1 }, duration: dur, ease: "power2.inOut" }, t);
+        }
+
+        /* ---------- 錄音模型（示範數據） ---------- */
+        // 種類：S = 說話、G = 停頓；amp = 該段的音量（相對）
+        var segs = [
+          { k: "G", d: 3.2, edge: true }, { k: "S", d: 6.2, amp: 0.42 }, { k: "G", d: 4.6 },
+          { k: "S", d: 4.8, amp: 0.3 }, { k: "G", d: 0.5 }, { k: "S", d: 7.4, amp: 0.48 },
+          { k: "G", d: 6.2 }, { k: "S", d: 3.9, amp: 0.28 }, { k: "G", d: 3.8 },
+          { k: "S", d: 6.7, amp: 0.5 }, { k: "G", d: 5.4 }, { k: "S", d: 5.1, amp: 0.36 },
+          { k: "G", d: 4.2, edge: true },
+        ];
+        var SC = 1120 / 62, OX = 16, CY = 130, H = 80;
+        var GAIN = Math.pow(10, 5.1 / 20); // +5.1 dB ≈ ×1.8
+        function layout(fn) { var t = 0; segs.forEach(function (s) { var d = fn(s); s._t = t; s._d = d; t += d; }); return t; }
+        layout(function (s) { return s.d; });
+        segs.forEach(function (s) { s.t0 = s._t; });
+        var total2 = layout(function (s) { return s.k === "S" ? s.d : s.edge ? 0 : s.d >= 0.8 ? 0.3 : s.d; });
+        segs.forEach(function (s) { s.t1 = s._t; s.d1 = s._d; });
+
+        var svg = document.getElementById("track");
+        var trackLbl = el("text", { x: OX, y: 22, fill: "#9c988f", "font-size": 22, opacity: 0 }, svg, "原始錄音（62 秒）");
+        var trackLbl2 = el("text", { x: OX, y: 22, fill: "#9c988f", "font-size": 22, opacity: 0 }, svg, "剪輯後");
+        el("line", { x1: OX, x2: OX + 1120, y1: CY, y2: CY, stroke: "#33322f", "stroke-width": 2 }, svg);
+
+        // 門檻線（±，相對很小的振幅）
+        var thr = el("g", { opacity: 0 }, svg);
+        [1, -1].forEach(function (s) { el("line", { x1: OX, x2: OX + 1120, y1: CY - s * 13, y2: CY - s * 13, stroke: "#ff7a1a", "stroke-width": 1.5, "stroke-dasharray": "5 5" }, thr); });
+        el("line", { x1: OX + 900, x2: OX + 940, y1: 15, y2: 15, stroke: "#ff7a1a", "stroke-width": 2, "stroke-dasharray": "5 5" }, thr);
+        el("text", { x: OX + 1120, y: 22, fill: "#ff7a1a", "font-size": 20, "text-anchor": "end", "font-weight": 900 }, thr, "門檻 −38 dBFS");
+
+        // 片頭片尾（先藏起來）
+        var INTRO = 3.0, OUTRO = 2.5;
+        var intro = el("g", { opacity: 0 }, svg);
+        el("rect", { x: OX, y: CY - 46, width: INTRO * SC, height: 92, rx: 6, fill: "rgba(95,196,138,0.25)", stroke: "#5fc48a", "stroke-width": 2 }, intro);
+        el("text", { x: OX, y: CY - 58, fill: "#5fc48a", "font-size": 20, "font-weight": 900 }, intro, "片頭");
+        var outro = el("g", { opacity: 0 }, svg);
+        var outroX = OX + (INTRO + total2) * SC;
+        el("rect", { x: outroX, y: CY - 46, width: OUTRO * SC, height: 92, rx: 6, fill: "rgba(95,196,138,0.25)", stroke: "#5fc48a", "stroke-width": 2 }, outro);
+        el("text", { x: outroX, y: CY - 58, fill: "#5fc48a", "font-size": 20, "font-weight": 900 }, outro, "片尾");
+
+        // 每一段
+        var rnd = W11.seeded(11);
+        var blocks = [], gaps = [], merged = null;
+        segs.forEach(function (s, idx) {
+          var g = el("g", { transform: "translate(" + (OX + s.t0 * SC) + ",0)" }, svg);
+          s.g = g;
+          if (s.k === "S") {
+            var inner = el("g", {}, g);
+            s.inner = inner;
+            var w = s.d * SC;
+            el("rect", { x: 0, y: CY - s.amp * H * 1.15, width: w, height: s.amp * H * 2.3, rx: 6, fill: "rgba(255,122,26,0.14)" }, inner);
+            for (var x = 3; x < w - 2; x += 5) {
+              var a = s.amp * H * (0.35 + 0.65 * rnd());
+              el("line", { x1: x, x2: x, y1: CY - a, y2: CY + a, stroke: "#ff7a1a", "stroke-width": 3, "stroke-linecap": "round" }, inner);
+            }
+            blocks.push(s);
+          } else {
+            var w2 = s.d * SC;
+            s.rect = el("rect", { x: 0, y: CY - 3, width: w2, height: 6, rx: 3, fill: "#33322f" }, g);
+            var long = s.d >= 0.8;
+            s.lbl = el("text", { x: w2 / 2, y: CY + 104, fill: long ? "#ff7a1a" : "#9c988f", "font-size": long ? 20 : 18, "text-anchor": "middle", "font-family": "JetBrains Mono", "font-weight": 700, opacity: 0 }, g, s.d.toFixed(1) + " s");
+            if (!long) s.lbl2 = el("text", { x: w2 / 2, y: CY + 128, fill: "#9c988f", "font-size": 18, "text-anchor": "middle", opacity: 0 }, g, "< 0.8 s 保留");
+            s.lbl3 = el("text", { x: 0.15 * SC, y: CY + 104, fill: "#5fc48a", "font-size": 18, "text-anchor": "middle", "font-family": "JetBrains Mono", "font-weight": 700, opacity: 0 }, g, "0.3 s");
+            gaps.push(s);
+          }
+        });
+        // 非靜音段的綠色括號（B2 + 0.5 s + B3 合成一段）
+        var ranges = [[1, 1], [3, 5], [7, 7], [9, 9], [11, 11]];
+        var brackets = ranges.map(function (r) {
+          var a = segs[r[0]], b = segs[r[1]];
+          var g = el("g", { opacity: 0 }, svg);
+          var x0 = OX + a.t0 * SC, x1 = OX + (b.t0 + b.d) * SC;
+          el("path", { d: "M" + x0 + "," + (CY + 74) + " v10 H" + x1 + " v-10", fill: "none", stroke: "#5fc48a", "stroke-width": 3 }, g);
+          return g;
+        });
+        var bLbl = el("text", { x: OX, y: CY + 150, fill: "#5fc48a", "font-size": 20, opacity: 0 }, svg, "綠括號 = 偵測到的非靜音段（5 段）");
+
+        // 淡入／淡出包絡（套在正文頭尾）
+        var bodyX0 = OX + INTRO * SC, bodyX1 = OX + (INTRO + total2) * SC;
+        var fades = el("g", { opacity: 0 }, svg);
+        var top = CY - 0.5 * GAIN * H * 1.15 - 8;
+        el("polyline", { points: [bodyX0, CY, bodyX0 + 0.3 * SC, top, bodyX1 - 0.8 * SC, top, bodyX1, CY].join(","), fill: "none", stroke: "#5fc48a", "stroke-width": 3 }, fades);
+        el("text", { x: bodyX0, y: CY + 100, fill: "#5fc48a", "font-size": 22, "font-weight": 900 }, fades, "↑ 淡入 0.3 s");
+        el("text", { x: bodyX1, y: CY + 100, fill: "#5fc48a", "font-size": 22, "font-weight": 900, "text-anchor": "end" }, fades, "淡出 0.8 s ↑");
+
+        // 平均音量線
+        var lvl = el("g", { opacity: 0 }, svg);
+        var lvlLine = el("line", { x1: OX, x2: OX + total2 * SC, y1: CY - 0.39 * H, y2: CY - 0.39 * H, stroke: "#f2f0ea", "stroke-width": 2, "stroke-dasharray": "8 6" }, lvl);
+        var lvlTxt = el("text", { x: OX + total2 * SC + 14, y: CY - 0.39 * H + 7, fill: "#f2f0ea", "font-size": 22, "font-family": "JetBrains Mono", "font-weight": 700 }, lvl, "−23.1 dBFS");
+        var lvlTxt2 = el("text", { x: OX + total2 * SC + 14, y: CY - 0.39 * H * GAIN + 7, fill: "#5fc48a", "font-size": 22, "font-family": "JetBrains Mono", "font-weight": 700, opacity: 0 }, lvl, "−18.0 dBFS");
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.0, "#sub", 0.6);
+        tl.to(trackLbl, { opacity: 1, duration: 0.4 }, 1.4);
+        tl.fromTo(segs.map(function (s) { return s.g; }), { opacity: 0 }, { opacity: 1, duration: 0.35, stagger: 0.09 }, 1.5);
+        inn(2.2, "#meter", 0.6);
+        out(4.2, ["#title", "#sub"], 0.4);
+
+        // chips：一個橘色框在步驟間移動
+        var chipIds = ["c1", "c2", "c3", "c4", "c5"];
+        function chipBox(i) { var c = document.getElementById(chipIds[i]); return { x: c.offsetLeft, width: c.offsetWidth }; }
+        inn(4.7, "#chips", 0.5);
+        tl.set("#chipon", { x: chipBox(0).x, width: chipBox(0).width }, 0);
+        tl.fromTo("#chipon", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 5.0);
+        tl.to("#c1", { color: "#ff7a1a", duration: 0.3 }, 5.0);
+        function chipTo(i, t) {
+          var b = chipBox(i);
+          tl.to("#chipon", { x: b.x, width: b.width, duration: 0.5, ease: "power2.inOut" }, t);
+          tl.to("#" + chipIds[i - 1], { color: "#5fc48a", duration: 0.3 }, t);
+          tl.to("#" + chipIds[i], { color: "#ff7a1a", duration: 0.3 }, t + 0.2);
+        }
+
+        // 1 偵測（4.6–12.2）
+        inn(4.7, "#s1h", 0.6);
+        inn(5.4, "#s1c", 0.6);
+        tl.to(thr, { opacity: 1, duration: 0.5 }, 6.0);
+        tl.to(brackets, { opacity: 1, duration: 0.35, stagger: 0.25 }, 7.4);
+        tl.to(bLbl, { opacity: 1, duration: 0.4 }, 8.0);
+        tl.to(gaps.map(function (g) { return g.lbl; }), { opacity: 1, duration: 0.35, stagger: 0.12 }, 9.0);
+        tl.to(gaps.filter(function (g) { return g.lbl2; }).map(function (g) { return g.lbl2; }), { opacity: 1, duration: 0.35 }, 9.8);
+        out(11.8, ["#s1h", "#s1c"], 0.35);
+        tl.to([thr, bLbl], { opacity: 0, duration: 0.35 }, 11.8);
+        tl.to(gaps.filter(function (g) { return g.lbl2; }).map(function (g) { return g.lbl2; }), { opacity: 0, duration: 0.3 }, 11.8);
+
+        // 2 壓縮停頓（12.2–19.4）
+        chipTo(1, 12.2);
+        inn(12.3, "#s2h", 0.6);
+        inn(12.9, "#s2c", 0.6);
+        var T = 14.2, DUR = 1.8;
+        segs.forEach(function (s) {
+          tl.to(s.g, { attr: { transform: "translate(" + (OX + s.t1 * SC) + ",0)" }, duration: DUR, ease: "power2.inOut" }, T);
+          if (s.k === "G") {
+            tl.to(s.rect, { attr: { width: Math.max(s.d1 * SC, 0.01) }, duration: DUR, ease: "power2.inOut" }, T);
+            if (s.d1 !== s.d || s.edge) tl.to(s.lbl, { opacity: 0, duration: 0.3 }, T);
+            if (s.edge) tl.to(s.rect, { opacity: 0, duration: 0.4 }, T + DUR - 0.4);
+            else if (s.d >= 0.8) tl.to(s.lbl3, { opacity: 1, duration: 0.4 }, T + DUR);
+          }
+        });
+        tl.to(brackets, { opacity: 0, duration: 0.3 }, T);
+        tl.to(trackLbl, { opacity: 0, duration: 0.3 }, T);
+        tl.to(trackLbl2, { opacity: 1, duration: 0.4 }, T + DUR);
+        count(T, 62.0, total2, DUR);
+        out(19.0, ["#s2h", "#s2c"], 0.35);
+        tl.to(gaps.map(function (g) { return g.lbl3; }).concat(gaps.map(function (g) { return g.lbl; })), { opacity: 0, duration: 0.3 }, 19.0);
+
+        // 3 音量（19.4–26.6）
+        chipTo(2, 19.4);
+        inn(19.5, "#s3h", 0.6);
+        inn(20.1, "#s3c", 0.6);
+        tl.to(lvl, { opacity: 1, duration: 0.4 }, 20.8);
+        var TG = 22.0;
+        tl.to(blocks.map(function (b) { return b.inner; }), { scaleY: GAIN, svgOrigin: "0 " + CY, duration: 1.4, ease: "power2.inOut" }, TG);
+        tl.to(lvlLine, { attr: { y1: CY - 0.39 * H * GAIN, y2: CY - 0.39 * H * GAIN, stroke: "#5fc48a" }, duration: 1.4, ease: "power2.inOut" }, TG);
+        tl.to(lvlTxt, { opacity: 0, duration: 0.3 }, TG);
+        tl.to(lvlTxt2, { opacity: 1, duration: 0.4 }, TG + 1.2);
+        out(26.2, ["#s3h", "#s3c"], 0.35);
+        tl.to(lvl, { opacity: 0, duration: 0.35 }, 26.2);
+
+        // 4 淡入淡出＋片頭片尾（26.6–34.4）
+        chipTo(3, 26.6);
+        inn(26.7, "#s4h", 0.6);
+        inn(27.3, "#s4c", 0.6);
+        var TS = 27.8;
+        segs.forEach(function (s) {
+          tl.to(s.g, { attr: { transform: "translate(" + (OX + (INTRO + s.t1) * SC) + ",0)" }, duration: 1.0, ease: "power2.inOut" }, TS);
+        });
+        tl.fromTo(intro, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, TS + 0.8);
+        tl.fromTo(outro, { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, TS + 1.0);
+        count(TS + 0.8, total2, total2 + INTRO + OUTRO, 1.0);
+        tl.to(fades, { opacity: 1, duration: 0.5 }, 30.0);
+        out(34.0, ["#s4h", "#s4c"], 0.35);
+
+        // 5 匯出（34.4–42）
+        chipTo(4, 34.4);
+        inn(34.5, "#s5h", 0.6);
+        tl.to(["#track", "#chips"], { opacity: 0.15, duration: 0.5 }, 34.6);
+        inn(35.2, "#file", 0.7, { from: { scale: 0.96, y: 0 }, to: { scale: 1 } });
+        inn(36.0, "#s5c", 0.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w11-2"] = tl;
+      });
+    </script>
+  </body>
+</html>

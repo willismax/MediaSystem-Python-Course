@@ -1,0 +1,23 @@
+{
+  "name": "w11-animations",
+  "version": "1.0.0",
+  "description": "多媒體系統 W11 聲音剪輯與訊號處理：三支 HyperFrames 教學動畫",
+  "scripts": {
+    "fonts": "python3 tools/build-fonts.py",
+    "lint": "hyperframes lint w11-1-edit-is-math && hyperframes lint w11-2-podcast-editor && hyperframes lint w11-3-stretch-vs-pitch",
+    "preview:1": "hyperframes preview w11-1-edit-is-math",
+    "preview:2": "hyperframes preview w11-2-podcast-editor",
+    "preview:3": "hyperframes preview w11-3-stretch-vs-pitch",
+    "render:1": "hyperframes render w11-1-edit-is-math -o ../../../docs/labs/w11/media/w11-1-edit-is-math.mp4 --fps 30 --crf 20",
+    "render:2": "hyperframes render w11-2-podcast-editor -o ../../../docs/labs/w11/media/w11-2-podcast-editor.mp4 --fps 30 --crf 20",
+    "render:3": "hyperframes render w11-3-stretch-vs-pitch -o ../../../docs/labs/w11/media/w11-3-stretch-vs-pitch.mp4 --fps 30 --crf 20",
+    "render": "npm run render:1 && npm run render:2 && npm run render:3"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "gsap": "^3.15.1",
+    "hyperframes": "0.9.45"
+  },
+  "private": true
+}
