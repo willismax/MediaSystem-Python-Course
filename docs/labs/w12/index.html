@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="多媒體系統 W12 互動實驗：TTS 與 STT 流程、Mel 頻譜、Vocoder、說話者特徵、TTS 盲測、ZONOS3-Mini、CER／WER 計算器、Whisper 與字幕、深偽證據卡、合成語音揭露紀錄。">
+<title>W12 語音 AI 實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab notebook — sticky index; animation strip, then three parts (TTS, STT, deepfake & disclosure); controls left, live result right. Same identity as the W08–W11 labs. */
+:root{
+  --bg:#121212; --surface:#1b1b1a; --sunk:#0c0c0c; --fg:#f2f0ea; --muted:#9c988f; --line:#33322f;
+  --accent:#ff7a1a; --accent-ink:#121212; --good:#5fc48a; --bad:#ff6b5e;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:900}
+h2{font-size:clamp(1.45rem,3vw,2rem);font-weight:900}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.acc{color:var(--accent)} .muted{color:var(--muted)} a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.top .wrap{display:flex;gap:16px;align-items:center;padding-block:10px}
+.top .brand{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.top nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.top nav a:hover,.top nav a.on{color:var(--fg);background:var(--surface)}
+.top nav .sep{color:var(--line);padding:4px 2px}
+.top .theme{margin-left:auto;flex:none;font-size:.82rem;padding:5px 12px;white-space:nowrap}
+.hero{padding-block:48px 24px;display:grid;gap:18px}
+.hero p.lede{max-width:46em;color:var(--muted);font-size:1.05rem}
+.views{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.views div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:2px}
+.views b{font-size:1.05rem} .views span{color:var(--muted);font-size:.88rem}
+@media (max-width:700px){.views{grid-template-columns:minmax(0,1fr)}}
+.part{margin-top:24px;padding:14px 0;border-top:3px solid var(--accent);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.part b{font-size:1.2rem} .part span{color:var(--muted)}
+button{font:inherit;font-size:.92rem;font-weight:700;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--fg)} button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)} button.ghost{background:transparent}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+section.bench{padding-block:48px;border-top:1px solid var(--line);scroll-margin-top:64px}
+.bench-head{display:grid;gap:8px;margin-bottom:22px;max-width:52em}
+.bench-head .q{color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.ctrl{display:grid;gap:14px}
+.ctrl label{display:grid;gap:4px;font-size:.92rem}
+.ctrl label .lab{display:flex;justify-content:space-between;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font-size:.82rem;padding:5px 12px;font-weight:500}
+.seg button.on{border-color:var(--accent);color:var(--accent)}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:14px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:24px}
+.stat .v{font-family:var(--mono);font-size:1.6rem;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.try{border-left:3px solid var(--accent);padding:8px 14px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.93rem}
+.try b{color:var(--accent)}
+canvas{width:100%;height:auto;display:block;border-radius:8px;background:var(--sunk)}
+.cap{font-size:.8rem;color:var(--muted);margin-top:-6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:.92rem}
+.chk input{accent-color:var(--accent);width:18px;height:18px}
+.quiz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.quiz{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px}
+.qc select{font:inherit;font-size:.88rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px}
+.qc.ok{border-color:var(--good)} .qc.no{border-color:var(--bad)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:.92rem}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--muted);font-size:.88rem}
+.links{display:flex;flex-wrap:wrap;gap:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.anim{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.anim{grid-template-columns:minmax(0,1fr)}}
+.anim figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid}
+.anim video{width:100%;aspect-ratio:16/9;display:block;background:#000}
+.anim figcaption{padding:10px 14px 12px;font-size:.86rem;color:var(--muted)}
+.anim figcaption b{color:var(--fg);display:block;font-size:.98rem}
+pre.code{font-family:var(--mono);font-size:.82rem;line-height:1.55;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+code{font-family:var(--mono);font-size:.9em}
+.tablewrap{overflow-x:auto}
+table.tb{border-collapse:collapse;width:100%;font-size:.88rem}
+table.tb th,table.tb td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+table.tb th{font-weight:500;color:var(--muted);font-size:.8rem}
+table.tb td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+table.tb tr.bad td{color:var(--bad)}
+.pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pipe span{font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.pipe i{color:var(--muted);font-style:normal}
+.qz{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start}
+.qcard .opts{display:flex;flex-wrap:wrap;gap:6px}
+.qcard .opts button{font-size:.82rem;padding:5px 10px;font-weight:500;text-align:left}
+.qcard .opts button.right{border-color:var(--good);color:var(--good)}
+.qcard .opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.qcard .fb{font-size:.86rem;color:var(--muted);min-height:1.4em}
+input[type=range]:disabled{opacity:.4}
+.ctrl label.chk,.form label.chk{display:flex;gap:8px;align-items:center}
+input[type=text],textarea,select{font:inherit;font-size:.92rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%}
+textarea{min-height:72px;resize:vertical;line-height:1.6}
+.form label{display:grid;gap:4px;font-size:.92rem}
+.chks{display:flex;flex-wrap:wrap;gap:4px 16px}
+.flow{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:thin}
+.flow .fl{font-family:var(--mono);font-weight:600;color:var(--accent);align-self:center;min-width:3.4em}
+.flow i{color:var(--muted);font-style:normal;align-self:center}
+.flow button{display:grid;gap:2px;text-align:left;min-width:128px;font-weight:600;padding:8px 12px}
+.flow button small{font-weight:400;color:var(--muted);font-size:.78rem}
+.flow button.on{border-color:var(--accent);color:var(--accent)}
+.zgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.zgrid{grid-template-columns:minmax(0,1fr)}}
+.zcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:10px;align-content:start;min-width:0}
+.zcard h3{font-size:1.02rem}
+.warncard{border-color:var(--bad)}
+dl.kv{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:6px 12px;margin:0;font-size:.9rem}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
+ul.tight{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
+.align{display:flex;flex-wrap:wrap;gap:4px}
+.ac{display:grid;grid-template-rows:auto auto;min-width:2em;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--sunk);position:relative;padding:2px 4px;font-family:var(--mono)}
+.ac b{font-weight:500;line-height:1.5}.ac b+b{border-top:1px dashed var(--line)}
+.ac i{position:absolute;top:-9px;right:-6px;font-style:normal;font-size:.62rem;font-weight:700;border-radius:4px;padding:0 3px;color:var(--accent-ink)}
+.ac.tS{border-color:var(--accent)}.ac.tS i,.lgS{background:var(--accent)}
+.ac.tD{border-color:var(--bad)}.ac.tD i,.lgD{background:var(--bad)}
+.ac.tI{border-color:var(--good)}.ac.tI i,.lgI{background:var(--good)}
+.lgS,.lgD,.lgI{color:var(--accent-ink);border-radius:4px;padding:0 6px;margin-right:4px}
+td.wrap{white-space:normal;word-break:break-all}
+.bars{display:grid;gap:10px}
+.bars .br{display:grid;grid-template-columns:5em minmax(0,1fr) 8.5em;gap:10px;align-items:center;font-size:.9rem}
+.bars .bar{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.bars .bar i{display:block;height:100%;background:var(--accent)}
+.score select{width:auto;padding:4px 6px}
+.scenario .qcard{max-width:none}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <span class="brand">W12<span class="acc">／</span>語音 AI 實驗室</span>
+  <nav id="nav">
+    <a href="#anim">動畫</a><span class="sep">｜</span>
+    <a href="#pipe">流程</a><a href="#mel">Mel</a><a href="#vocoder">Vocoder</a><a href="#speaker">誰在說話</a><a href="#blind">TTS 盲測</a><a href="#zonos">ZONOS3-Mini</a><span class="sep">｜</span>
+    <a href="#cer">CER／WER</a><a href="#whisper">Whisper</a><span class="sep">｜</span>
+    <a href="#evidence">深偽證據卡</a><a href="#disclose">揭露紀錄</a><a href="#check">檢核</a>
+  </nav>
+  <button class="ghost theme" id="themeBtn" type="button" aria-label="切換深色／淺色">☾ 深色</button>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">多媒體系統・MS-115 日間部・Week 12</span>
+    <h1>聽起來<span class="acc">自然</span>、辨識得<span class="acc">出來</span>、是不是<span class="acc">真的</span></h1>
+    <p class="lede">TTS 把文字變成聲音，STT 把聲音變回文字。這一週的實驗都在拆這三個問題：合成的聲音自然嗎？辨識正確率多少？這段錄音可信嗎？三個問題要分開回答，也要用不同的證據回答。頁面上的人聲是程式合成的示範聲音。</p>
+    <div class="views">
+      <div><b>TTS</b><span>Text → 聲學表示（常見是 Mel）→ Vocoder → Waveform</span></div>
+      <div><b>STT／ASR</b><span>Waveform → 辨識模型 → 文字 → 時間戳記、字幕</span></div>
+      <div><b class="acc">可信度</b><span>訊號線索 ＋ 來源情境 ＋ 外部查證，不是聽起來像就算數</span></div>
+    </div>
+  </div>
+
+  <section class="bench" id="anim">
+    <div class="bench-head"><span class="eyebrow">動畫講解</span><h2>先看三支短動畫</h2>
+      <p class="q">每支 40 秒左右，沒有旁白，適合邊播邊講，可以全螢幕播放。</p></div>
+    <div class="anim" id="animGrid">
+      <figure><video controls playsinline preload="none" poster="media/w12-1-tts-stt-loop.jpg" src="media/w12-1-tts-stt-loop.mp4"></video><figcaption><b>1・文字 ⇄ 聲音：TTS 與 STT</b>兩條流程與閉環實驗（12.1、12.6、12.15）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w12-2-cer.jpg" src="media/w12-2-cer.mp4"></video><figcaption><b>2・CER 怎麼算</b>替換、刪除、插入與正規化規則（12.11–12.13）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w12-3-deepfake-card.jpg" src="media/w12-3-deepfake-card.mp4"></video><figcaption><b>3・聽起來像，不等於是本人</b>深偽證據卡的三類證據（12.17–12.21）</figcaption></figure>
+    </div>
+  </section>
+
+  <div class="part"><b>語音合成 TTS</b><span>12.1–12.5：流程、Mel、Vocoder、聲音特徵、盲測</span></div>
+
+  <section class="bench" id="pipe">
+    <div class="bench-head"><span class="eyebrow">實驗 1・12.1、12.6</span><h2>TTS 與 STT：資料在每一站長什麼樣子？</h2>
+      <p class="q">點流程上的每一站，看資料變成什麼形式。上面一排是 TTS，下面一排是 STT。兩條接起來，就是 12.15 的閉環實驗。</p></div>
+    <div class="flow" id="flowTTS"></div>
+    <div class="flow" id="flowSTT"></div>
+    <div class="stage" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between"><b id="pipeTitle"></b><button class="primary" id="pipePlay" hidden>▶ 播放</button></div>
+      <p id="pipeDesc" class="muted"></p>
+      <pre class="code" id="pipeCode"></pre>
+      <canvas id="pipeCv" width="1200" height="220"></canvas>
+    </div>
+  </section>
+
+  <section class="bench" id="mel">
+    <div class="bench-head"><span class="eyebrow">實驗 2・12.2</span><h2>Mel 頻譜：把頻率軸換成「人耳的尺」</h2>
+      <p class="q">第十章的頻譜圖，頻率軸是等距的 Hz。人耳對低頻的差異比較敏感，Mel 尺度把低頻拉開、高頻壓縮：m ＝ 2595 · log<sub>10</sub>(1 ＋ f／700)。再用一組三角形濾波器，把每個時間點的頻譜加總成 n_mels 個數字。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">顯示</div><div class="seg" id="melView"></div>
+        <label><span class="lab">n_mels<span class="mono" id="nMelV"></span></span><input type="range" id="nMel" min="8" max="128" step="8" value="40"></label>
+        <label><span class="lab">fmax<span class="mono" id="fMaxV"></span></span><input type="range" id="fMax" min="2000" max="11000" step="500" value="8000"></label>
+        <div class="lab">頻率換算</div>
+        <label><span class="lab">f<span class="mono" id="fHzV"></span></span><input type="range" id="fHz" min="0" max="11000" step="50" value="1000"></label>
+        <p class="mono" id="melConv" style="font-size:.9rem"></p>
+        <pre class="code" id="melCode"></pre>
+        <button class="primary" id="melPlay">▶ 播放這段聲音</button>
+        <div class="try"><b>動手：</b>比較 Hz 和 Mel 兩種顯示：0–1000 Hz 那一段在哪一種圖上占比較多空間？n_mels 降到 8 時，還分得出母音嗎？</div>
+      </div>
+      <div class="stage"><canvas id="melCv" width="1200" height="300"></canvas><p class="cap" id="melCap"></p>
+        <canvas id="fbCv" width="1200" height="180"></canvas><p class="cap">Mel 濾波器組：每個三角形是一個 Mel 頻帶，低頻窄、高頻寬</p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="vocoder">
+    <div class="bench-head"><span class="eyebrow">實驗 3・12.1–12.2</span><h2>只有 Mel，聲音回得來嗎？</h2>
+      <p class="q">傳統神經 TTS 先預測 Mel 頻譜，再交給 Vocoder 變成波形。Mel 只留下「每個頻帶有多大聲」，相位和細節都丟了。這裡用 Griffin-Lim 演算法猜回相位，聽聽看差多少：差的那一截，就是神經 Vocoder 要補的。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">n_mels<span class="mono" id="gMelV"></span></span><input type="range" id="gMel" min="16" max="128" step="16" value="64"></label>
+        <label><span class="lab">Griffin-Lim 疊代次數<span class="mono" id="gItV"></span></span><input type="range" id="gIt" min="0" max="60" step="5" value="30"></label>
+        <button class="primary" id="gRun">重建</button>
+        <div class="row"><button id="gPlayA">▶ 原始</button><button id="gPlayB">▶ 從 Mel 重建</button></div>
+        <pre class="code" id="gCode"></pre>
+        <div class="try"><b>動手：</b>疊代 0 次（隨機相位）和 30 次差在哪？n_mels 從 128 降到 16，聲音少了什麼？為什麼現代 TTS 要用神經網路當 Vocoder？</div>
+      </div>
+      <div class="stage"><canvas id="gA" width="1200" height="200"></canvas><p class="cap">原始頻譜圖（0–5000 Hz）</p>
+        <canvas id="gB" width="1200" height="200"></canvas><p class="cap">重建後的頻譜圖</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="gSC"></div><div class="k">頻譜誤差（越小越像）</div></div><div class="stat"><div class="v" id="gT"></div><div class="k">計算時間</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="speaker">
+    <div class="bench-head"><span class="eyebrow">實驗 4・12.3</span><h2>誰在說話？內容和聲音特徵可以分開</h2>
+      <p class="q">同一句話，換一組「聲音特徵」就像換一個人說。這裡只用兩個特徵：音高（聲帶）和共振峰位置（聲道長短）。真實的 Speaker Embedding 是一串數字向量（ZONOS3-Mini 用 192 維），模型拿它當條件生成聲音。Voice Conversion 則是保留內容、只換這些特徵。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">預設說話者</div><div class="seg" id="spPre"></div>
+        <label><span class="lab">基頻 f0<span class="mono" id="spF0V"></span></span><input type="range" id="spF0" min="80" max="300" step="5" value="150"></label>
+        <label><span class="lab">共振峰比例（聲道長短）<span class="mono" id="spFsV"></span></span><input type="range" id="spFs" min="0.8" max="1.3" step="0.02" value="1"></label>
+        <div class="row"><button class="primary" id="spPlay">▶ 播放</button><button id="spPlayRef">▶ 參考說話者 C</button></div>
+        <div class="try"><b>動手：</b>只改 f0、不改共振峰，像不像同一個人變調？只改共振峰呢？哪一個比較像「換了一個人」？這也是 W11 pitch_shift 會影響說話者身分的原因。</div>
+      </div>
+      <div class="stage"><canvas id="spCv" width="1200" height="330"></canvas><p class="cap">簡化的「說話者空間」：每個點是一個說話者。真實的 Embedding 有上百個維度，但道理一樣：距離近的聲音聽起來像。</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="spD"></div><div class="k">和說話者 C 的距離</div></div><div class="stat"><div class="v" id="spNear"></div><div class="k">最接近的預設說話者</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="blind">
+    <div class="bench-head"><span class="eyebrow">實驗 5・12.4–12.5、12.24</span><h2>TTS 三版本盲測</h2>
+      <p class="q">固定文字，只改一個變因（聲音或語速），產生三個版本，打亂成 A、B、C 再評分。這裡用你的瀏覽器和作業系統內建的語音；作業請用 Colab 的 edge-tts 或 ZONOS3-Mini 產生音檔。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label>測試文字<textarea id="bText">大家好，歡迎來到多媒體系統課程。今天我們會使用 Python 分析 Audio，並完成一個 Speech AI Demo。</textarea></label>
+        <div class="lab">只改一個變因</div><div class="seg" id="bVar"></div>
+        <p id="bInfo" class="muted" style="font-size:.88rem"></p>
+        <div class="row"><button class="primary" id="bShuffle">重新抽籤</button><button id="bReveal">揭曉設定</button><button id="bCopy">複製結果（Markdown）</button></div>
+        <div class="try"><b>動手：</b>請兩位同學在不知道設定的情況下評分，再按「揭曉設定」。評分最高的版本，是你一開始猜的那個嗎？</div>
+      </div>
+      <div class="stage">
+        <div class="tablewrap"><table class="tb score" id="bTb"></table></div>
+        <pre class="code" id="bOut" hidden></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="bench" id="zonos">
+    <div class="bench-head"><span class="eyebrow">延伸・12.3、12.16、12.22</span><h2>ZONOS3-Mini：開放權重的語音合成與聲音複製</h2>
+      <p class="q">ZONOS3-Mini 是 Zyphra（美國舊金山）在 2026 年 11 月 9 日發布的 TTS 模型，權重以 Apache 2.0 授權公開。它支援華語在內的 43 種語言，輸出 44.1 kHz，也能用一小段參考錄音做零樣本聲音複製。本週用它來實際觀察 12.3 的 Speaker Condition 和 12.16 的深偽風險。</p></div>
+    <div class="zgrid">
+      <div class="zcard"><h3>模型規格</h3><dl class="kv">
+        <dt>架構</dt><dd>稀疏 Mixture of Experts，總參數約 8 億，每步約 1 億在運算</dd>
+        <dt>語言</dt><dd>43 種，華語代碼是 <code>cmn</code>（不是 zh）</dd>
+        <dt>輸出</dt><dd>44,100 Hz 單聲道</dd>
+        <dt>聲音來源</dt><dd>27 個內建聲音、參考錄音、或 192 維 Speaker Embedding</dd>
+        <dt>授權</dt><dd>權重 Apache 2.0、執行程式 MIT</dd></dl></div>
+      <div class="zcard"><h3>在 Colab 怎麼用</h3>
+        <pre class="code">from transformers import AutoModel
+model = AutoModel.from_pretrained(
+    "Zyphra/ZONOS3-Mini-hf", trust_remote_code=True
+).to("cuda")
+out = model.generate("大家好，歡迎來到多媒體系統課程。",
+                     voice="Meilin", language="cmn", seed=0)
+# out.waveform、out.sampling_rate（44100）</pre>
+        <p class="muted" style="font-size:.86rem">建議用 T4 GPU 執行階段。情緒、語速、逐字控制在 Zyphra 的瀏覽器 Voice Studio 和 GitHub 版本才有，Transformers 版沒有。</p></div>
+      <div class="zcard"><h3>對應本章概念</h3><ul class="tight">
+        <li><b>12.3 Speaker Condition：</b><code>model.embed_speaker()</code> 把一段聲音變成 192 維向量，再當條件生成。Colab 會算各聲音之間的相似度矩陣。</li>
+        <li><b>12.5 盲測：</b>同一句話換 3–4 個內建聲音，和 edge-tts 放進同一張評分表。</li>
+        <li><b>12.16–12.17 深偽：</b>只用自己的聲音複製一次，再和自己的真實錄音做盲測、算相似度，體會「聽起來像」為什麼不能當身分驗證。</li></ul></div>
+      <div class="zcard warncard"><h3>課程安全界線（12.22）</h3><ul class="tight">
+        <li>可以：自己錄的聲音、TTS 內建聲音、虛構角色、有授權的資料集。</li>
+        <li>不可以：未經同意複製真實可辨識的人、冒充他人、把合成聲音當真實錄音、任何欺騙用途。</li>
+        <li>本課程<b>不允許複製第三人的聲音，即使對方口頭同意也一樣</b>。</li>
+        <li>開放權重不代表你有權使用任何人的聲音。作品要附揭露紀錄（見下方產生器）。</li></ul></div>
+    </div>
+    <div class="links" style="margin-top:16px">
+      <a href="https://www.zyphra.com/our-work/zonos3-mini" target="_blank" rel="noopener">官方介紹</a>
+      <a href="https://huggingface.co/Zyphra/ZONOS3-Mini-hf" target="_blank" rel="noopener">Hugging Face（Transformers 版）</a>
+      <a href="https://github.com/Zyphra/ZONOS3-Mini" target="_blank" rel="noopener">GitHub 執行程式</a>
+      <a href="https://zyphra.com/zonos3-mini/localplayground" target="_blank" rel="noopener">瀏覽器試玩（需支援 WebGPU）</a>
+    </div>
+  </section>
+
+  <div class="part"><b>語音辨識 STT</b><span>12.6–12.15：Whisper、CER／WER、正規化、時間戳記</span></div>
+
+  <section class="bench" id="cer">
+    <div class="bench-head"><span class="eyebrow">實驗 6・12.11–12.13</span><h2>CER／WER 計算器：錯在哪裡，一格一格看</h2>
+      <p class="q">把模型輸出和人工確認過的參考答案對齊，數替換 S、刪除 D、插入 I。WER ＝ (S＋D＋I)／N，N 是參考答案的詞數；CER 改成以字計算。中文沒有空白分詞，所以通常用 CER。分數之前，先決定正規化規則。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">範例</div><div class="seg" id="cPre"></div>
+        <label>參考答案（reference）<textarea id="cRef"></textarea></label>
+        <label>模型輸出（hypothesis）<textarea id="cHyp"></textarea></label>
+        <div class="lab">計算單位</div><div class="seg" id="cUnit"></div>
+        <div class="lab">正規化規則</div>
+        <label class="chk"><input type="checkbox" id="nWs">去掉空白</label>
+        <label class="chk"><input type="checkbox" id="nPu">去掉標點（全形、半形）</label>
+        <label class="chk"><input type="checkbox" id="nWd">全形半形統一（NFKC）</label>
+        <label class="chk"><input type="checkbox" id="nLo">英文轉小寫</label>
+        <div class="try"><b>動手：</b>同一組答案，先不勾任何規則算一次，再全部勾起來算一次。分數差多少？所以報告 CER 時，一定要寫出你用了哪些規則。</div>
+      </div>
+      <div class="stage">
+        <div class="stats"><div class="stat"><div class="v acc" id="cRate"></div><div class="k" id="cRateK">CER</div></div><div class="stat"><div class="v" id="cS"></div><div class="k">替換 S</div></div><div class="stat"><div class="v" id="cD"></div><div class="k">刪除 D</div></div><div class="stat"><div class="v" id="cI"></div><div class="k">插入 I</div></div><div class="stat"><div class="v" id="cN"></div><div class="k">參考長度 N</div></div></div>
+        <p class="mono" id="cFormula"></p>
+        <div class="align" id="cAlign"></div>
+        <p class="cap">上排參考、下排輸出。<span class="lgS">替換</span>　<span class="lgD">刪除</span>　<span class="lgI">插入</span></p>
+        <div class="tablewrap"><table class="tb"><tbody><tr><th>正規化後的參考</th><td class="mono wrap" id="cRefN"></td></tr><tr><th>正規化後的輸出</th><td class="mono wrap" id="cHypN"></td></tr></tbody></table></div>
+        <p id="cNote" class="muted" style="font-size:.9rem"></p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="whisper">
+    <div class="bench-head"><span class="eyebrow">實驗 7・12.7–12.10、延伸一</span><h2>Whisper：選模型是取捨，時間戳記要人工檢查</h2>
+      <p class="q">Whisper 有 tiny、base、small、medium、large、turbo 幾種大小。模型越大通常越準，但要更多記憶體、跑得更慢；而且同一個模型在不同錄音、語言、硬體上表現會不一樣。下表是 OpenAI 官方 README 的大約值，你的電腦要自己量。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">比較指標</div><div class="seg" id="wMetric"></div>
+        <pre class="code">model = whisper.load_model("small")
+result = model.transcribe("lecture.wav", language="zh",
+    initial_prompt="以下為繁體中文資訊課程內容，"
+                   "包含 NumPy、librosa、STFT、"
+                   "Whisper、OpenCV 等專有名詞。")
+for seg in result["segments"]:
+    print(f"[{seg['start']:7.2f} → {seg['end']:7.2f}] {seg['text']}")</pre>
+        <div class="try"><b>動手：</b>initial_prompt 是提示不是保證：它可能讓專有名詞更準，但不會保證輸出繁體中文。Whisper 輸出簡體時，轉換也是處理流程的一部分，要寫進報告。</div>
+      </div>
+      <div class="stage"><div id="wBars" class="bars"></div><p class="cap">相對速度是以 large 為 1 的官方大約值（在 A100 上測英文轉寫）。中文、你的 GPU、錄音品質都會讓數字不同。</p></div>
+    </div>
+    <div class="cols" style="margin-top:28px">
+      <div class="ctrl">
+        <div class="lab">把 segments 轉成 SRT 字幕</div>
+        <label>貼上上面程式印出的 segments<textarea id="srtIn" style="min-height:150px">[   0.00 →    2.48] 今天測試 Whisper 語音辨識。
+[   2.48 →    6.90] 我們使用 Python、NumPy 與 librosa 分析聲音，
+[   6.90 →   10.32] STFT 的 Window Size 設定為 2048。</textarea></label>
+        <div class="row"><button class="primary" id="srtGo">轉換</button><button id="srtDl">⬇ 下載 .srt</button></div>
+        <label><span class="lab">整體時間位移（校正字幕早到／晚到）<span class="mono" id="srtOffV"></span></span><input type="range" id="srtOff" min="-2" max="2" step="0.1" value="0"></label>
+      </div>
+      <div class="stage"><pre class="code" id="srtOut"></pre><p class="cap">時間戳記是模型估計的，語速快、多人同時說話、靜音、背景音樂都可能讓它飄掉。做字幕一定要人工校對時間與專有名詞。</p></div>
+    </div>
+  </section>
+
+  <div class="part"><b>深偽與揭露</b><span>12.16–12.23：身分驗證、證據卡、揭露紀錄</span></div>
+
+  <section class="bench" id="evidence">
+    <div class="bench-head"><span class="eyebrow">實驗 8・12.17–12.21、12.26</span><h2>深偽證據卡：不要只回答真或假</h2>
+      <p class="q">先處理一個情境，再填證據卡。證據分三類：可觀察的訊號、來源與情境、外部查證。結論寫信心程度，「證據不足」也是合理的答案。</p></div>
+    <div class="scenario" id="scen"></div>
+    <div class="cols" style="margin-top:20px">
+      <div class="ctrl form">
+        <label>判讀的檔案<input type="text" id="eFile" value="音檔 B（盲測配對中的第二段）"></label>
+        <label>① 可觀察的訊號（韻律、停頓、噪音變化、頻譜不連續…）<textarea id="eSig">句尾語調都很像；換氣聲很少；背景噪音在 0:04 突然變乾淨。</textarea></label>
+        <label>② 來源與情境（誰給的、何時、原始檔、上下文）<textarea id="eSrc">來自盲測配對，不知道錄製方式；沒有原始專案檔。</textarea></label>
+        <label>③ 外部查證（獨立管道確認、其他來源、Provenance／C2PA）<textarea id="eExt">無法聯絡錄音者確認；檔案沒有 Content Credentials（這不代表是假的）。</textarea></label>
+        <label>剩下的不確定性<textarea id="eUnc">換氣少也可能是錄音後製去掉的；只有 10 秒，線索太少。</textarea></label>
+        <label>信心程度<select id="eConf"><option>證據不足，無法判斷</option><option>傾向合成（低信心）</option><option>傾向合成（中信心）</option><option>傾向真實（低信心）</option><option>傾向真實（中信心）</option><option>已由外部查證確認</option></select></label>
+      </div>
+      <div class="stage"><div class="row" style="justify-content:space-between"><b>證據卡（Markdown，可貼進作業）</b><button id="eCopy">複製</button></div><pre class="code" id="eOut"></pre>
+        <p class="cap">偵測器分數只是其中一項訊號證據，不是測謊機；它在新的生成器、語言、壓縮格式上可能失準。</p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="disclose">
+    <div class="bench-head"><span class="eyebrow">實驗 9・12.23</span><h2>揭露紀錄產生器</h2>
+      <p class="q">只要作品用了合成語音，就附上揭露紀錄：工具、聲音、輸入、後製、有沒有複製真人聲音、最後人工確認。用模型或 API 時，再加上版本、日期、參數，讓別人能重現。</p></div>
+    <div class="cols">
+      <div class="ctrl form">
+        <label>工具<select id="dTool"><option value="edge-tts">edge-tts</option><option value="ZONOS3-Mini（Zyphra/ZONOS3-Mini-hf）">ZONOS3-Mini（Zyphra/ZONOS3-Mini-hf）</option><option value="瀏覽器內建語音（Web Speech API）">瀏覽器內建語音（Web Speech API）</option></select></label>
+        <label>聲音<input type="text" id="dVoice" value="zh-TW-HsiaoChenNeural"></label>
+        <label>輸入<input type="text" id="dIn" value="由作者撰寫之旁白稿。"></label>
+        <label>模型版本、日期、參數<input type="text" id="dParam" value=""></label>
+        <div class="lab">後製</div>
+        <div class="chks" id="dPost"></div>
+        <label>真人聲音複製<select id="dClone"><option>未使用。</option><option>使用本人（作者）的聲音作為參考，本人同意。</option></select></label>
+        <label class="chk"><input type="checkbox" id="dRev" checked>字幕與旁白內容已人工確認</label>
+      </div>
+      <div class="stage"><div class="row" style="justify-content:space-between"><b>Audio Disclosure</b><button id="dCopy">複製</button></div><pre class="code" id="dOut"></pre></div>
+    </div>
+  </section>
+
+  <section class="bench" id="check">
+    <div class="bench-head"><span class="eyebrow">檢核・12.28–12.29</span><h2>做完實驗，檢查一下</h2>
+      <p class="q">點選答案，會立刻告訴你對不對和原因。</p></div>
+    <div class="qz" id="qz"></div>
+    <p class="muted" style="margin-top:12px" id="qzScore"></p>
+  </section>
+</main>
+
+<footer><div class="wrap" style="display:grid;gap:12px">
+  <div class="links">
+    <a href="https://hackmd.io/@wiimax/HJ7jcqY8Gg" target="_blank" rel="noopener">講義：第 12 章｜語音合成、辨識與深偽風險</a>
+    <a href="https://colab.research.google.com/github/willismax/MediaSystem-Python-Course/blob/main/course-115-v2/colab/W12_%E8%AA%9E%E9%9F%B3%E5%90%88%E6%88%90%E8%BE%A8%E8%AD%98%E8%88%87%E6%B7%B1%E5%81%BD.ipynb" target="_blank" rel="noopener">Colab：W12 語音合成、辨識與深偽</a>
+    <a href="../w11/">上一週：W11 聲音剪輯實驗室</a>
+  </div>
+  <p>頁面上的人聲是即時合成的示範聲音；TTS 盲測用的是你裝置內建的語音。動畫原始檔（HyperFrames）在 repo 的 <code>course-115-v2/animations/w12/</code>。</p>
+</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SR=22050;
+let AC=null;function ctx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+/* Playback: render to a WAV and play it with an <audio> element, which phones play even with the
+   silent switch on (iOS mutes Web Audio in that case). Web Audio is the fallback. */
+let cur=null,url=null;const AEL=new Audio();AEL.preload='auto';AEL.setAttribute('playsinline','');
+function wavBlob(d,sr){const n=d.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+ for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,d[i]))*32767),true);return new Blob([b],{type:'audio/wav'})}
+function playWebAudio(d,sr){const ac=ctx();if(!ac)return;if(cur){try{cur.stop()}catch(e){}}const b=ac.createBuffer(1,d.length,sr);b.getChannelData(0).set(d);const s=ac.createBufferSource();s.buffer=b;s.connect(ac.destination);s.start();cur=s}
+function play(y,sr=SR,{edge=true}={}){const d=new Float32Array(y.length);for(let i=0;i<y.length;i++)d[i]=.9*Math.max(-1,Math.min(1,y[i]));
+ const n=edge?Math.min(300,d.length>>2):0;for(let i=0;i<n;i++){d[i]*=i/n;d[d.length-1-i]*=i/n}
+ if(cur){try{cur.stop()}catch(e){}cur=null}
+ try{AEL.pause();if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(wavBlob(d,sr));AEL.src=url;AEL.currentTime=0;const p=AEL.play();if(p&&p.catch)p.catch(()=>playWebAudio(d,sr))}catch(e){playWebAudio(d,sr)}}
+function rng(seed){return()=>{let t=(seed+=0x6D2B79F5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const tone=(f,sec,a=.3,sr=SR)=>Float32Array.from({length:Math.round(sr*sec)},(_,i)=>a*Math.sin(2*Math.PI*f*i/sr));
+function harm(f,sec,amps,decay=0,a=.3){const n=Math.round(SR*sec),y=new Float32Array(n);let m=0;for(let i=0;i<n;i++){const t=i/SR;let s=0;amps.forEach((A,k)=>s+=A*Math.sin(2*Math.PI*f*(k+1)*t));if(decay)s*=Math.exp(-t*decay);y[i]=s;m=Math.max(m,Math.abs(s))}for(let i=0;i<n;i++)y[i]*=a/m;return y}
+function clap(sec=.4,a=.6,seed=3){const r=rng(seed),n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>a*gauss(r)*Math.exp(-i/SR*45))}
+function sweep(f0,f1,sec,a=.3){const n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>{const t=i/SR;return a*Math.sin(2*Math.PI*(f0*t+(f1-f0)*t*t/(2*sec)))})}
+const cat=(...a)=>{const n=a.reduce((s,x)=>s+x.length,0),y=new Float32Array(n);let o=0;a.forEach(x=>{y.set(x,o);o+=x.length});return y};
+const add=(...a)=>{const n=Math.max(...a.map(x=>x.length)),y=new Float32Array(n);a.forEach(x=>{for(let i=0;i<x.length;i++)y[i]+=x[i]});return y};
+const sil=s=>new Float32Array(Math.round(SR*s));
+
+/* FFT (radix-2, in place) */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+ for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],xr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,xi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+xr;im[i+k]=ui+xi;re[i+k+len/2]=ur-xr;im[i+k+len/2]=ui-xi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+const hann=n=>Float32Array.from({length:n},(_,i)=>.5-.5*Math.cos(2*Math.PI*i/(n-1)));
+function spectrum(y,N=16384){const n=Math.min(N,1<<Math.floor(Math.log2(y.length))),re=new Float32Array(N),im=new Float32Array(N),off=0;for(let i=0;i<Math.min(y.length,N);i++)re[i]=y[i];fft(re,im);return Float32Array.from({length:N/2},(_,k)=>Math.hypot(re[k],im[k]))}
+function stft(y,nfft,hop,sr=SR){const w=hann(nfft),frames=[];for(let s=0;s+nfft<=y.length;s+=hop){const re=new Float32Array(nfft),im=new Float32Array(nfft);for(let i=0;i<nfft;i++)re[i]=y[s+i]*w[i];fft(re,im);frames.push(Float32Array.from({length:nfft/2},(_,k)=>Math.hypot(re[k],im[k])))}return frames}
+
+/* drawing */
+function cv(id){const c=$(id),g=c.getContext('2d');return[c,g]}
+function clear(g,c){g.fillStyle=css('--sunk');g.fillRect(0,0,c.width,c.height)}
+function drawWave(id,y,{x0=0,x1=y.length,col=css('--fg'),lw=3,clearIt=true,yScale=1,dots=null}={}){const[c,g]=cv(id);if(clearIt){clear(g,c);g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.moveTo(0,c.height/2);g.lineTo(c.width,c.height/2);g.stroke()}
+ const n=x1-x0,H=c.height/2-14;g.strokeStyle=col;g.lineWidth=lw;g.beginPath();
+ if(n>c.width*2){for(let px=0;px<c.width;px++){let mn=1,mx=-1;const a=x0+Math.floor(px/c.width*n),b=x0+Math.floor((px+1)/c.width*n);for(let i=a;i<b;i++){mn=Math.min(mn,y[i]);mx=Math.max(mx,y[i])}g.moveTo(px,c.height/2-mx*H*yScale);g.lineTo(px,c.height/2-mn*H*yScale)}}
+ else for(let i=0;i<n;i++){const X=i/(n-1)*c.width,Y=c.height/2-y[x0+i]*H*yScale;i?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke()}
+function drawSpec(id,y,fmax=4000){const[c,g]=cv(id);clear(g,c);const N=16384,S=spectrum(y,N),bin=SR/N,kmax=Math.min(S.length,Math.floor(fmax/bin));let m=0;for(let k=1;k<kmax;k++)m=Math.max(m,S[k]);
+ g.strokeStyle=css('--accent');g.lineWidth=2;g.beginPath();for(let k=0;k<kmax;k++){const X=k/kmax*c.width,Y=c.height-14-S[k]/m*(c.height-30);k?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke();
+ g.fillStyle=css('--muted');g.font='22px JetBrains Mono, monospace';for(let f=0;f<=fmax;f+=fmax/4)g.fillText(f+'',f/fmax*c.width+(f?-40:4),c.height-18<20?20:24)}
+function cmap(v){const c0=css('--sunk'),c1=css('--accent'),c2=css('--fg');const h=s=>{s=s.replace('#','');return[0,2,4].map(i=>parseInt(s.slice(i,i+2),16))};const a=h(c0),b=h(c1),d=h(c2);return v<.7?a.map((x,i)=>x+(b[i]-x)*v/.7):b.map((x,i)=>x+(d[i]-x)*(v-.7)/.3)}
+function drawSg(id,y,nfft,hop,fmax,sr=SR){const[c,g]=cv(id);const F=stft(y,nfft,hop,sr);if(!F.length){clear(g,c);return}const kmax=Math.min(nfft/2,Math.ceil(fmax/(sr/nfft)));let m=1e-12;F.forEach(f=>{for(let k=0;k<kmax;k++)m=Math.max(m,f[k])});
+ const im=g.createImageData(F.length,kmax);const lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ F.forEach((f,x)=>{for(let k=0;k<kmax;k++){const db=20*Math.log10(f[k]/m+1e-12),v=Math.max(0,Math.min(1,(db+60)/60)),col=lut[Math.round(v*255)],o=((kmax-1-k)*F.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=F.length;tmp.height=kmax;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(tmp,0,0,c.width,c.height);
+ g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(fmax+' Hz',8,26);g.fillText('0',8,c.height-10)}
+function seg(id,opts,val,cb,fmt=v=>v){const el=$(id);el.innerHTML=opts.map(o=>`<button data-v="${o}">${fmt(o)}</button>`).join('');const set=v=>{el.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)));cb(v)};el.addEventListener('click',e=>{const b=e.target.closest('button');if(b)set(isNaN(+b.dataset.v)?b.dataset.v:+b.dataset.v)});set(val);return set}
+function segSet(id,v){$(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)))}
+
+/* ===================== W11 ===================== */
+const dB=x=>20*Math.log10(Math.max(x,1e-12)),fromDb=d=>10**(d/20);
+const fD=v=>v===-Infinity||!isFinite(v)?'−∞':v.toFixed(1).replace('-','−');
+const fS=n=>(n/SR).toFixed(2)+' s';
+function stats(y){let pk=0,s=0;for(let i=0;i<y.length;i++){const a=Math.abs(y[i]);if(a>pk)pk=a;s+=y[i]*y[i]}const rms=Math.sqrt(s/Math.max(1,y.length));return{pk,rms,dbfs:rms>0?dB(rms):-Infinity,max:pk>0?dB(pk):-Infinity}}
+const scale=(y,g)=>Float32Array.from(y,v=>v*g);
+const clipCount=y=>{let c=0;for(let i=0;i<y.length;i++)if(Math.abs(y[i])>1)c++;return c};
+const ms2n=(ms,sr=SR)=>Math.round(ms*sr/1000);
+const slice=(y,a,b,sr=SR)=>y.slice(Math.max(0,ms2n(a,sr)),Math.min(y.length,ms2n(b,sr)));
+function playRaw(y,sr=SR){play(y,sr,{edge:false})}
+
+/* ---- speech-like voice synthesizer (formant harmonics) ---- */
+const VOW={a:[[730,1,90],[1090,.5,110],[2440,.25,160]],i:[[270,1,60],[2290,.45,120],[3010,.3,160]],u:[[300,1,70],[870,.4,90],[2240,.15,150]],e:[[530,1,80],[1840,.5,120],[2480,.3,160]],o:[[570,1,80],[840,.6,90],[2410,.15,160]]};
+function vowel(v,f,dur,r,fs=1){const n=Math.round(SR*dur),y=new Float32Array(n),F=VOW[v],K=Math.max(1,Math.floor(3800/f)),A=[];
+ for(let k=1;k<=K;k++){const h=k*f;let a=0;F.forEach(([fc,w,bw])=>a+=w*Math.exp(-(((h-fc*fs)/(bw*fs))**2)/2));A.push((a+.03)/Math.pow(k,.5))}
+ let ph=0;const vib=4.5+r();for(let i=0;i<n;i++){const t=i/SR,fi=f*(1-.08*t/dur)*(1+.006*Math.sin(2*Math.PI*vib*t));ph+=2*Math.PI*fi/SR;let s=0;for(let k=0;k<K;k++)s+=A[k]*Math.sin((k+1)*ph);y[i]=s*Math.min(1,t/.025)*Math.min(1,(dur-t)/.06)}return y}
+function cons(c,r,f){if('sh'.includes(c)){const n=Math.round(SR*(c==='s'?.09:.07)),y=new Float32Array(n);let p=0;for(let i=0;i<n;i++){const w=gauss(r);y[i]=(w-p)*(c==='s'?.22:.1)*Math.sin(Math.PI*i/n);p=w}return y}
+ if('ktp'.includes(c)){const n=Math.round(SR*.04),y=new Float32Array(n),c0=Math.round(SR*.015);for(let i=c0;i<n;i++)y[i]=gauss(r)*.35*Math.exp(-(i-c0)/SR*140);return y}
+ return Float32Array.from(vowel('u',f,.05,r),v=>v*.5)}
+function voice(plan,{f0=150,seed=7,lead=.4,tail=.6,fs=1}={}){const r=rng(seed),parts=[sil(lead)];
+ plan.forEach(p=>{if(typeof p==='number'){parts.push(sil(p));return}
+  const words=p.split(' '),syl=[];words.forEach((w,wi)=>{(w.match(/[^aeiou]*[aeiou]/g)||[]).forEach((s,j,arr)=>syl.push([s,j===arr.length-1&&wi<words.length-1]))});
+  syl.forEach(([s,gap],j)=>{const v=s.slice(-1),c=s.slice(0,-1),f=f0*(1.12-.25*j/Math.max(1,syl.length-1))*(1+.06*(r()-.5));if(c)parts.push(cons(c,r,f));parts.push(vowel(v,f,.12+.08*r(),r,fs));if(gap)parts.push(sil(.03+.03*r()))});
+  parts.push(sil(.05))});
+ parts.push(sil(tail));const y=cat(...parts);let m=0;for(const v of y)m=Math.max(m,Math.abs(v));for(let i=0;i<y.length;i++)y[i]=y[i]/m*.56;return y}
+function addNoise(y,amp,seed=11){const r=rng(seed);return Float32Array.from(y,v=>v+amp*gauss(r))}
+function music(sec,seed=3){const n=Math.round(SR*sec),y=new Float32Array(n);const prog=[[220,277.18,329.63],[196,246.94,293.66],[174.61,220,261.63],[196,246.94,293.66]];
+ for(let i=0;i<n;i++){const t=i/SR,ch=prog[Math.floor(t/2)%4];let s=0;ch.forEach(f=>s+=Math.sin(2*Math.PI*f*t)+.25*Math.sin(4*Math.PI*f*t));
+  const st=Math.floor(t*4)%8,tt=(t*4)%1,af=ch[st%3]*(st>3?4:2);y[i]=.12*s+.3*Math.sin(2*Math.PI*af*t)*Math.exp(-tt*5)*Math.min(1,tt*80)}
+ let m=0;for(const v of y)m=Math.max(m,Math.abs(v));for(let i=0;i<n;i++)y[i]*=.63/m;return y}
+
+function stftC(y,n,hop){const w=hann(n),pad=new Float32Array(y.length+n),R=[],I=[];pad.set(y,n/2);
+ for(let s=0;s+n<=pad.length;s+=hop){const re=new Float32Array(n),im=new Float32Array(n);for(let i=0;i<n;i++)re[i]=pad[s+i]*w[i];fft(re,im);R.push(re.slice(0,n/2+1));I.push(im.slice(0,n/2+1))}return[R,I]}
+function istft(R,I,n,hop,len){const w=hann(n),T=R.length,out=new Float32Array(hop*(T-1)+n),ws=new Float32Array(out.length);
+ for(let t=0;t<T;t++){const re=new Float32Array(n),im=new Float32Array(n);for(let k=0;k<=n/2;k++){re[k]=R[t][k];im[k]=-I[t][k];if(k&&k<n/2){re[n-k]=R[t][k];im[n-k]=I[t][k]}}
+  fft(re,im);const o=t*hop;for(let i=0;i<n;i++){out[o+i]+=re[i]/n*w[i];ws[o+i]+=w[i]*w[i]}}
+ for(let i=0;i<out.length;i++)if(ws[i]>1e-3)out[i]/=ws[i];return out.slice(n/2,Math.min(out.length,n/2+len))}
+/* ---- drawing helpers ---- */
+function shade(id,ranges,total,col,alpha=.22){const[c,g]=cv(id);g.save();g.globalAlpha=alpha;g.fillStyle=col;ranges.forEach(([a,b])=>g.fillRect(a/total*c.width,0,Math.max(1,(b-a)/total*c.width),c.height));g.restore()}
+function hline(id,v,col,dash=[12,8],label=''){const[c,g]=cv(id),H=c.height/2-14;[v,-v].forEach((vv,j)=>{const yy=c.height/2-vv*H;g.strokeStyle=col;g.lineWidth=2;g.setLineDash(dash);g.beginPath();g.moveTo(0,yy);g.lineTo(c.width,yy);g.stroke();g.setLineDash([]);if(label&&!j){g.fillStyle=col;g.font='22px JetBrains Mono, monospace';g.fillText(label,c.width-150,yy-8)}})}
+/* waveform drawn into the first (len/total) of the canvas, so different lengths share one time scale */
+function waveT(id,y,total,{col=css('--fg'),lw=2,clearIt=true,amp=1,clipCol=null}={}){const[c,g]=cv(id);if(clearIt){clear(g,c);g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.moveTo(0,c.height/2);g.lineTo(c.width,c.height/2);g.stroke()}
+ const W=Math.max(1,Math.round(c.width*y.length/total)),H=c.height/2-14;g.lineWidth=lw;
+ for(let px=0;px<W;px++){const a=Math.floor(px/W*y.length),b=Math.max(a+1,Math.floor((px+1)/W*y.length));let mn=Infinity,mx=-Infinity;for(let i=a;i<b&&i<y.length;i++){const v=y[i]*amp;if(v<mn)mn=v;if(v>mx)mx=v}if(mn===Infinity)continue;
+  const over=clipCol&&(mx>1||mn<-1);mn=Math.max(-1.08,mn);mx=Math.min(1.08,mx);g.strokeStyle=over?clipCol:col;g.beginPath();g.moveTo(px+.5,c.height/2-mx*H);g.lineTo(px+.5,c.height/2-mn*H+.5);g.stroke()}}
+function sgT(id,y,total,fmax=4000,sr=SR,nfft=1024,hop=256){const[c,g]=cv(id);clear(g,c);const F=stft(y,nfft,hop,sr);if(!F.length)return;const kmax=Math.min(nfft/2,Math.ceil(fmax/(sr/nfft)));let m=1e-12;F.forEach(f=>{for(let k=0;k<kmax;k++)m=Math.max(m,f[k])});
+ const im=g.createImageData(F.length,kmax),lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ F.forEach((f,x)=>{for(let k=0;k<kmax;k++){const v=Math.max(0,Math.min(1,(20*Math.log10(f[k]/m+1e-12)+60)/60)),col=lut[Math.round(v*255)],o=((kmax-1-k)*F.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=F.length;tmp.height=kmax;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(tmp,0,0,c.width*y.length/total,c.height);
+ g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(fmax+' Hz',8,26)}
+function welch(y,n=4096){const F=stft(y,n,n/2),K=n/2,S=new Float32Array(K);F.forEach(f=>{for(let k=0;k<K;k++)S[k]+=f[k]*f[k]});for(let k=0;k<K;k++)S[k]=10*Math.log10(S[k]/Math.max(1,F.length)+1e-12);return S}
+function logSpec(id,list,marks=[],sr=SR){const[c,g]=cv(id);clear(g,c);const n=4096,fl=30,fh=sr/2,X=f=>Math.log(f/fl)/Math.log(fh/fl)*c.width,Ss=list.map(([y])=>welch(y,n));let mx=-1e9;Ss.forEach(S=>S.forEach((v,k)=>{if(k*sr/n>=fl)mx=Math.max(mx,v)}));const Y=v=>12+(mx-v)/80*(c.height-44);
+ g.font='20px JetBrains Mono, monospace';[50,100,200,500,1000,2000,5000,10000].forEach(f=>{g.strokeStyle=css('--line');g.lineWidth=1;g.beginPath();g.moveTo(X(f),0);g.lineTo(X(f),c.height-30);g.stroke();g.fillStyle=css('--muted');g.fillText(f>=1000?f/1000+'k':f,X(f)-14,c.height-8)});
+ list.forEach(([,col,lw],j)=>{g.strokeStyle=col;g.lineWidth=lw;g.beginPath();let first=true;for(let k=1;k<n/2;k++){const f=k*sr/n;if(f<fl)continue;const yy=Math.min(c.height-32,Y(Ss[j][k]));first?g.moveTo(X(f),yy):g.lineTo(X(f),yy);first=false}g.stroke()});
+ marks.forEach(f=>{g.strokeStyle=css('--accent');g.lineWidth=2;g.setLineDash([8,8]);g.beginPath();g.moveTo(X(f),0);g.lineTo(X(f),c.height-30);g.stroke();g.setLineDash([])})}
+
+/* ===================== W12 ===================== */
+const UTT=['kana sito mepa',.2,'runa sole kemi'];
+const VOX=voice(UTT,{lead:.2,tail:.3,seed:5});
+const fmtPct=v=>(v*100).toFixed(1)+'%';
+
+/* ---- mel ---- */
+const hz2mel=f=>2595*Math.log10(1+f/700),mel2hz=m=>700*(10**(m/2595)-1);
+function melFB(nMel,nfft,sr,fmax){const K=nfft/2+1,mMax=hz2mel(fmax),pts=Array.from({length:nMel+2},(_,i)=>mel2hz(mMax*i/(nMel+1))),fb=[];
+ for(let m=1;m<=nMel;m++){const w=new Float32Array(K),a=pts[m-1],b=pts[m],c=pts[m+1];for(let k=0;k<K;k++){const f=k*sr/nfft;w[k]=f<=a||f>=c?0:f<=b?(f-a)/(b-a):(c-f)/(c-b)}fb.push(w)}return{fb,pts}}
+function mags(y,n=1024,hop=256){const[R,I]=stftC(y,n,hop);return R.map((r,t)=>Float32Array.from(r,(v,k)=>Math.hypot(v,I[t][k])))}
+function melSpec(M,fb){return M.map(f=>Float32Array.from(fb,w=>{let s=0;for(let k=0;k<w.length;k++)if(w[k])s+=w[k]*f[k]*f[k];return s}))}
+/* heat map: frames[t][row] (power or magnitude), rows drawn bottom→top */
+function heat(id,frames,rows,{power=false,range=70,frac=1}={}){const[c,g]=cv(id);clear(g,c);if(!frames.length)return;let m=1e-20;frames.forEach(f=>{for(let r=0;r<rows;r++)m=Math.max(m,f[r])});
+ const im=g.createImageData(frames.length,rows),lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ frames.forEach((f,x)=>{for(let r=0;r<rows;r++){const d=(power?10:20)*Math.log10(f[r]/m+1e-20),v=Math.max(0,Math.min(1,(d+range)/range)),col=lut[Math.round(v*255)],o=((rows-1-r)*frames.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=frames.length;tmp.height=rows;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=rows>40;g.drawImage(tmp,0,0,c.width*frac,c.height)}
+function yTicks(id,fmax,mode){const[c,g]=cv(id);g.font='20px JetBrains Mono, monospace';[250,500,1000,2000,4000,8000].filter(f=>f<fmax).forEach(f=>{const p=mode==='mel'?hz2mel(f)/hz2mel(fmax):f/fmax,yy=c.height*(1-p);g.strokeStyle='rgba(255,255,255,.55)';g.setLineDash([6,6]);g.lineWidth=1.5;g.beginPath();g.moveTo(70,yy);g.lineTo(c.width,yy);g.stroke();g.setLineDash([]);g.fillStyle='#fff';g.fillText(f>=1000?f/1000+'k':f,8,yy+7)})}
+
+/* ===== 1 pipeline ===== */
+const FLOW={tts:[['Text','文字輸入','大家好，STFT 的視窗是 2048。','輸入是一串文字。TTS 的工作是把它變成聲音，模型看不懂「聲音」以外的意思，它只學到文字和聲音的對應。','text'],
+ ['Text Processing','文字處理','大家好，STFT 的視窗是兩千零四十八。','把數字、縮寫、符號念法展開（2048 → 兩千零四十八），斷句、標出念法。很多錯誤在這一步就發生：數字、英文縮寫、多音字。','norm'],
+ ['Speech Model','語音模型','輸入：文字 token ＋ 說話者條件','神經網路根據文字（和說話者條件）預測聲學表示。說話者條件可以是一個 Speaker Embedding 向量，見實驗 4。','tok'],
+ ['Acoustic Representation','聲學表示','Mel 頻譜（或 audio codec token）','傳統神經 TTS 預測 Mel 頻譜；很多新模型改預測 audio codec 的 token（例如 ZONOS3-Mini 預測每秒 15 個時間步的 codec token）。Mel 是常見的中間表示，不是唯一的。','mel'],
+ ['Vocoder／Decoder','聲碼器／解碼器','Mel 或 token → 波形','把聲學表示變回一個一個樣本。Mel 沒有相位，所以需要 Vocoder 補回來，見實驗 3。','voc'],
+ ['Waveform','波形','22,050 個樣本／秒','最後的輸出就是第十、十一章處理過的那串數字，可以剪輯、混音、加揭露紀錄。','wave']],
+ stt:[['Waveform','波形','錄音檔 lecture.wav','輸入是一段錄音。Whisper 會先把它重取樣成 16 kHz，再切成 30 秒的段落。','wave'],
+ ['Recognition Model','辨識模型','log-Mel 頻譜 → Encoder → Decoder','Whisper 也用 log-Mel 頻譜當輸入（80 或 128 個 Mel 頻帶），編碼後由解碼器一個 token 一個 token 輸出文字。','mel'],
+ ['Tokens／Text','文字 token','今 天 測 試 Whisper …','輸出是 token 序列，可能是簡體、可能把專有名詞聽錯。initial_prompt 可以給提示，但不能保證。','tok'],
+ ['Transcript','逐字稿','今天測試 Whisper 語音辨識。','拼起來就是逐字稿。要知道它有多正確，得和人工確認的參考答案比對，算 CER／WER，見實驗 6。','text'],
+ ['Timestamp／Subtitle','時間戳記／字幕','[ 0.00 → 2.48] 今天測試 Whisper 語音辨識。','每一段有開始與結束時間，可以轉成 SRT 字幕。時間戳記是模型估計的，見實驗 7。','srt']]};
+let flowSel=['tts',3];
+function flowRender(){['tts','stt'].forEach(k=>{$(k==='tts'?'#flowTTS':'#flowSTT').innerHTML=`<span class="fl">${k==='tts'?'TTS':'STT'}</span>`+FLOW[k].map((s,i)=>`<button data-k="${k}" data-i="${i}" class="${flowSel[0]===k&&flowSel[1]===i?'on':''}"><b>${s[0]}</b><small>${s[1]}</small></button>`).join('<i>→</i>')})}
+function pipeUpd(){flowRender();const[k,i]=flowSel,s=FLOW[k][i];$('#pipeTitle').textContent=`${k.toUpperCase()}・${s[0]}（${s[1]}）`;$('#pipeDesc').textContent=s[3];$('#pipeCode').textContent=s[2];
+ const kind=s[4],[c,g]=cv('#pipeCv');clear(g,c);$('#pipePlay').hidden=kind!=='wave'&&kind!=='voc';
+ if(kind==='wave'||kind==='voc')waveT('#pipeCv',VOX,VOX.length,{amp:1.5,col:css('--accent')});
+ else if(kind==='mel'){const{fb}=melFB(64,1024,SR,SR/2);heat('#pipeCv',melSpec(mags(VOX),fb),64,{power:true})}
+ else{const toks=kind==='tok'?['大','家','好','，','S','T','F','T','的','視','窗','是','兩','千','零','四','十','八','。']:kind==='srt'?['1','00:00:00,000 --> 00:00:02,480','今天測試 Whisper 語音辨識。']:kind==='norm'?['大家好，','STFT','的視窗是','2048 → 兩千零四十八','。']:['大家好，STFT 的視窗是 2048。'];
+  g.font='34px Noto Sans TC, sans-serif';let x=20,yy=70;toks.forEach((t,j)=>{const w=g.measureText(t).width+28;if(x+w>c.width-20){x=20;yy+=70}g.fillStyle=css('--sunk');g.strokeStyle=j%2&&kind==='tok'?css('--accent'):css('--line');g.lineWidth=2;g.beginPath();g.roundRect(x,yy-44,w,58,10);g.fill();g.stroke();g.fillStyle=css('--fg');g.fillText(t,x+14,yy);x+=w+12})}}
+document.addEventListener('click',e=>{const b=e.target.closest('.flow button');if(!b)return;flowSel=[b.dataset.k,+b.dataset.i];pipeUpd()});
+$('#pipePlay').onclick=()=>play(VOX);
+
+/* ===== 2 mel ===== */
+let melView='mel';const MEL_SRC=cat(VOX,sil(.15),(()=>{const n=Math.round(SR*1.2),y=new Float32Array(n);let ph=0;for(let i=0;i<n;i++){const f=100*Math.pow(80,i/n);ph+=2*Math.PI*f/SR;y[i]=.35*Math.sin(ph)*Math.min(1,i/400,(n-i)/400)}return y})());
+const MEL_M=mags(MEL_SRC);
+function melUpd(){const nM=+$('#nMel').value,fmax=+$('#fMax').value,f=+$('#fHz').value;$('#nMelV').textContent=nM;$('#fMaxV').textContent=fmax.toLocaleString('en-US')+' Hz';$('#fHzV').textContent=f.toLocaleString('en-US')+' Hz';
+ $('#melConv').textContent=`m = 2595·log10(1 + ${f}/700) = ${hz2mel(f).toFixed(0)} mel`;
+ $('#melCode').textContent=melView==='mel'?`S = librosa.feature.melspectrogram(\n    y=y, sr=sr, n_fft=1024, hop_length=256,\n    n_mels=${nM}, fmax=${fmax})`:`S = np.abs(librosa.stft(y, n_fft=1024, hop_length=256))`;
+ const{fb,pts}=melFB(nM,1024,SR,fmax);
+ if(melView==='mel'){heat('#melCv',melSpec(MEL_M,fb),nM,{power:true});$('#melCap').textContent=`Mel 頻譜：縱軸只有 ${nM} 列，下方虛線是 Hz 刻度，看低頻被拉開多少`}
+ else{const K=Math.round(fmax/(SR/1024));heat('#melCv',MEL_M.map(fr=>fr.subarray(0,K)),K);$('#melCap').textContent=`線性頻譜：縱軸 0–${fmax} Hz 等距，共 ${K} 列`}
+ yTicks('#melCv',fmax,melView);
+ const[c,g]=cv('#fbCv');clear(g,c);const X=hz=>hz/fmax*c.width;fb.forEach((w,m)=>{g.strokeStyle=m%2?css('--accent'):css('--fg');g.lineWidth=2;g.beginPath();const a=pts[m],b=pts[m+1],d=pts[m+2];g.moveTo(X(a),c.height-24);g.lineTo(X(b),14);g.lineTo(X(d),c.height-24);g.stroke()});
+ g.strokeStyle=css('--good');g.lineWidth=3;g.beginPath();g.moveTo(X(f),0);g.lineTo(X(f),c.height-24);g.stroke();g.fillStyle=css('--muted');g.font='20px JetBrains Mono, monospace';[0,1000,2000,4000,8000].filter(v=>v<=fmax).forEach(v=>g.fillText(v>=1000?v/1000+'k':v,X(v)+4,c.height-4))}
+seg('#melView',['hz','mel'],'mel',v=>{melView=v;melUpd()},v=>v==='hz'?'線性 Hz 頻譜':'Mel 頻譜');['#nMel','#fMax','#fHz'].forEach(s=>$(s).addEventListener('input',melUpd));$('#melPlay').onclick=()=>play(MEL_SRC);
+
+/* ===== 3 vocoder: mel → Griffin-Lim ===== */
+let gOut=null;const G_N=1024,G_H=256,G_M=mags(VOX,G_N,G_H);
+function griffinLim(M,len,iters,seed=3){const r=rng(seed),K=G_N/2+1;let R=M.map(f=>Float32Array.from(f,v=>v)),I=M.map(f=>new Float32Array(K));
+ R.forEach((f,t)=>{for(let k=0;k<K;k++){const a=2*Math.PI*r();R[t][k]=f[k]*Math.cos(a);I[t][k]=f[k]*Math.sin(a)}});let x=istft(R,I,G_N,G_H,len);
+ for(let it=0;it<iters;it++){const[R2,I2]=stftC(x,G_N,G_H);for(let t=0;t<M.length&&t<R2.length;t++)for(let k=0;k<K;k++){const m=Math.hypot(R2[t][k],I2[t][k])||1e-9;R[t][k]=M[t][k]*R2[t][k]/m;I[t][k]=M[t][k]*I2[t][k]/m}x=istft(R,I,G_N,G_H,len)}return x}
+function gRun(){const nM=+$('#gMel').value,it=+$('#gIt').value;$('#gSC').textContent='計算中…';$('#gT').textContent='';
+ setTimeout(()=>{const t0=performance.now(),{fb}=melFB(nM,G_N,SR,SR/2),P=melSpec(G_M,fb),K=G_N/2+1,den=new Float32Array(K);fb.forEach(w=>{for(let k=0;k<K;k++)den[k]+=w[k]});
+  const Mh=P.map(p=>{const o=new Float32Array(K);for(let k=0;k<K;k++){if(den[k]<1e-6)continue;let s=0;for(let m=0;m<fb.length;m++)if(fb[m][k])s+=fb[m][k]*p[m];o[k]=Math.sqrt(Math.max(0,s/den[k]))}return o});
+  let x=griffinLim(Mh,VOX.length,it);const pk=stats(x).pk||1;x=scale(x,stats(VOX).pk/pk);gOut=x;const Mx=mags(x,G_N,G_H);let num=0,dd=0;for(let t=0;t<Math.min(Mx.length,G_M.length);t++)for(let k=0;k<K;k++){const a=G_M[t][k],b=Mx[t][k];num+=(a-b)**2;dd+=a*a}
+  $('#gSC').textContent=Math.sqrt(num/dd).toFixed(3);$('#gT').textContent=Math.round(performance.now()-t0)+' ms';sgT('#gB',x,x.length,5000)},30)}
+function gUpd(){$('#gMelV').textContent=$('#gMel').value;$('#gItV').textContent=$('#gIt').value+' 次';$('#gCode').textContent=`S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=${$('#gMel').value})\ny_hat = librosa.feature.inverse.mel_to_audio(\n    S, sr=sr, n_iter=${$('#gIt').value})   # Griffin-Lim`;sgT('#gA',VOX,VOX.length,5000)}
+['#gMel','#gIt'].forEach(s=>$(s).addEventListener('input',gUpd));$('#gRun').onclick=gRun;$('#gPlayA').onclick=()=>play(VOX);$('#gPlayB').onclick=()=>{if(gOut)play(gOut);else gRun()};
+
+/* ===== 4 speaker traits ===== */
+const SPK={A:{n:'A 低沉',f0:105,fs:.9},B:{n:'B 明亮',f0:215,fs:1.15},C:{n:'C 中性',f0:150,fs:1},D:{n:'D 孩童',f0:275,fs:1.26}};
+const spDist=(a,b)=>Math.hypot((a.f0-b.f0)/220,(a.fs-b.fs)/.5);
+function spCur(){return{f0:+$('#spF0').value,fs:+$('#spFs').value}}
+function spUpd(){const p=spCur();$('#spF0V').textContent=p.f0+' Hz';$('#spFsV').textContent='× '+p.fs.toFixed(2);$('#spD').textContent=spDist(p,SPK.C).toFixed(2);
+ const near=Object.values(SPK).reduce((a,b)=>spDist(p,a)<spDist(p,b)?a:b);$('#spNear').textContent=near.n;
+ const[c,g]=cv('#spCv');clear(g,c);const X=f=>60+(f-80)/220*(c.width-100),Y=s=>c.height-50-(s-.8)/.5*(c.height-80);
+ g.strokeStyle=css('--line');g.lineWidth=1;g.font='20px JetBrains Mono, monospace';g.fillStyle=css('--muted');for(let f=100;f<=300;f+=50){g.beginPath();g.moveTo(X(f),20);g.lineTo(X(f),c.height-50);g.stroke();g.fillText(f+' Hz',X(f)-30,c.height-22)}
+ for(let s=.8;s<=1.31;s+=.1){g.beginPath();g.moveTo(60,Y(s));g.lineTo(c.width-40,Y(s));g.stroke();g.fillText('×'+s.toFixed(1),4,Y(s)+7)}
+ g.fillText('基頻 f0 →',c.width-160,c.height-50-8);g.save();g.translate(24,40);g.fillText('↑ 共振峰比例',0,0);g.restore();
+ g.strokeStyle=css('--accent');g.setLineDash([8,6]);g.lineWidth=2;g.beginPath();g.moveTo(X(p.f0),Y(p.fs));g.lineTo(X(SPK.C.f0),Y(SPK.C.fs));g.stroke();g.setLineDash([]);
+ g.font='24px Noto Sans TC, sans-serif';Object.values(SPK).forEach(s=>{g.fillStyle=css('--fg');g.beginPath();g.arc(X(s.f0),Y(s.fs),10,0,7);g.fill();g.fillText(s.n,X(s.f0)+16,Y(s.fs)-12)});
+ g.fillStyle=css('--accent');g.beginPath();g.arc(X(p.f0),Y(p.fs),15,0,7);g.fill();g.fillText('你調的聲音',X(p.f0)+20,Y(p.fs)+30)}
+const spSynth=p=>voice(UTT,{lead:.2,tail:.3,seed:5,f0:p.f0,fs:p.fs});
+seg('#spPre',['A','B','C','D'],'C',v=>{$('#spF0').value=SPK[v].f0;$('#spFs').value=SPK[v].fs;spUpd()},v=>SPK[v].n);
+['#spF0','#spFs'].forEach(s=>$(s).addEventListener('input',spUpd));$('#spPlay').onclick=()=>play(spSynth(spCur()));$('#spPlayRef').onclick=()=>play(spSynth(SPK.C));
+
+/* ===== 5 blind test (Web Speech API) ===== */
+const SS='speechSynthesis' in window?window.speechSynthesis:null;let VOICES=[],bVar='rate',bVers=[],bShown=false;const bScore={};
+function zhVoices(){return VOICES.filter(v=>/^(zh|cmn|yue)/i.test(v.lang)).sort((a,b)=>(b.lang.toLowerCase()==='zh-tw')-(a.lang.toLowerCase()==='zh-tw'))}
+function bBuild(){const zv=zhVoices(),base=zv[0]||null;let info='';
+ if(!SS)info='這個瀏覽器不支援語音合成（Web Speech API），請改用 Chrome、Edge 或 Safari，或直接用 Colab 產生音檔。';
+ else if(!zv.length)info='找不到中文語音：你的系統可能沒有安裝中文語音。會改用預設語音，可能念不出中文。';
+ if(bVar==='voice'&&zv.length>=2)bVers=zv.slice(0,3).map(v=>({set:`聲音：${v.name}（${v.lang}）`,voice:v,rate:1}));
+ else{if(bVar==='voice')info+=(info?' ':'')+`這台裝置只有 ${zv.length} 個中文語音，無法比較聲音，先改成比較語速。`;bVers=[.8,1,1.3].map(r=>({set:`語速 ${r}×`+(base?`（${base.name}）`:''),voice:base,rate:r}))}
+ for(let i=bVers.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bVers[i],bVers[j]]=[bVers[j],bVers[i]]}
+ $('#bInfo').textContent=info||`這台裝置有 ${zv.length} 個中文語音。已經打亂順序，請先聽再評分。`;bShown=false;Object.keys(bScore).forEach(k=>delete bScore[k]);bTable()}
+function bTable(){const crit=['自然度','清晰度','韻律'],opt=v=>`<option${v===''?' value=""':''}>${v}</option>`;
+ $('#bTb').innerHTML=`<tr><th>版本</th><th></th>${crit.map(c=>`<th>${c}（1–5）</th>`).join('')}<th>偏好</th>${bShown?'<th>設定</th>':''}</tr>`+bVers.map((v,i)=>{const L='ABC'[i];return`<tr><td><b>${L}</b></td><td><button data-play="${i}">▶</button></td>${crit.map(c=>`<td><select data-s="${L}|${c}">${['',1,2,3,4,5].map(opt).join('')}</select></td>`).join('')}<td><input type="radio" name="bPref" value="${L}"></td>${bShown?`<td class="muted">${v.set}</td>`:''}</tr>`}).join('');
+ $('#bTb').querySelectorAll('select').forEach(s=>{if(bScore[s.dataset.s])s.value=bScore[s.dataset.s]});if(bScore.pref){const r=$('#bTb').querySelector(`input[value="${bScore.pref}"]`);if(r)r.checked=true}}
+$('#bTb').addEventListener('click',e=>{const b=e.target.closest('button[data-play]');if(!b||!SS)return;const v=bVers[+b.dataset.play];SS.cancel();const u=new SpeechSynthesisUtterance($('#bText').value);if(v.voice){u.voice=v.voice;u.lang=v.voice.lang}else u.lang='zh-TW';u.rate=v.rate;SS.speak(u)});
+$('#bTb').addEventListener('change',e=>{if(e.target.dataset.s)bScore[e.target.dataset.s]=e.target.value;if(e.target.name==='bPref')bScore.pref=e.target.value});
+$('#bShuffle').onclick=bBuild;$('#bReveal').onclick=()=>{bShown=true;bTable()};
+$('#bCopy').onclick=()=>{const crit=['自然度','清晰度','韻律'],md=[`## TTS 三版本盲測`,``,`- 文字：${$('#bText').value}`,`- 變因：${bVar==='voice'?'聲音':'語速'}`,`- 工具：瀏覽器內建語音（Web Speech API）`,``,`| 版本 | 設定 | ${crit.join(' | ')} | 偏好 |`,`|---|---|${crit.map(()=>'---').join('|')}|---|`,...bVers.map((v,i)=>{const L='ABC'[i];return`| ${L} | ${v.set} | ${crit.map(c=>bScore[L+'|'+c]||'').join(' | ')} | ${bScore.pref===L?'✓':''} |`})].join('\n');$('#bOut').hidden=false;$('#bOut').textContent=md;copyText(md,$('#bCopy'))};
+seg('#bVar',['voice','rate'],'rate',v=>{bVar=v;bBuild()},v=>v==='voice'?'換聲音':'換語速');
+if(SS){VOICES=SS.getVoices();SS.addEventListener?SS.addEventListener('voiceschanged',()=>{VOICES=SS.getVoices();bBuild()}):(SS.onvoiceschanged=()=>{VOICES=SS.getVoices();bBuild()})}
+
+/* ===== 6 CER / WER ===== */
+const CPRE={zh:['今天學習語音','今天學習語言','char',[0,0,0,0]],en:['we analyze audio with python','we analyze audio with pyton','word',[0,0,0,0]],
+ whisper:['今天測試 Whisper 語音辨識。我們使用 Python、NumPy 與 librosa 分析聲音，STFT 的 Window Size 設定為 2048。','今天測試whisper語音辨識 我們使用python numpy與LibROSA分析聲音 SDFT的window size設定為2048','char',[0,0,0,0]],
+ seg:['今天 學習 語音','今天學習 語音','word',[0,0,0,0]]};
+let cUnit='char';
+function norm(s){if($('#nWd').checked)s=s.normalize('NFKC');if($('#nLo').checked)s=s.toLowerCase();if($('#nPu').checked)s=s.replace(/[\p{P}]/gu,'');if($('#nWs').checked)s=s.replace(/\s+/g,'');return s}
+function lev(a,b){const n=a.length,m=b.length,D=Array.from({length:n+1},()=>new Int32Array(m+1));for(let i=0;i<=n;i++)D[i][0]=i;for(let j=0;j<=m;j++)D[0][j]=j;
+ for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+ const ops=[];let i=n,j=m;while(i>0||j>0){if(i>0&&j>0&&D[i][j]===D[i-1][j-1]+(a[i-1]===b[j-1]?0:1)){ops.push({t:a[i-1]===b[j-1]?'=':'S',r:a[i-1],h:b[j-1]});i--;j--}else if(i>0&&D[i][j]===D[i-1][j]+1){ops.push({t:'D',r:a[i-1]});i--}else{ops.push({t:'I',h:b[j-1]});j--}}return ops.reverse()}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const vis=t=>t===' '?'␣':t;
+function cerUpd(){const r=norm($('#cRef').value),h=norm($('#cHyp').value),tok=s=>cUnit==='char'?Array.from(s):s.trim().split(/\s+/).filter(Boolean);const A=tok(r),B=tok(h),ops=lev(A,B);
+ const S=ops.filter(o=>o.t==='S').length,D=ops.filter(o=>o.t==='D').length,I=ops.filter(o=>o.t==='I').length,N=A.length;
+ $('#cRateK').textContent=cUnit==='char'?'CER':'WER';$('#cRate').textContent=N?fmtPct((S+D+I)/N):'—';$('#cS').textContent=S;$('#cD').textContent=D;$('#cI').textContent=I;$('#cN').textContent=N;
+ $('#cFormula').textContent=`${cUnit==='char'?'CER':'WER'} = (S + D + I) / N = (${S} + ${D} + ${I}) / ${N}`+(N?` = ${fmtPct((S+D+I)/N)}`:'');
+ $('#cAlign').innerHTML=ops.map(o=>`<span class="ac ${o.t==='='?'':'t'+o.t}"><b>${o.r!==undefined?esc(vis(o.r)):'·'}</b><b>${o.h!==undefined?esc(vis(o.h)):'·'}</b>${o.t==='='?'':`<i>${o.t}</i>`}</span>`).join('');
+ $('#cRefN').textContent=r;$('#cHypN').textContent=h;
+ let note='';if(cUnit==='word'&&/[一-鿿]/.test(r)){note=`中文沒有空白，「詞」是誰切的就決定了 WER：參考答案被切成 ${N} 個詞。換一種斷詞方式，分數就不一樣，所以報告中文 WER 一定要寫斷詞規則，或改用 CER。`}
+ else if(cUnit==='char'&&!$('#nWs').checked&&/\s/.test(r+h))note='目前空白也被當成一個字元在比對（顯示為 ␣）。要不要算空白，是正規化規則的一部分。';
+ if((S+D+I)>N&&N)note+=(note?' ':'')+'錯誤數可以比參考長度還多（插入很多時），所以 CER／WER 可能超過 100%。';$('#cNote').textContent=note}
+seg('#cPre',['zh','en','whisper','seg'],'zh',v=>{const[r,h,u]=CPRE[v];$('#cRef').value=r;$('#cHyp').value=h;cUnit=u;segSet('#cUnit',u);['#nWs','#nPu','#nWd','#nLo'].forEach(s=>$(s).checked=false);cerUpd()},v=>({zh:'講義：語音／語言',en:'英文 5 個詞',whisper:'Whisper 朗讀稿',seg:'中文 WER 的斷詞問題'})[v]);
+seg('#cUnit',['char','word'],'char',v=>{cUnit=v;cerUpd()},v=>v==='char'?'字元（CER）':'空白分詞（WER）');
+['#cRef','#cHyp','#nWs','#nPu','#nWd','#nLo'].forEach(s=>$(s).addEventListener('input',cerUpd));
+
+/* ===== 7 whisper ===== */
+const WM=[['tiny',39,1,10],['base',74,1,7],['small',244,2,4],['medium',769,5,2],['large',1550,10,1],['turbo',809,6,8]];let wMet=1;
+function wUpd(){const mx=Math.max(...WM.map(m=>m[wMet])),unit=['','M 參數','GB VRAM','× 速度'][wMet];$('#wBars').innerHTML=WM.map(m=>`<div class="br"><span class="mono">${m[0]}</span><span class="bar"><i style="width:${(m[wMet]/mx*100).toFixed(1)}%"></i></span><span class="mono">${wMet===2?'~'+m[2]:m[wMet].toLocaleString('en-US')} ${unit}</span></div>`).join('')}
+seg('#wMetric',[1,2,3],1,v=>{wMet=v;wUpd()},v=>['','參數量','需要的 VRAM','相對速度'][v]);
+const srtT=t=>{t=Math.max(0,t);const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60),ms=Math.round((t-Math.floor(t))*1000)%1000;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`};
+let srtText='';function srtUpd(){const off=+$('#srtOff').value;$('#srtOffV').textContent=(off>0?'+':'')+off.toFixed(1)+' s';const out=[];let n=0;
+ $('#srtIn').value.split('\n').forEach(l=>{const m=l.match(/\[\s*([\d.]+)\s*(?:→|->|-->)\s*([\d.]+)\s*\]\s*(.*)/);if(m){n++;out.push(`${n}\n${srtT(+m[1]+off)} --> ${srtT(+m[2]+off)}\n${m[3].trim()}\n`)}});
+ srtText=out.join('\n');$('#srtOut').textContent=srtText||'找不到格式為 [ 開始 → 結束] 文字 的行。'}
+['#srtIn','#srtOff'].forEach(s=>$(s).addEventListener('input',srtUpd));$('#srtGo').onclick=srtUpd;
+$('#srtDl').onclick=()=>{if(!srtText)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([srtText],{type:'text/plain'}));a.download='lecture.srt';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+
+/* ===== 8 evidence card ===== */
+const SCEN={q:'晚上 11 點，你接到陌生號碼來電。聲音聽起來就是你的家人，語氣很急：「我出事了，現在馬上匯 3 萬到這個帳戶，先不要跟別人說。」你會怎麼做？',
+ o:[['聲音完全就是他，先匯再說','聲音像不是身分驗證。現在的語音複製只要一小段錄音就能做到，而「很急、不要告訴別人」正是詐騙常用的施壓方式。',0],
+  ['在電話裡問一個只有家人知道的問題','比直接匯款好，但對方可能從社群或之前的對話知道答案，而且你還在對方掌控的通話裡。',0],
+  ['先掛斷，用你原本就知道的號碼打給家人，或聯絡其他家人確認','對。換一個你自己掌握、獨立的管道確認，是最可靠的查證方式，不需要判斷聲音是真是假。',1],
+  ['請對方多說幾句，仔細聽有沒有 AI 的痕跡','聽覺線索不可靠：好的合成聲音聽不出來，真的錄音透過電話也可能怪怪的。高風險的事情要靠外部查證，不是靠耳朵。',0]]};
+$('#scen').innerHTML=`<div class="qcard"><p>${SCEN.q}</p><div class="opts">${SCEN.o.map((o,i)=>`<button data-o="${i}">${o[0]}</button>`).join('')}</div><p class="fb" id="scenFb"></p></div>`;
+$('#scen').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const o=SCEN.o[+b.dataset.o];b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(o[2]?'right':'wrong');$('#scenFb').textContent=o[1]});
+function eUpd(){const v=id=>$(id).value.trim()||'（未填）';const md=`## Deepfake Evidence Card\n\n**檔案：** ${v('#eFile')}\n\n### ① 可觀察的訊號\n${v('#eSig')}\n\n### ② 來源與情境\n${v('#eSrc')}\n\n### ③ 外部查證\n${v('#eExt')}\n\n### 剩下的不確定性\n${v('#eUnc')}\n\n### 信心程度\n${$('#eConf').value}\n\n> 訊號只是線索；偵測器分數不是證明；沒有 Content Credentials 不代表是假的。`;$('#eOut').textContent=md}
+['#eFile','#eSig','#eSrc','#eExt','#eUnc','#eConf'].forEach(s=>$(s).addEventListener('input',eUpd));$('#eCopy').onclick=()=>copyText($('#eOut').textContent,$('#eCopy'));
+
+/* ===== 9 disclosure ===== */
+const TODAY=new Date().toISOString().slice(0,10);const POST=[['Trim',1],['Gain Adjustment',1],['Fade',1],['Background Music Mixing',0],['Noise Reduction',0]];
+$('#dPost').innerHTML=POST.map(([p,on])=>`<label class="chk"><input type="checkbox" value="${p}"${on?' checked':''}>${p}</label>`).join('');
+const DDEF={'edge-tts':['zh-TW-HsiaoChenNeural',`rate=+0%；產生日期 ${TODAY}`],'ZONOS3-Mini（Zyphra/ZONOS3-Mini-hf）':['Meilin',`language=cmn, seed=0, temperature=0.75；產生日期 ${TODAY}`],'瀏覽器內建語音（Web Speech API）':['（填入語音名稱）',`rate=1.0；產生日期 ${TODAY}`]};
+function dUpd(){const post=[...$('#dPost').querySelectorAll('input:checked')].map(i=>'- '+i.value);const p=$('#dParam').value.trim();
+ const md=`## Audio Disclosure\n\n### Synthetic Speech\n本作品旁白使用 TTS 生成。\n\n### Tool\n${$('#dTool').value}\n\n### Voice\n${$('#dVoice').value}\n\n### Input\n${$('#dIn').value}\n`+(p?`\n### Model Version / Date / Parameters\n${p}\n`:'')+`\n### Post-processing\n${post.join('\n')||'無'}\n\n### Human Voice Cloning\n${$('#dClone').value}\n\n### Final Review\n${$('#dRev').checked?'字幕與旁白內容已人工確認。':'尚未人工確認。'}`;$('#dOut').textContent=md}
+$('#dTool').addEventListener('change',()=>{const d=DDEF[$('#dTool').value];$('#dVoice').value=d[0];$('#dParam').value=d[1];dUpd()});
+['#dVoice','#dIn','#dParam','#dClone','#dRev','#dPost'].forEach(s=>$(s).addEventListener('input',dUpd));$('#dCopy').onclick=()=>copyText($('#dOut').textContent,$('#dCopy'));
+$('#dParam').value=DDEF['edge-tts'][1];
+function copyText(t,btn){const done=()=>{const o=btn.textContent;btn.textContent='已複製';setTimeout(()=>btn.textContent=o,1200)};
+ try{navigator.clipboard.writeText(t).then(done,()=>fallback())}catch(e){fallback()}
+ function fallback(){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){}ta.remove()}}
+
+/* ===== quiz ===== */
+const QZ=[
+ ['TTS 和 STT 的輸入與輸出分別是？',['兩個都是文字到文字','TTS：文字 → 聲音；STT：聲音 → 文字','TTS：聲音 → 文字；STT：文字 → 聲音','兩個都是聲音到聲音'],1,'Text-to-Speech 與 Speech-to-Text，兩條流程方向相反，接起來就是閉環實驗。'],
+ ['「所有現代 TTS 都會先產生 Mel 頻譜」對嗎？',['對，一定要','不一定：Mel 是常見的中間表示，很多新模型預測 audio codec token','只有 Whisper 才用 Mel','Mel 只用在影像'],1,'傳統神經 TTS 常用 Mel，但也有直接預測 codec token 的模型，例如 ZONOS3-Mini。'],
+ ['傳統神經 TTS 裡，Vocoder 做什麼？',['把文字斷詞','把聲學表示（例如 Mel）變成波形','計算 CER','偵測深偽'],1,'Mel 沒有相位，Vocoder 負責把它還原成一個個樣本。實驗 3 用 Griffin-Lim 聽差距。'],
+ ['Whisper 模型越大，每段錄音都一定比較準？',['一定','不一定，要看錄音品質、語言、硬體與準確率需求','越小越準','大小和準確率無關'],1,'選模型是準確率、速度、資源的取捨。要用自己的錄音、固定變因來比。'],
+ ['中文 ASR 為什麼常用 CER 而不是 WER？',['CER 比較好算','中文沒有空白分詞，WER 會隨斷詞規則改變','WER 只能用在英文歌曲','CER 會自動正規化'],1,'沒有空白，「詞」的切法決定 WER。CER 以字計算，定義比較清楚。'],
+ ['initial_prompt 能做到什麼？',['保證所有專有名詞都對','提供脈絡提示，可能改善專有名詞，但不保證','保證輸出繁體中文','讓模型變快'],1,'它是提示不是保證。輸出仍要檢查，繁簡轉換也是流程的一部分。'],
+ ['TTS → Whisper 閉環實驗的 CER 很低，代表？',['TTS 聽起來很自然','這段合成語音對這個 ASR 模型來說容易辨識','這段聲音是真的','Whisper 不會出錯'],1,'可辨識度 ≠ 自然度。自然度要靠人來聽、盲測評分。'],
+ ['檔案沒有 Content Credentials（C2PA），代表？',['一定是 AI 合成','不能據此判斷真假，只是少了一項來源證據','一定是真的','檔案壞掉了'],1,'Provenance 是關於來源與編輯紀錄的證據。沒有它不代表是假的，有它也不代表內容是真的。'],
+ ['本課程為什麼不允許複製第三人的聲音，即使對方口頭同意？',['因為模型跑不動','同意難以查證、範圍難以控制，合成聲音可能被拿去冒充或欺騙','因為第三人的聲音品質比較差','因為只能用英文'],1,'口頭同意無法留下可查證的範圍與用途。課堂只用自己的聲音、TTS 聲音、虛構角色或有授權的資料集。']];
+$('#qz').innerHTML=QZ.map(([q,o],i)=>`<div class="qcard"><p>${i+1}．${q}</p><div class="opts">${o.map((t,j)=>`<button data-q="${i}" data-j="${j}">${t}</button>`).join('')}</div><p class="fb" id="qf${i}"></p></div>`).join('');
+const qDone={};$('#qz').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.q,j=+b.dataset.j,[,,ans,why]=QZ[i];
+ b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(j===ans?'right':'wrong');$('#qf'+i).textContent=(j===ans?'答對。':'再想想。')+why;if(j===ans)qDone[i]=1;$('#qzScore').textContent=`答對 ${Object.keys(qDone).length}／${QZ.length} 題`});
+
+/* theme toggle */
+const root=document.documentElement,darkQ=matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkQ.matches;
+function themeLabel(){$('#themeBtn').textContent=isDark()?'☀ 淺色':'☾ 深色'}
+try{const t=localStorage.getItem('w12-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+$('#themeBtn').onclick=()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('w12-theme',t)}catch(e){}themeLabel()};
+darkQ.addEventListener('change',themeLabel);themeLabel();
+
+/* nav + redraw */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-40% 0px -55% 0px'});
+document.querySelectorAll('section.bench').forEach(s=>io.observe(s));
+const redraw=()=>{pipeUpd();melUpd();gUpd();if(gOut)sgT('#gB',gOut,gOut.length,5000);spUpd();cerUpd();wUpd();srtUpd();eUpd();dUpd()};
+darkQ.addEventListener('change',redraw);new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+segSet('#cPre','zh');{const[r,h]=CPRE.zh;$('#cRef').value=r;$('#cHyp').value=h}
+bBuild();redraw();
+if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+const vids=[...document.querySelectorAll('#animGrid video')];
+Promise.all(vids.map(v=>fetch(v.getAttribute('src'),{method:'HEAD'}).then(r=>r.ok).catch(()=>true).then(ok=>{if(!ok)v.closest('figure').hidden=true;return ok}))).then(oks=>{if(!oks.some(Boolean)){$('#anim').hidden=true;const a=document.querySelector('#nav a[href="#anim"]');if(a){a.hidden=true;if(a.nextElementSibling)a.nextElementSibling.hidden=true}}});
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W12-3 聽起來像，不等於是本人</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w12-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 28px; line-height: 48px; white-space: nowrap; }
+      .note { font-size: 21px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      b { font-weight: 900; }
+      #title { position: absolute; left: 64px; top: 230px; font-size: 64px; font-weight: 900; white-space: nowrap; }
+      #sub { position: absolute; left: 68px; top: 330px; font-size: 28px; color: var(--muted); }
+      /* 1 情境 */
+      #phone { position: absolute; left: 80px; top: 160px; width: 260px; height: 350px; background: var(--surface); border: 2px solid var(--line); border-radius: 34px; display: flex; flex-direction: column; align-items: center; padding-top: 26px; }
+      #phone .in { font-size: 20px; color: var(--muted); }
+      #phone .who { font-size: 40px; font-weight: 900; margin-top: 8px; }
+      #phone .like { font-size: 20px; color: var(--accent); margin-top: 4px; }
+      #phone svg { margin-top: 18px; }
+      #phone .btns { display: flex; gap: 40px; margin-top: 20px; }
+      #phone .btns span { width: 56px; height: 56px; border-radius: 28px; display: block; }
+      #bubble { position: absolute; left: 392px; top: 168px; width: 824px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 22px; padding: 22px 30px; font-size: 32px; font-weight: 900; line-height: 1.45; }
+      #bubble::before { content: ""; position: absolute; left: -12px; top: 38px; width: 22px; height: 22px; background: var(--surface); border-left: 1.5px solid var(--line); border-bottom: 1.5px solid var(--line); transform: rotate(45deg); }
+      #press { position: absolute; left: 392px; top: 318px; display: flex; gap: 12px; align-items: center; font-size: 22px; color: var(--muted); }
+      .chip { font-size: 22px; line-height: 40px; padding: 0 18px; border-radius: 20px; border: 1.5px solid var(--bad); color: var(--bad); white-space: nowrap; }
+      #stop { position: absolute; left: 392px; top: 392px; height: 84px; padding: 0 34px; border: 4px solid var(--bad); border-radius: 18px; color: var(--bad); font-size: 52px; font-weight: 900; display: flex; align-items: center; letter-spacing: 0.1em; }
+      /* 2 證據卡 */
+      .col { position: absolute; top: 160px; width: 352px; height: 340px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 24px 26px; }
+      .col .t { font-size: 30px; font-weight: 900; white-space: nowrap; display: flex; gap: 10px; align-items: baseline; }
+      .col .t .n { color: var(--accent); }
+      .col ul { list-style: none; margin-top: 18px; }
+      .col li { font-size: 24px; line-height: 44px; white-space: nowrap; }
+      .col li::before { content: "・"; color: var(--muted); }
+      .col .tag { position: absolute; left: 26px; bottom: 22px; font-size: 21px; line-height: 38px; padding: 0 16px; border-radius: 19px; border: 1.5px solid var(--accent); color: var(--accent); white-space: nowrap; }
+      .col .tag.m { border-color: var(--muted); color: var(--muted); }
+      /* 3 信心程度 */
+      #tf { position: absolute; left: 0; right: 0; top: 176px; text-align: center; font-size: 30px; color: var(--muted); }
+      #tf s { font-size: 46px; font-weight: 900; color: var(--muted); text-decoration-color: var(--bad); text-decoration-thickness: 5px; margin: 0 10px; }
+      #levels { position: absolute; left: 0; right: 0; top: 270px; display: flex; justify-content: center; gap: 28px; }
+      .lv { width: 300px; height: 120px; border-radius: 18px; border: 2px solid var(--line); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+      .lv .a { font-size: 36px; font-weight: 900; }
+      .lv .b { font-size: 19px; color: var(--muted); }
+      /* 4 兩個提醒 */
+      .warn { position: absolute; left: 64px; right: 64px; height: 150px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 0 34px; display: flex; align-items: center; gap: 30px; }
+      .warn .ic { flex: none; width: 150px; text-align: center; font-family: var(--mono); font-weight: 700; }
+      .warn .main { font-size: 34px; font-weight: 900; white-space: nowrap; }
+      .warn .sub2 { font-size: 22px; color: var(--muted); margin-top: 6px; white-space: nowrap; }
+      #closing { position: absolute; left: 0; right: 0; top: 548px; text-align: center; font-size: 36px; font-weight: 900; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w12-3" data-start="0" data-duration="45" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="45" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W12</span><span class="num">3 / 3</span></div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <h1 id="title">聽起來像，<span class="acc">不等於是本人</span></h1>
+        <p id="sub">語音深偽：先停下來，再用證據判斷</p>
+      </div>
+
+      <!-- 1 情境 -->
+      <div id="s1" class="scene clip" data-start="4.2" data-duration="11.4" data-track-index="1">
+        <div class="head" id="s1h"><span class="badge">1</span><span>一通「很像家人」的電話</span></div>
+        <div id="phone">
+          <div class="in">來電</div>
+          <div class="who">家人？</div>
+          <div class="like">聲音很像</div>
+          <svg id="bars" width="180" height="70" viewBox="0 0 180 70"></svg>
+          <div class="btns"><span style="background: var(--bad)"></span><span style="background: var(--good)"></span></div>
+        </div>
+        <div id="bubble">「是我！我出事了，<span class="acc">現在馬上幫我轉帳</span>，<br />先不要跟別人說。」</div>
+        <div id="press"><span>壓力訊號：</span><span class="chip" id="p1">很急</span><span class="chip" id="p2">要保密</span><span class="chip" id="p3">要錢</span></div>
+        <div id="stop">停下來</div>
+        <div class="card" id="s1c" style="top:530px">
+          <div class="row"><span>掛掉 → 用<b class="good">你原本就知道的號碼</b>回撥確認</span></div>
+          <div class="row"><span class="note">不要直接按「回撥」或用對方給的號碼：來電號碼也可能被偽造</span></div>
+        </div>
+      </div>
+
+      <!-- 2 證據卡 -->
+      <div id="s2" class="scene clip" data-start="15.6" data-duration="15.8" data-track-index="1">
+        <div class="head" id="s2h"><span class="badge">2</span><span>深偽證據卡：分三類收集</span></div>
+        <div class="col" id="c1" style="left:64px">
+          <div class="t"><span class="n">①</span><span>可觀察的訊號</span></div>
+          <ul><li>韻律、語調怪怪的</li><li>停頓不自然</li><li>背景噪音突然改變</li><li>頻譜不連續</li></ul>
+          <span class="tag">只是線索，不是結論</span>
+        </div>
+        <div class="col" id="c2" style="left:464px">
+          <div class="t"><span class="n">②</span><span>來源與情境</span></div>
+          <ul><li>誰傳的？</li><li>什麼時候？</li><li>有沒有原始檔？</li><li>上下文合理嗎？</li></ul>
+        </div>
+        <div class="col" id="c3" style="left:864px">
+          <div class="t"><span class="n">③</span><span>外部查證</span></div>
+          <ul><li>用獨立管道確認</li><li>找其他來源比對</li><li><span class="mono" style="font-size:21px">Provenance／C2PA</span></li></ul>
+          <span class="tag m" id="c3tag">＋ 寫下剩下的不確定性</span>
+        </div>
+        <div class="card" id="s2c" style="top:530px">
+          <div class="row"><span>三類合起來看 → 給出<b class="acc">信心程度</b>，而不是只說「真」或「假」</span></div>
+        </div>
+      </div>
+
+      <!-- 3 信心程度 -->
+      <div id="s3" class="scene clip" data-start="31.4" data-duration="6.4" data-track-index="1">
+        <div class="head" id="s3h"><span class="badge">3</span><span>結論寫成：信心程度</span></div>
+        <div id="tf">不是 <s>真</s>／<s>假</s></div>
+        <div id="levels">
+          <div class="lv" id="l1"><span class="a muted">證據不足</span><span class="b">線索太少，先不下結論</span></div>
+          <div class="lv" id="l2"><span class="a bad">傾向合成</span><span class="b">多項證據指向偽造</span></div>
+          <div class="lv" id="l3"><span class="a good">傾向真實</span><span class="b">來源與查證都對得上</span></div>
+        </div>
+        <div class="card" id="s3c" style="top:440px">
+          <div class="row"><span class="muted">例：</span><span>回撥原本的號碼，家人說沒打過這通電話 → <b class="bad">傾向合成</b></span></div>
+          <div class="row"><span class="note">每個結論都附上：看到什麼、查了什麼、還不確定什麼</span></div>
+        </div>
+      </div>
+
+      <!-- 4 兩個提醒 -->
+      <div id="s4" class="scene clip" data-start="37.8" data-duration="7.2" data-track-index="1">
+        <div class="warn" id="w1" style="top:140px">
+          <div class="ic"><div style="font-size:18px;color:var(--muted)">偵測器分數</div><div class="acc" style="font-size:46px" id="score">0.00</div></div>
+          <div><div class="main">偵測器分數只是<span class="acc">一項證據</span>，不是測謊機</div><div class="sub2">會誤判，也可能被新的合成方法騙過</div></div>
+        </div>
+        <div class="warn" id="w2" style="top:320px">
+          <div class="ic"><div style="font-size:20px;color:var(--muted);line-height:1.3">Content<br />Credentials</div><div style="font-size:30px;color:var(--muted)">（無）</div></div>
+          <div><div class="main">沒有 Content Credentials <span class="acc">≠</span> 假的</div><div class="sub2">大多數檔案本來就沒有；轉傳、上傳也可能把資訊去掉</div></div>
+        </div>
+        <div id="closing">聽起來像，<span class="acc">不等於是本人</span></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var el = W12.el;
+        var tl = gsap.timeline({ paused: true });
+        var C = { text: "#f2f0ea", muted: "#9c988f", acc: "#ff7a1a", good: "#5fc48a", bad: "#ff6b5e", line: "#33322f" };
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+
+        /* 通話中的音量條（固定節奏，不用亂數） */
+        var bars = document.getElementById("bars"), B = [];
+        for (var k = 0; k < 11; k++) {
+          var h = 16 + 44 * Math.abs(Math.sin(k * 1.3 + 0.4));
+          B.push(el("rect", { x: 6 + k * 16, y: 35 - h / 2, width: 9, height: h, rx: 4.5, fill: C.acc }, bars));
+        }
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.2, "#sub", 0.6);
+        out(3.8, ["#title", "#sub"], 0.35);
+
+        // 1 情境（4.2–15.6）
+        inn(4.4, "#s1h", 0.6);
+        inn(5.0, "#phone", 0.6);
+        B.forEach(function (b, i) {
+          tl.fromTo(b, { scaleY: 1 }, { scaleY: 0.35, transformOrigin: "50% 50%", duration: 0.28 + (i % 4) * 0.06, yoyo: true, repeat: 13, ease: "sine.inOut" }, 5.4);
+        });
+        inn(5.8, "#bubble", 0.6);
+        inn(7.4, "#press", 0.4);
+        tl.fromTo(["#p1", "#p2", "#p3"], { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.3, stagger: 0.35 }, 7.6);
+        tl.fromTo("#stop", { opacity: 0, scale: 1.5, rotation: -6 }, { opacity: 1, scale: 1, rotation: -3, duration: 0.45, ease: "back.out(2)" }, 9.4);
+        tl.to(B, { opacity: 0.25, duration: 0.3 }, 9.4);
+        inn(10.6, "#s1c", 0.6);
+        out(15.2, "#s1 > *", 0.35);
+
+        // 2 證據卡（15.6–31.4）
+        inn(15.8, "#s2h", 0.6);
+        inn(16.6, "#c1", 0.6);
+        tl.fromTo("#c1 li", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.4 }, 17.1);
+        tl.fromTo("#c1 .tag", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 19.0);
+        inn(20.8, "#c2", 0.6);
+        tl.fromTo("#c2 li", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.4 }, 21.3);
+        inn(24.4, "#c3", 0.6);
+        tl.fromTo("#c3 li", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.45 }, 24.9);
+        tl.fromTo("#c3tag", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 26.6);
+        inn(27.8, "#s2c", 0.6);
+        out(31.0, "#s2 > *", 0.35);
+
+        // 3 信心程度（31.4–37.8）
+        inn(31.6, "#s3h", 0.6);
+        inn(32.1, "#tf", 0.5);
+        tl.fromTo([".lv"], { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.3 }, 32.7);
+        inn(34.2, "#s3c", 0.6);
+        tl.to("#l2", { borderColor: C.bad, backgroundColor: "rgba(255,107,94,0.10)", duration: 0.4 }, 34.8);
+        tl.to(["#l1", "#l3"], { opacity: 0.45, duration: 0.4 }, 34.8);
+        out(37.4, "#s3 > *", 0.35);
+
+        // 4 兩個提醒（37.8–45）
+        inn(38.0, "#w1", 0.6);
+        tl.to("#score", { numText: { from: 0, to: 0.82, digits: 2 }, duration: 0.9, ease: "power2.out" }, 38.3);
+        inn(40.0, "#w2", 0.6);
+        inn(42.0, "#closing", 0.7);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w12-3"] = tl;
+      })();
+    </script>
+  </body>
+</html>

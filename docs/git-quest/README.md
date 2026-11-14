@@ -20,7 +20,8 @@ docs/
     ├── w08-0/index.html   # W08-0 AI 模型先修實驗室
     ├── w08/index.html     # W08 LoRA 實驗室
     ├── w10/index.html     # W10 聲音實驗室
-    └── w11/               # W11 聲音剪輯實驗室（index.html＋media/ 講解動畫）
+    ├── w11/               # W11 聲音剪輯實驗室（index.html＋media/ 講解動畫）
+    └── w12/               # W12 語音 AI 實驗室（index.html＋media/ 講解動畫）
 ```
 
 ## GitHub Pages

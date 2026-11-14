@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W12-2 CER 怎麼算</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w12-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 28px; line-height: 48px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      b { font-weight: 900; }
+      #title { position: absolute; left: 64px; top: 230px; font-size: 72px; font-weight: 900; white-space: nowrap; }
+      #sub { position: absolute; left: 68px; top: 340px; font-size: 28px; color: var(--muted); }
+      /* 字元格 */
+      .lane { position: absolute; display: flex; align-items: center; gap: 12px; }
+      .lane .lbl { width: 100px; text-align: right; font-size: 24px; color: var(--muted); padding-right: 8px; flex: none; }
+      .cell { width: 84px; height: 84px; border-radius: 12px; background: var(--surface); border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 46px; font-weight: 900; flex: none; }
+      .cell.sp { color: var(--muted); font-weight: 500; }
+      .cell.gap { background: transparent; border: 1.5px dashed var(--muted); }
+      .cell.err { border-color: var(--bad); color: var(--bad); background: rgba(255, 107, 94, 0.10); }
+      .cell.ok { border-color: var(--good); }
+      .mk { width: 84px; text-align: center; font-family: var(--mono); font-weight: 700; font-size: 26px; flex: none; }
+      .mk.ok { color: var(--good); } .mk.err { color: var(--bad); }
+      /* 小格子 */
+      .sm .lbl { width: 44px; font-size: 18px; padding-right: 0; }
+      .sm { gap: 5px; }
+      .sm .cell { width: 46px; height: 46px; font-size: 26px; border-radius: 8px; }
+      /* 正規化：15 格 */
+      .md { gap: 4px; }
+      .md .lbl { width: 86px; font-size: 22px; }
+      .md .cell { width: 50px; height: 56px; font-size: 30px; border-radius: 8px; font-family: var(--mono); font-weight: 700; }
+      .md .cell.cjk { font-family: var(--sans); font-weight: 900; }
+      .md .cell.sp { font-weight: 500; }
+      .md .mk { width: 50px; font-size: 20px; }
+      /* 三種錯誤 */
+      .kind { position: absolute; top: 164px; width: 352px; height: 336px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 24px 24px; }
+      .kind .k { display: flex; align-items: baseline; gap: 14px; }
+      .kind .k .L { font-family: var(--mono); font-weight: 700; font-size: 54px; color: var(--accent); line-height: 1; }
+      .kind .k .n { font-size: 32px; font-weight: 900; }
+      .kind .k .e { font-family: var(--mono); font-size: 16px; color: var(--muted); }
+      .kind .lane { position: relative; margin-top: 18px; }
+      .kind .cap { position: absolute; left: 24px; right: 24px; bottom: 22px; font-size: 22px; color: var(--muted); line-height: 1.45; }
+      .kind .cap b { color: var(--text); }
+      .kind .cell { background: #232321; }
+      .kind .cell.gap { background: transparent; }
+      /* 規則 */
+      .rule { display: inline-block; font-size: 24px; line-height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid var(--accent); color: var(--accent); }
+      /* WER */
+      .wrow { position: absolute; left: 64px; right: 64px; display: flex; align-items: center; gap: 22px; font-size: 30px; white-space: nowrap; }
+      .wrow .lab { width: 92px; flex: none; font-size: 24px; color: var(--muted); }
+      .seg { display: inline-flex; gap: 6px; }
+      .seg span { border: 1.5px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0 10px; line-height: 46px; font-weight: 900; }
+      .seg span.x { border-color: var(--bad); color: var(--bad); }
+      .seg span.c { padding: 0 6px; }
+      .eq { font-family: var(--mono); font-size: 28px; }
+      .sp2 { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w12-2" data-start="0" data-duration="45" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="45" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W12</span><span class="num">2 / 3</span></div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <h1 id="title"><span class="acc">CER</span> 怎麼算</h1>
+        <p id="sub">Character Error Rate：字元錯誤率（越低越好）</p>
+      </div>
+
+      <!-- 1 逐字對齊 -->
+      <div id="s1" class="scene clip" data-start="4.2" data-duration="10.2" data-track-index="1">
+        <div class="head" id="s1h"><span class="badge">1</span><span>逐字對齊，數錯幾個</span></div>
+        <div class="lane" id="r1ref" style="left:236px;top:172px"></div>
+        <div class="lane" id="r1hyp" style="left:236px;top:272px"></div>
+        <div class="lane" id="r1mk" style="left:236px;top:368px"></div>
+        <div class="card" id="s1c" style="top:436px">
+          <div class="row" id="f1"><b>CER</b><span class="mono">= (S + D + I) / N</span><span class="note">N = 參考答案的字數</span></div>
+          <div class="row" id="f2"><span class="mono" style="padding-left:66px">= (1 + 0 + 0) / 6 ≈</span><b class="mono acc" id="cer1">0.0%</b></div>
+          <div class="row" id="f3"><span class="note">S 替換・D 刪除・I 插入：把參考答案改成辨識結果，最少要改幾次</span></div>
+        </div>
+      </div>
+
+      <!-- 2 三種錯誤 -->
+      <div id="s2" class="scene clip" data-start="14.4" data-duration="10.2" data-track-index="1">
+        <div class="head" id="s2h"><span class="badge">2</span><span>三種錯誤：S、D、I</span></div>
+        <div class="kind" id="kS" style="left:64px">
+          <div class="k"><span class="L">S</span><span class="n">替換</span><span class="e">Substitution</span></div>
+          <div class="lane sm" id="kSr"></div><div class="lane sm" id="kSh"></div>
+          <div class="cap">一個字<b>被換成</b>別的字<br />音 → 言</div>
+        </div>
+        <div class="kind" id="kD" style="left:464px">
+          <div class="k"><span class="L">D</span><span class="n">刪除</span><span class="e">Deletion</span></div>
+          <div class="lane sm" id="kDr"></div><div class="lane sm" id="kDh"></div>
+          <div class="cap">參考有、辨識<b>漏掉</b>的字<br />少了「習」</div>
+        </div>
+        <div class="kind" id="kI" style="left:864px">
+          <div class="k"><span class="L">I</span><span class="n">插入</span><span class="e">Insertion</span></div>
+          <div class="lane sm" id="kIr"></div><div class="lane sm" id="kIh"></div>
+          <div class="cap">辨識<b>多出來</b>的字<br />多了「的」</div>
+        </div>
+        <div class="card" id="s2c" style="top:530px">
+          <div class="row"><span>每個例子都是 <span class="mono">1 / 4 = 25%</span></span><span class="note">I 很多時，CER 甚至會超過 100%</span></div>
+        </div>
+      </div>
+
+      <!-- 3 正規化 -->
+      <div id="s3" class="scene clip" data-start="24.6" data-duration="12.6" data-track-index="1">
+        <div class="head" id="s3h"><span class="badge">3</span><span>先正規化，再算</span></div>
+        <div class="lane md" id="r3ref" style="left:180px;top:158px"></div>
+        <div class="lane md" id="r3hyp" style="left:180px;top:222px"></div>
+        <div class="lane md" id="r3mk" style="left:180px;top:286px"></div>
+        <div class="lane md" id="n3ref" style="left:180px;top:158px"></div>
+        <div class="lane md" id="n3hyp" style="left:180px;top:222px"></div>
+        <div class="lane md" id="n3mk" style="left:180px;top:286px"></div>
+        <div class="card" id="s3c" style="top:340px">
+          <div class="row" id="g1"><b style="width:130px">正規化前</b><span class="mono">(4 S + 3 D) / 15 ≈</span><b class="mono bad">46.7%</b><span class="note">大小寫、空白、句號都被算成錯</span></div>
+          <div class="row" id="g2"><b style="width:130px">規則</b><span class="rule">去空白・去標點・英文轉小寫</span></div>
+          <div class="row" id="g3"><b style="width:130px">正規化後</b><span class="mono">0 / 12 =</span><b class="mono good">0%</b><span class="note">兩邊都變成 stft的視窗是2048</span></div>
+          <div class="row" id="g4"><span class="acc">同一組結果，CER 差很多 → 報告 CER 時，要寫出用了哪些規則</span></div>
+        </div>
+      </div>
+
+      <!-- 4 為什麼中文用 CER -->
+      <div id="s4" class="scene clip" data-start="37.2" data-duration="7.8" data-track-index="1">
+        <div class="head" id="s4h"><span class="badge">4</span><span>為什麼中文用 CER，不用 WER？</span></div>
+        <div class="wrow" id="w1" style="top:162px"><span class="lab">英文</span><span class="mono">today<span class="sp2">␣</span>I<span class="sp2">␣</span>study<span class="sp2">␣</span>speech</span><span class="note">空白就是詞的邊界</span></div>
+        <div class="wrow" id="w2" style="top:222px"><span class="lab">中文</span><span><b>今天學習語音</b></span><span class="note">沒有空白：詞要靠「斷詞」，斷法不只一種</span></div>
+        <div class="wrow" id="w3" style="top:300px"><span class="lab">斷法 A</span><span class="seg"><span>今天</span><span>學習</span><span class="x">語言</span></span><span class="eq">WER = 1 / 3 ≈ <b class="acc">33.3%</b></span></div>
+        <div class="wrow" id="w4" style="top:370px"><span class="lab">斷法 B</span><span class="seg"><span>今天學習</span><span class="x">語言</span></span><span class="eq">WER = 1 / 2 = <b class="acc">50%</b></span></div>
+        <div class="wrow" id="w5" style="top:440px"><span class="lab">逐字</span><span class="seg"><span class="c">今</span><span class="c">天</span><span class="c">學</span><span class="c">習</span><span class="c">語</span><span class="c x">言</span></span><span class="eq">CER = 1 / 6 ≈ <b class="good">16.7%</b></span></div>
+        <div class="card" id="s4c" style="top:530px">
+          <div class="row"><span>斷詞一變，WER 就變 → 中文常用 <b class="acc">CER</b>，不受斷詞影響</span></div>
+          <div class="row"><span class="note">辨識結果都是「今天學習語言」，參考答案是「今天學習語音」</span></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+        var C = { text: "#f2f0ea", muted: "#9c988f", acc: "#ff7a1a", good: "#5fc48a", bad: "#ff6b5e", line: "#33322f" };
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+        function count(node, t, a, b, dur, digits, unit) {
+          tl.to(node, { numText: { from: a, to: b, digits: digits, suffix: unit }, duration: dur, ease: "power2.out" }, t);
+        }
+
+        /* 建一排字元格：chars 陣列；null = 空位（虛線）；" " = 空白（顯示 ␣） */
+        function lane(id, label, chars, cls) {
+          var L = document.getElementById(id);
+          var lb = document.createElement("span");
+          lb.className = "lbl"; lb.textContent = label || ""; L.appendChild(lb);
+          var cells = [];
+          chars.forEach(function (ch, i) {
+            var c = document.createElement("div");
+            c.className = "cell";
+            if (ch === null) c.className += " gap";
+            else if (ch === " ") { c.className += " sp"; c.textContent = "␣"; }
+            else { c.textContent = ch; if (/[^\x00-\x7f]/.test(ch) && ch !== "。") c.className += " cjk"; }
+            if (cls && cls[i]) c.className += " " + cls[i];
+            L.appendChild(c); cells.push(c);
+          });
+          return cells;
+        }
+        function marks(id, list) {
+          var L = document.getElementById(id);
+          var lb = document.createElement("span"); lb.className = "lbl"; L.appendChild(lb);
+          return list.map(function (m) {
+            var s = document.createElement("span");
+            s.className = "mk " + (m === "✓" ? "ok" : "err");
+            s.textContent = m; L.appendChild(s); return s;
+          });
+        }
+
+        /* ---------- 1 ---------- */
+        var c1r = lane("r1ref", "參考", "今天學習語音".split(""));
+        var c1h = lane("r1hyp", "辨識", "今天學習語言".split(""));
+        var m1 = marks("r1mk", ["✓", "✓", "✓", "✓", "✓", "S"]);
+
+        /* ---------- 2 ---------- */
+        lane("kSr", "參考", ["學", "習", "語", "音"]);
+        lane("kSh", "辨識", ["學", "習", "語", "言"], [0, 0, 0, "err"]);
+        lane("kDr", "參考", ["學", "習", "語", "音"]);
+        lane("kDh", "辨識", ["學", null, "語", "音"], [0, "err"]);
+        lane("kIr", "參考", ["學", "習", null, "語", "音"]);
+        lane("kIh", "辨識", ["學", "習", "的", "語", "音"], [0, 0, "err"]);
+
+        /* ---------- 3 ---------- */
+        var refRaw = ["S", "T", "F", "T", " ", "的", "視", "窗", "是", " ", "2", "0", "4", "8", "。"];
+        var hypRaw = ["s", "t", "f", "t", null, "的", "視", "窗", "是", null, "2", "0", "4", "8", null];
+        var mkRaw = ["S", "S", "S", "S", "D", "✓", "✓", "✓", "✓", "D", "✓", "✓", "✓", "✓", "D"];
+        var c3r = lane("r3ref", "參考", refRaw);
+        var c3h = lane("r3hyp", "辨識", hypRaw);
+        var m3 = marks("r3mk", mkRaw);
+        var norm = "stft的視窗是2048".split("");
+        var okc = norm.map(function () { return "ok"; });
+        lane("n3ref", "參考", norm, okc);
+        lane("n3hyp", "辨識", norm, okc);
+        var m3n = marks("n3mk", norm.map(function () { return "✓"; }));
+        mkRaw.forEach(function (m, i) {
+          if (m !== "✓") { c3h[i].classList.add("err"); }
+        });
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.2, "#sub", 0.6);
+        out(3.8, ["#title", "#sub"], 0.35);
+
+        // 1（4.2–14.4）
+        inn(4.4, "#s1h", 0.6);
+        inn(5.0, "#r1ref", 0.5);
+        inn(5.6, "#r1hyp", 0.5);
+        tl.fromTo(m1, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.18 }, 6.4);
+        tl.to(c1r.slice(0, 5).concat(c1h.slice(0, 5)), { borderColor: C.good, duration: 0.25, stagger: 0.09 }, 6.4);
+        tl.to(c1h[5], { borderColor: C.bad, color: C.bad, backgroundColor: "rgba(255,107,94,0.10)", duration: 0.3 }, 7.5);
+        tl.to(c1r[5], { borderColor: C.bad, duration: 0.3 }, 7.5);
+        tl.fromTo(c1h[5], { scale: 1 }, { scale: 1.1, duration: 0.25, yoyo: true, repeat: 1 }, 7.5);
+        inn(8.3, "#s1c", 0.6);
+        tl.set(["#f2", "#f3"], { opacity: 0 }, 8.3);
+        inn(9.3, "#f2", 0.5);
+        count(document.getElementById("cer1"), 9.6, 0, 16.7, 0.9, 1, "%");
+        inn(10.9, "#f3", 0.5);
+        out(14.0, "#s1 > *", 0.35);
+
+        // 2（14.4–24.6）
+        inn(14.6, "#s2h", 0.6);
+        inn(15.3, "#kS", 0.5);
+        inn(17.0, "#kD", 0.5);
+        inn(18.7, "#kI", 0.5);
+        inn(20.6, "#s2c", 0.6);
+        out(24.2, "#s2 > *", 0.35);
+
+        // 3（24.6–37.2）
+        inn(24.8, "#s3h", 0.6);
+        tl.set(["#n3ref", "#n3hyp"], { opacity: 0 }, 0);
+        inn(25.4, "#r3ref", 0.5);
+        inn(25.9, "#r3hyp", 0.5);
+        tl.fromTo(m3, { opacity: 0 }, { opacity: 1, duration: 0.2, stagger: 0.07 }, 26.6);
+        inn(27.8, "#s3c", 0.5);
+        tl.set(["#g2", "#g3", "#g4"], { opacity: 0 }, 27.8);
+        inn(29.6, "#g2", 0.5);
+        tl.to(["#r3ref", "#r3hyp", "#r3mk"], { opacity: 0, duration: 0.4 }, 30.6);
+        tl.fromTo(["#n3ref", "#n3hyp"], { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.5 }, 31.0);
+        tl.fromTo(m3n, { opacity: 0 }, { opacity: 1, duration: 0.2, stagger: 0.05 }, 31.6);
+        inn(32.4, "#g3", 0.5);
+        inn(33.8, "#g4", 0.5);
+        out(36.8, "#s3 > *", 0.35);
+
+        // 4（37.2–45）
+        inn(37.4, "#s4h", 0.6);
+        inn(38.0, "#w1", 0.5);
+        inn(38.8, "#w2", 0.5);
+        inn(39.8, "#w3", 0.5);
+        inn(40.5, "#w4", 0.5);
+        inn(41.2, "#w5", 0.5);
+        inn(42.0, "#s4c", 0.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w12-2"] = tl;
+      })();
+    </script>
+  </body>
+</html>

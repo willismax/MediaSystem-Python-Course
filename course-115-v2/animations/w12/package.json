@@ -1,0 +1,23 @@
+{
+  "name": "w12-animations",
+  "version": "1.0.0",
+  "description": "多媒體系統 W12 語音合成與辨識：三支 HyperFrames 教學動畫",
+  "scripts": {
+    "fonts": "python3 tools/build-fonts.py",
+    "lint": "hyperframes lint w12-1-tts-stt-loop && hyperframes lint w12-2-cer && hyperframes lint w12-3-deepfake-card",
+    "preview:1": "hyperframes preview w12-1-tts-stt-loop",
+    "preview:2": "hyperframes preview w12-2-cer",
+    "preview:3": "hyperframes preview w12-3-deepfake-card",
+    "render:1": "hyperframes render w12-1-tts-stt-loop -o ../../../docs/labs/w12/media/w12-1-tts-stt-loop.mp4 --fps 30 --crf 20",
+    "render:2": "hyperframes render w12-2-cer -o ../../../docs/labs/w12/media/w12-2-cer.mp4 --fps 30 --crf 20",
+    "render:3": "hyperframes render w12-3-deepfake-card -o ../../../docs/labs/w12/media/w12-3-deepfake-card.mp4 --fps 30 --crf 20",
+    "render": "npm run render:1 && npm run render:2 && npm run render:3"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "gsap": "^3.15.1",
+    "hyperframes": "0.9.45"
+  },
+  "private": true
+}
