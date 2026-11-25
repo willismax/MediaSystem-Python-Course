@@ -133,6 +133,7 @@ uv pip uninstall package-name
 | 05.Flask | Web 框架 | `uv run app.py` |
 | 14.FastAPI | 型別化 Web API | `fastapi dev media_api.py` |
 | 06.Line-bot-fly-flask | LINE Bot | 需設定 config.py |
+| 15.MQTT | MQTT 發布／訂閱 | 兩個終端機分別 `uv run mqtt_sub.py`、`uv run mqtt_pub.py` |
 | 07.Pytest-DEMO | 單元測試 | `pytest` |
 | 08.OpenCV-Mediapipe-DEMO | 電腦視覺 | 需 Python 3.8+ |
 | 09.Apps | 實用工具 | `uv run --with jupyter jupyter notebook` |

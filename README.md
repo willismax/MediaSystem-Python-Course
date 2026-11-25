@@ -34,6 +34,7 @@
 | Flask | [`05.Flask/`](05.Flask/) | Web 應用與 RESTful API |
 | FastAPI | [`14.FastAPI/`](14.FastAPI/) | 型別驗證、自動 API 文件與 RESTful API |
 | LINE Bot | [`06.Line-bot-fly-flask/`](06.Line-bot-fly-flask/) | 訊息服務與雲端部署 |
+| MQTT | [`15.MQTT/`](15.MQTT/) | 物聯網發布／訂閱、主題萬用字元與 QoS |
 | pytest | [`07.Pytest-DEMO/`](07.Pytest-DEMO/) | 單元測試與覆蓋率 |
 | OpenCV／MediaPipe | [`08.OpenCV-Mediapipe-DEMO/`](08.OpenCV-Mediapipe-DEMO/) | 電腦視覺、手勢與姿態辨識 |
 | 實用工具 | [`09.Apps/`](09.Apps/) | QR Code 與其他小型應用 |
