@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W13-3 Codec、Encoder、Container 是三層</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w13-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 28px; line-height: 48px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      b { font-weight: 900; }
+      #title { position: absolute; left: 64px; top: 230px; font-size: 64px; font-weight: 900; white-space: nowrap; }
+      #sub { position: absolute; left: 68px; top: 334px; font-size: 28px; color: var(--muted); }
+
+      /* 1 盒子 */
+      #box { position: absolute; left: 64px; right: 64px; top: 158px; height: 410px; border: 2px solid var(--accent); border-radius: 18px; background: #161615; }
+      #boxHead { position: absolute; left: 0; right: 0; top: 0; height: 58px; border-bottom: 1.5px solid var(--line); display: flex; align-items: center; gap: 20px; padding: 0 26px; white-space: nowrap; }
+      #boxHead .f { font-family: var(--mono); font-weight: 700; font-size: 28px; }
+      #boxHead .tag { font-size: 22px; color: #121212; background: var(--accent); border-radius: 6px; padding: 0 10px; line-height: 32px; font-weight: 900; }
+      .lane { position: absolute; left: 26px; right: 26px; height: 70px; display: flex; align-items: center; gap: 20px; }
+      .lane .lb { width: 280px; flex: none; display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
+      .lane .lb .k { font-size: 26px; font-weight: 900; }
+      .lane .lb .c { font-family: var(--mono); font-weight: 700; font-size: 22px; }
+      .lane .pk { flex: 1; height: 44px; position: relative; }
+      .pkt { position: absolute; top: 0; height: 44px; border-radius: 6px; }
+      .lane .meta { font-size: 22px; color: var(--muted); white-space: nowrap; }
+
+      /* 2 三層 */
+      .col { position: absolute; top: 158px; width: 360px; height: 360px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 22px 24px; }
+      .col .en { font-family: var(--mono); font-weight: 700; font-size: 34px; color: var(--accent); }
+      .col .q { font-size: 28px; font-weight: 900; margin: 4px 0 16px; white-space: nowrap; }
+      .col .grp { font-size: 18px; color: var(--muted); margin: 8px 0 6px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip { font-family: var(--mono); font-weight: 700; font-size: 22px; line-height: 40px; padding: 0 12px; border-radius: 8px; border: 1.5px solid var(--line); background: #232321; white-space: nowrap; }
+      .chip small { font-family: var(--sans); font-weight: 500; font-size: 16px; color: var(--muted); margin-left: 6px; }
+      .chips.v { flex-direction: column; }
+
+      /* 3 流程 */
+      .fb { position: absolute; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; white-space: nowrap; }
+      .fb .a { font-family: var(--mono); font-weight: 700; font-size: 26px; }
+      .fb .b { font-size: 20px; color: var(--muted); }
+      .fl { position: absolute; font-family: var(--mono); font-weight: 700; font-size: 22px; color: var(--accent); text-align: center; white-space: nowrap; }
+      .fl small { display: block; font-family: var(--sans); font-weight: 500; font-size: 18px; color: var(--muted); }
+      #flow { position: absolute; left: 0; top: 0; }
+
+      /* 4 誤會 */
+      .mis { position: absolute; left: 64px; right: 64px; height: 172px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 24px 30px; }
+      .mis .pill { display: inline-block; font-size: 20px; font-weight: 900; color: #121212; background: var(--accent); border-radius: 6px; padding: 0 10px; line-height: 30px; }
+      .mis .m { font-size: 40px; font-weight: 900; margin-top: 10px; white-space: nowrap; }
+      .mis .d { font-size: 24px; color: var(--muted); margin-top: 6px; white-space: nowrap; }
+
+      /* 5 ffprobe */
+      #term { position: absolute; left: 64px; top: 150px; width: 620px; height: 340px; background: #0b0b0b; border: 1.5px solid var(--line); border-radius: 14px; padding: 18px 26px; font-family: var(--mono); font-size: 24px; line-height: 37px; white-space: nowrap; }
+      #term .p { color: var(--muted); }
+      #term .s { color: var(--muted); }
+      #term .v { color: var(--accent); font-weight: 700; }
+      .ann { position: absolute; left: 720px; height: 37px; display: flex; align-items: center; gap: 12px; font-size: 24px; white-space: nowrap; }
+      .ann .ar { width: 22px; height: 2px; background: var(--muted); }
+      #safe { position: absolute; left: 64px; right: 64px; top: 520px; height: 132px; border: 2px solid var(--good); border-radius: 18px; background: rgba(95, 196, 138, 0.06); padding: 18px 30px; }
+      #safe .m { font-size: 40px; font-weight: 900; white-space: nowrap; }
+      #safe .d { font-size: 24px; color: var(--muted); margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w13-3" data-start="0" data-duration="45" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="45" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W13</span><span class="num">3 / 3</span></div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <h1 id="title"><span class="acc">Codec</span>、<span class="acc">Encoder</span>、<span class="acc">Container</span> 是三層</h1>
+        <p id="sub">同一個影片檔，要分清楚三個不同的問題</p>
+      </div>
+
+      <!-- 1 盒子 -->
+      <div id="s1" class="scene clip" data-start="4.2" data-duration="7.4" data-track-index="1">
+        <div class="head" id="s1h"><span class="badge">1</span><span>MP4 是一個盒子，裡面裝好幾條串流</span></div>
+        <div id="box">
+          <div id="boxHead"><span class="f">lecture.mp4</span><span class="tag">Container：MP4</span></div>
+          <div class="lane" id="L1" style="top:76px"><div class="lb"><span class="k">視訊串流</span><span class="c acc">H.264</span></div><div class="pk" id="pk1"></div></div>
+          <div class="lane" id="L2" style="top:156px"><div class="lb"><span class="k">音訊串流</span><span class="c good">AAC</span></div><div class="pk" id="pk2"></div></div>
+          <div class="lane" id="L3" style="top:236px"><div class="lb"><span class="k">字幕</span><span class="c muted">Subtitle</span></div><div class="pk" id="pk3"></div></div>
+          <div class="lane" id="L4" style="top:316px"><div class="lb"><span class="k">中繼資料</span><span class="c muted">Metadata</span></div><div class="meta">片長、標題、建立時間、串流數量…</div></div>
+        </div>
+        <div class="note" id="s1n" style="position:absolute;left:64px;top:590px;font-size:24px">各條串流沿著同一條時間軸，交錯存放在檔案裡</div>
+      </div>
+
+      <!-- 2 三層 -->
+      <div id="s2" class="scene clip" data-start="11.6" data-duration="10" data-track-index="1">
+        <div class="head" id="s2h"><span class="badge">2</span><span>三個問題，三層答案</span></div>
+        <div class="col" id="c1" style="left:64px">
+          <div class="en">Codec</div>
+          <div class="q">怎麼編碼／解碼</div>
+          <div class="grp">視訊</div>
+          <div class="chips"><span class="chip">H.264</span><span class="chip">H.265</span><span class="chip">VP9</span><span class="chip">AV1</span></div>
+          <div class="grp">音訊</div>
+          <div class="chips"><span class="chip">AAC</span><span class="chip">Opus</span></div>
+        </div>
+        <div class="col" id="c2" style="left:460px">
+          <div class="en">Encoder</div>
+          <div class="q">誰真正執行編碼</div>
+          <div class="chips v">
+            <span class="chip">libx264<small>軟體（CPU）</small></span>
+            <span class="chip">NVENC<small>NVIDIA 顯示卡</small></span>
+            <span class="chip">Quick Sync<small>Intel</small></span>
+            <span class="chip">VideoToolbox<small>Apple</small></span>
+          </div>
+        </div>
+        <div class="col" id="c3" style="left:856px">
+          <div class="en">Container</div>
+          <div class="q">怎麼打包成檔案</div>
+          <div class="chips v"><span class="chip">MP4</span><span class="chip">MKV</span><span class="chip">MOV</span><span class="chip">WebM</span></div>
+        </div>
+        <div class="card" id="s2c" style="top:544px">
+          <div class="row"><span>例：<b>H.264</b> 可以由 <code class="acc">libx264</code> 或 <code class="acc">NVENC</code> 來編，再裝進 <b>MP4</b> 或 <b>MKV</b></span></div>
+        </div>
+      </div>
+
+      <!-- 3 流程 -->
+      <div id="s3" class="scene clip" data-start="21.6" data-duration="8" data-track-index="1">
+        <div class="head" id="s3h"><span class="badge">3</span><span>播放時：先拆封，再解碼</span></div>
+        <svg id="flow" width="1280" height="720"></svg>
+        <div class="fb" id="f0" style="left:64px;top:220px;width:168px;height:220px;border-color:#ff7a1a"><span class="a">MP4</span><span class="b">一個檔案</span></div>
+        <div class="fl" id="l0" style="left:226px;top:160px;width:124px">Demux<small>拆封</small></div>
+        <div class="fb" id="f1a" style="left:344px;top:220px;width:236px;height:100px;border-color:#ff7a1a"><span class="a acc">H.264</span><span class="b">視訊封包</span></div>
+        <div class="fb" id="f1b" style="left:344px;top:340px;width:236px;height:100px;border-color:#5fc48a"><span class="a good">AAC</span><span class="b">音訊封包</span></div>
+        <div class="fl" id="l1" style="left:574px;top:160px;width:124px">Decode<small>解碼</small></div>
+        <div class="fb" id="f2a" style="left:692px;top:220px;width:236px;height:100px"><span class="a">影格</span><span class="b">frames（畫面）</span></div>
+        <div class="fb" id="f2b" style="left:692px;top:340px;width:236px;height:100px"><span class="a">取樣</span><span class="b">samples（聲音）</span></div>
+        <div class="fb" id="f3" style="left:1012px;top:220px;width:204px;height:220px;border-color:#f2f0ea"><span class="a" style="font-family:var(--sans);font-weight:900">播放</span><span class="b">Playback<br />畫面＋聲音同步</span></div>
+        <div class="card" id="s3c" style="top:500px">
+          <div class="row"><b class="acc mono">Demux</b><span>只是拆開，不改內容</span></div>
+          <div class="row"><b class="acc mono">Decode</b><span>才把壓縮資料還原成畫面與聲音</span></div>
+        </div>
+      </div>
+
+      <!-- 4 誤會 -->
+      <div id="s4" class="scene clip" data-start="29.6" data-duration="6.8" data-track-index="1">
+        <div class="head" id="s4h"><span class="badge">4</span><span>兩個常見誤會</span></div>
+        <div class="mis" id="m1" style="top:160px">
+          <span class="pill">誤會 1</span>
+          <div class="m"><code class="acc">.mp4</code> 不保證是 H.264</div>
+          <div class="d">MP4 裡也可能是 H.265、AV1…副檔名只說明「盒子」</div>
+        </div>
+        <div class="mis" id="m2" style="top:360px">
+          <span class="pill">誤會 2</span>
+          <div class="m"><code class="acc">yuv420p</code> 是 Pixel Format，不是 Codec</div>
+          <div class="d">它說的是像素怎麼存：YUV 色彩、色度 4:2:0 取樣</div>
+        </div>
+      </div>
+
+      <!-- 5 ffprobe + 安全牌 -->
+      <div id="s5" class="scene clip" data-start="36.4" data-duration="8.6" data-track-index="1">
+        <div class="head" id="s5h"><span class="badge">5</span><span>用 ffprobe 看清楚每一層</span></div>
+        <div id="term">
+          <div class="t p" id="t0">$ ffprobe -show_streams lecture.mp4</div>
+          <div class="t s" id="t1">[STREAM] codec_type=video</div>
+          <div class="t" id="t2">codec_name=<span class="v">h264</span></div>
+          <div class="t" id="t3">pix_fmt=<span class="v">yuv420p</span></div>
+          <div class="t" id="t4">r_frame_rate=<span class="v">30/1</span></div>
+          <div class="t s" id="t5">[STREAM] codec_type=audio</div>
+          <div class="t" id="t6">codec_name=<span class="v">aac</span></div>
+          <div class="t" id="t7">sample_rate=<span class="v">48000</span></div>
+        </div>
+        <div class="ann" id="a2" style="top:241px"><span class="ar"></span><span>視訊 Codec：H.264</span></div>
+        <div class="ann" id="a3" style="top:278px"><span class="ar"></span><span>Pixel Format（不是 Codec）</span></div>
+        <div class="ann" id="a4" style="top:315px"><span class="ar"></span><span>每秒 30 格</span></div>
+        <div class="ann" id="a6" style="top:389px"><span class="ar"></span><span>音訊 Codec：AAC</span></div>
+        <div class="ann" id="a7" style="top:426px"><span class="ar"></span><span>每秒 48,000 個取樣（48 kHz）</span></div>
+        <div id="safe">
+          <div class="m">相容性安全牌：<span class="good">MP4 + H.264 + AAC</span></div>
+          <div class="d">幾乎所有瀏覽器、手機、播放器都能播；它是「相容性最廣」，不是「畫質最好」</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+        var el = W13.el;
+        var C = { text: "#f2f0ea", muted: "#9c988f", acc: "#ff7a1a", good: "#5fc48a", line: "#33322f" };
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+
+        /* ---------- 1：封包 ---------- */
+        function packets(id, n, w, gap, color, start) {
+          var host = document.getElementById(id), list = [];
+          for (var i = 0; i < n; i++) {
+            var p = document.createElement("div");
+            p.className = "pkt";
+            p.style.left = (start + i * (w + gap)) + "px"; p.style.width = w + "px"; p.style.background = color;
+            host.appendChild(p); list.push(p);
+          }
+          return list;
+        }
+        var rnd = W13.seeded(5);
+        /* 視訊封包大小不一（示意） */
+        var vh = document.getElementById("pk1"), vp = [], x = 0;
+        for (var i = 0; i < 12; i++) {
+          var w = i % 6 === 0 ? 92 : 30 + Math.floor(rnd() * 34);
+          var p = document.createElement("div");
+          p.className = "pkt"; p.style.left = x + "px"; p.style.width = w + "px";
+          p.style.background = i % 6 === 0 ? C.acc : "rgba(255,122,26,0.55)";
+          vh.appendChild(p); vp.push(p); x += w + 6;
+        }
+        var ap = packets("pk2", 20, 34, 6, "rgba(95,196,138,0.75)", 0);
+        var sp = [];
+        [[40, 150], [330, 180], [640, 140]].forEach(function (s) {
+          var p = document.createElement("div");
+          p.className = "pkt"; p.style.left = s[0] + "px"; p.style.width = s[1] + "px";
+          p.style.background = "transparent"; p.style.border = "1.5px solid #9c988f";
+          document.getElementById("pk3").appendChild(p); sp.push(p);
+        });
+
+        /* ---------- 3：箭頭 ---------- */
+        var fl = document.getElementById("flow");
+        var d = el("defs", {}, fl);
+        var m = el("marker", { id: "ah", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, d);
+        el("path", { d: "M0 0 L10 5 L0 10 Z", fill: C.muted }, m);
+        function arrow(d1) { return el("path", { d: d1, stroke: C.muted, "stroke-width": 2.5, fill: "none", "marker-end": "url(#ah)" }, fl); }
+        var A0 = [arrow("M236 300 C 290 300, 290 270, 338 270"), arrow("M236 360 C 290 360, 290 390, 338 390")];
+        var A1 = [arrow("M584 270 L686 270"), arrow("M584 390 L686 390")];
+        var A2 = [arrow("M932 270 C 970 270, 970 300, 1006 310"), arrow("M932 390 C 970 390, 970 360, 1006 350")];
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.2, "#sub", 0.6);
+        out(3.8, ["#title", "#sub"], 0.35);
+
+        // 1（4.2–11.6）
+        inn(4.4, "#s1h", 0.6);
+        tl.fromTo("#box", { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 5.0);
+        inn(5.6, "#L1", 0.4);
+        tl.fromTo(vp, { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.04 }, 5.8);
+        inn(6.4, "#L2", 0.4);
+        tl.fromTo(ap, { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.025 }, 6.6);
+        inn(7.2, "#L3", 0.4);
+        tl.fromTo(sp, { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.1 }, 7.4);
+        inn(8.0, "#L4", 0.4);
+        inn(8.8, "#s1n", 0.5);
+        out(11.2, "#s1 > *", 0.35);
+
+        // 2（11.6–21.6）
+        inn(11.8, "#s2h", 0.6);
+        inn(12.4, "#c1", 0.5);
+        inn(14.2, "#c2", 0.5);
+        inn(16.0, "#c3", 0.5);
+        inn(17.8, "#s2c", 0.6);
+        out(21.2, "#s2 > *", 0.35);
+
+        // 3（21.6–29.6）
+        inn(21.8, "#s3h", 0.6);
+        inn(22.4, "#f0", 0.5);
+        tl.fromTo(A0, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 23.0);
+        inn(23.0, "#l0", 0.4);
+        inn(23.4, ["#f1a", "#f1b"], 0.5);
+        tl.fromTo(A1, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 24.2);
+        inn(24.2, "#l1", 0.4);
+        inn(24.6, ["#f2a", "#f2b"], 0.5);
+        tl.fromTo(A2, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 25.4);
+        inn(25.6, "#f3", 0.5);
+        tl.set(["#s3c .row"], { opacity: 0 }, 0);
+        inn(26.4, "#s3c", 0.5);
+        tl.fromTo("#s3c .row", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.8 }, 26.5);
+        out(29.2, "#s3 > *", 0.35);
+
+        // 4（29.6–36.4）
+        inn(29.8, "#s4h", 0.6);
+        inn(30.4, "#m1", 0.6);
+        inn(32.6, "#m2", 0.6);
+        out(36.0, "#s4 > *", 0.35);
+
+        // 5（36.4–45）
+        inn(36.6, "#s5h", 0.6);
+        tl.fromTo("#term", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 37.0);
+        tl.fromTo("#term .t", { opacity: 0 }, { opacity: 1, duration: 0.2, stagger: 0.18 }, 37.2);
+        tl.fromTo(["#a2", "#a3", "#a4", "#a6", "#a7"], { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.35, stagger: 0.35 }, 38.8);
+        inn(41.0, "#safe", 0.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w13-3"] = tl;
+      })();
+    </script>
+  </body>
+</html>

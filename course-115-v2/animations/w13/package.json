@@ -1,0 +1,23 @@
+{
+  "name": "w13-animations",
+  "version": "1.0.0",
+  "description": "多媒體系統 W13 影片的時間結構、編碼與容器：三支 HyperFrames 教學動畫",
+  "scripts": {
+    "fonts": "python3 tools/build-fonts.py",
+    "lint": "hyperframes lint w13-1-frames-and-bitrate && hyperframes lint w13-2-ipb-gop && hyperframes lint w13-3-codec-container",
+    "preview:1": "hyperframes preview w13-1-frames-and-bitrate",
+    "preview:2": "hyperframes preview w13-2-ipb-gop",
+    "preview:3": "hyperframes preview w13-3-codec-container",
+    "render:1": "hyperframes render w13-1-frames-and-bitrate -o ../../../docs/labs/w13/media/w13-1-frames-and-bitrate.mp4 --fps 30 --crf 20",
+    "render:2": "hyperframes render w13-2-ipb-gop -o ../../../docs/labs/w13/media/w13-2-ipb-gop.mp4 --fps 30 --crf 20",
+    "render:3": "hyperframes render w13-3-codec-container -o ../../../docs/labs/w13/media/w13-3-codec-container.mp4 --fps 30 --crf 20",
+    "render": "npm run render:1 && npm run render:2 && npm run render:3"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "gsap": "^3.15.1",
+    "hyperframes": "0.9.45"
+  },
+  "private": true
+}

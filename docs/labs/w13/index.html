@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="多媒體系統 W13 互動實驗：影片資料量、fps 與 VFR、YUV 色度取樣、DCT 量化、動作估計、I/P/B 與 GOP、瀏覽器 WebCodecs 實際編碼、ffprobe 技術身分證、控制變因指令產生器與開源工具。">
+<title>W13 影片編碼實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab notebook — sticky index; animation strip, then three parts (time & space, compression, codec/container); controls left, live result right. Same identity as the W08–W12 labs. */
+:root{
+  --bg:#121212; --surface:#1b1b1a; --sunk:#0c0c0c; --fg:#f2f0ea; --muted:#9c988f; --line:#33322f;
+  --accent:#ff7a1a; --accent-ink:#121212; --good:#5fc48a; --bad:#ff6b5e;
+  --display:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f6f4ef; --surface:#ffffff; --sunk:#ebe8e1; --fg:#1b1a17; --muted:#6b675f; --line:#d9d5cc;
+  --accent:#d95f00; --accent-ink:#ffffff; --good:#1e8a50; --bad:#c7362b; color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-weight:900}
+h2{font-size:clamp(1.45rem,3vw,2rem);font-weight:900}
+p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.acc{color:var(--accent)} .muted{color:var(--muted)} a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.top .wrap{display:flex;gap:16px;align-items:center;padding-block:10px}
+.top .brand{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.top nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.top nav a:hover,.top nav a.on{color:var(--fg);background:var(--surface)}
+.top nav .sep{color:var(--line);padding:4px 2px}
+.top .theme{margin-left:auto;flex:none;font-size:.82rem;padding:5px 12px;white-space:nowrap}
+.hero{padding-block:48px 24px;display:grid;gap:18px}
+.hero p.lede{max-width:46em;color:var(--muted);font-size:1.05rem}
+.views{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.views div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:2px}
+.views b{font-size:1.05rem} .views span{color:var(--muted);font-size:.88rem}
+@media (max-width:700px){.views{grid-template-columns:minmax(0,1fr)}}
+.part{margin-top:24px;padding:14px 0;border-top:3px solid var(--accent);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.part b{font-size:1.2rem} .part span{color:var(--muted)}
+button{font:inherit;font-size:.92rem;font-weight:700;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 16px;cursor:pointer}
+button:hover{border-color:var(--fg)} button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)} button.ghost{background:transparent}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+section.bench{padding-block:48px;border-top:1px solid var(--line);scroll-margin-top:64px}
+.bench-head{display:grid;gap:8px;margin-bottom:22px;max-width:52em}
+.bench-head .q{color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.ctrl{display:grid;gap:14px}
+.ctrl label{display:grid;gap:4px;font-size:.92rem}
+.ctrl label .lab{display:flex;justify-content:space-between;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font-size:.82rem;padding:5px 12px;font-weight:500}
+.seg button.on{border-color:var(--accent);color:var(--accent)}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:14px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:24px}
+.stat .v{font-family:var(--mono);font-size:1.6rem;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.try{border-left:3px solid var(--accent);padding:8px 14px;background:var(--sunk);border-radius:0 8px 8px 0;font-size:.93rem}
+.try b{color:var(--accent)}
+canvas{width:100%;height:auto;display:block;border-radius:8px;background:var(--sunk)}
+.cap{font-size:.8rem;color:var(--muted);margin-top:-6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:.92rem}
+.chk input{accent-color:var(--accent);width:18px;height:18px}
+.quiz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.quiz{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px}
+.qc select{font:inherit;font-size:.88rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px}
+.qc.ok{border-color:var(--good)} .qc.no{border-color:var(--bad)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:.92rem}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;color:var(--muted);font-size:.88rem}
+.links{display:flex;flex-wrap:wrap;gap:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.anim{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.anim{grid-template-columns:minmax(0,1fr)}}
+.anim figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid}
+.anim video{width:100%;aspect-ratio:16/9;display:block;background:#000}
+.anim figcaption{padding:10px 14px 12px;font-size:.86rem;color:var(--muted)}
+.anim figcaption b{color:var(--fg);display:block;font-size:.98rem}
+pre.code{font-family:var(--mono);font-size:.82rem;line-height:1.55;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+code{font-family:var(--mono);font-size:.9em}
+.tablewrap{overflow-x:auto}
+table.tb{border-collapse:collapse;width:100%;font-size:.88rem}
+table.tb th,table.tb td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+table.tb th{font-weight:500;color:var(--muted);font-size:.8rem}
+table.tb td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+table.tb tr.bad td{color:var(--bad)}
+.pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pipe span{font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.pipe i{color:var(--muted);font-style:normal}
+.qz{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start}
+.qcard .opts{display:flex;flex-wrap:wrap;gap:6px}
+.qcard .opts button{font-size:.82rem;padding:5px 10px;font-weight:500;text-align:left}
+.qcard .opts button.right{border-color:var(--good);color:var(--good)}
+.qcard .opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.qcard .fb{font-size:.86rem;color:var(--muted);min-height:1.4em}
+input[type=range]:disabled{opacity:.4}
+.ctrl label.chk,.form label.chk{display:flex;gap:8px;align-items:center}
+input[type=text],textarea,select{font:inherit;font-size:.92rem;background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%}
+textarea{min-height:72px;resize:vertical;line-height:1.6}
+.form label{display:grid;gap:4px;font-size:.92rem}
+.chks{display:flex;flex-wrap:wrap;gap:4px 16px}
+.flow{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:thin}
+.flow .fl{font-family:var(--mono);font-weight:600;color:var(--accent);align-self:center;min-width:3.4em}
+.flow i{color:var(--muted);font-style:normal;align-self:center}
+.flow button{display:grid;gap:2px;text-align:left;min-width:128px;font-weight:600;padding:8px 12px}
+.flow button small{font-weight:400;color:var(--muted);font-size:.78rem}
+.flow button.on{border-color:var(--accent);color:var(--accent)}
+.zgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.zgrid{grid-template-columns:minmax(0,1fr)}}
+.zcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:10px;align-content:start;min-width:0}
+.zcard h3{font-size:1.02rem}
+.warncard{border-color:var(--bad)}
+dl.kv{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:6px 12px;margin:0;font-size:.9rem}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
+ul.tight{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
+.align{display:flex;flex-wrap:wrap;gap:4px}
+.ac{display:grid;grid-template-rows:auto auto;min-width:2em;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--sunk);position:relative;padding:2px 4px;font-family:var(--mono)}
+.ac b{font-weight:500;line-height:1.5}.ac b+b{border-top:1px dashed var(--line)}
+.ac i{position:absolute;top:-9px;right:-6px;font-style:normal;font-size:.62rem;font-weight:700;border-radius:4px;padding:0 3px;color:var(--accent-ink)}
+.ac.tS{border-color:var(--accent)}.ac.tS i,.lgS{background:var(--accent)}
+.ac.tD{border-color:var(--bad)}.ac.tD i,.lgD{background:var(--bad)}
+.ac.tI{border-color:var(--good)}.ac.tI i,.lgI{background:var(--good)}
+.lgS,.lgD,.lgI{color:var(--accent-ink);border-radius:4px;padding:0 6px;margin-right:4px}
+td.wrap{white-space:normal;word-break:break-all}
+.bars{display:grid;gap:10px}
+.bars .br{display:grid;grid-template-columns:5em minmax(0,1fr) 8.5em;gap:10px;align-items:center;font-size:.9rem}
+.bars .bar{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.bars .bar i{display:block;height:100%;background:var(--accent)}
+.score select{width:auto;padding:4px 6px}
+.scenario .qcard{max-width:none}
+.pair2{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.pair2 canvas{max-width:100%;height:auto;border-radius:8px;background:var(--sunk)}
+.pair2 figure{margin:0;display:grid;gap:4px;flex:1 1 280px;min-width:0}
+.pair2 figure canvas{width:100%}
+#yCv,#qCv,#mCv{width:100%;cursor:crosshair;image-rendering:auto}
+#yCv{flex:1 1 320px;width:auto;max-width:100%} #yZm{width:min(272px,40vw);image-rendering:pixelated}
+table.coef{border-collapse:collapse;font-family:var(--mono);font-size:.74rem}
+table.coef td{border:1px solid var(--line);padding:2px 4px;text-align:right;min-width:2.6em}
+table.coef td.z{color:var(--muted);text-decoration:line-through;opacity:.6}
+table.coef td.nz{color:var(--accent);font-weight:600}
+.gopbox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:end}
+.glab{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.grow{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px}
+.gf{position:relative;flex:0 0 26px;height:96px;padding:0;border-radius:5px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-weight:600;background:var(--sunk)}
+.gf i{position:absolute;left:3px;right:3px;bottom:30px;border-radius:3px;background:var(--line)}
+.gf b{font-size:.78rem;line-height:1}.gf small{font-size:.6rem;color:var(--muted);margin-bottom:3px}
+.gf.gI i{background:var(--accent)}.gf.gP i{background:var(--fg);opacity:.55}.gf.gB i{background:var(--muted);opacity:.5}
+.gf{max-height:none}.gf i{max-height:60px}
+.gf.need{border-color:var(--good);box-shadow:0 0 0 2px var(--good) inset}
+.gf.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.gf.cut::after{content:"✂";position:absolute;top:-2px;font-size:.7rem;color:var(--bad)}
+.box .ctn{border:2px solid var(--accent);border-radius:10px;padding:12px;display:grid;gap:8px}
+.box .ctn>small{color:var(--muted);font-family:var(--mono);font-size:.78rem}
+.box .st{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--sunk);font-size:.9rem}
+.box .st-video{border-left:4px solid var(--accent)}.box .st-audio{border-left:4px solid var(--good)}.box .st-meta,.box .st-data{border-left:4px solid var(--muted)}
+.warn{color:var(--bad)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.tcard{display:grid;gap:8px;align-content:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--fg);text-decoration:none}
+.tcard:hover{border-color:var(--accent)}.tcard p{font-size:.9rem;margin:0}
+.pill{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted);white-space:nowrap}
+#eOrig,#eDec{width:100%;height:auto}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <span class="brand">W13<span class="acc">／</span>影片編碼實驗室</span>
+  <nav id="nav">
+    <a href="#anim">動畫</a><span class="sep">｜</span>
+    <a href="#rate">資料量</a><a href="#fps">fps</a><span class="sep">｜</span>
+    <a href="#yuv">YUV</a><a href="#intra">幀內</a><a href="#motion">幀間</a><a href="#gop">GOP</a><a href="#encode">實際編碼</a><span class="sep">｜</span>
+    <a href="#probe">ffprobe</a><a href="#cmd">控制變因</a><a href="#tools">開源工具</a><a href="#check">檢核</a>
+  </nav>
+  <button class="ghost theme" id="themeBtn" type="button" aria-label="切換深色／淺色">☾ 深色</button>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">多媒體系統・MS-115 日間部・Week 13</span>
+    <h1>一分鐘 1080p 原始影片 <span class="acc">11.2 GB</span>，MP4 只要 <span class="acc">61 MB</span></h1>
+    <p class="lede">影片多了時間維度，是一連串的影格，再加上聲音、字幕和 Metadata。這一週拆開看：資料量怎麼算、為什麼能壓縮幾百倍、I／P／B 與 GOP 怎麼影響剪輯，以及 Codec、Encoder、Container 為什麼是三件不同的事。頁面上的畫面都是程式即時畫出來的示範畫面。</p>
+    <div class="views">
+      <div><b>時間</b><span>Frames ≈ T × f，fps 是時間取樣密度</span></div>
+      <div><b>空間</b><span>Resolution 決定每格 Pixel 數，YUV 4:2:0 再省一半</span></div>
+      <div><b class="acc">壓縮</b><span>空間冗餘 ＋ 時間冗餘，預測得到的就不必重存</span></div>
+    </div>
+  </div>
+
+  <section class="bench" id="anim">
+    <div class="bench-head"><span class="eyebrow">動畫講解</span><h2>先看三支短動畫</h2>
+      <p class="q">每支 40 秒左右，沒有旁白，適合邊播邊講，可以全螢幕播放。</p></div>
+    <div class="anim" id="animGrid">
+      <figure><video controls playsinline preload="none" poster="media/w13-1-frames-and-bitrate.jpg" src="media/w13-1-frames-and-bitrate.mp4"></video><figcaption><b>1・影片 ＝ 影格 × 時間</b>原始資料量與 Bitrate（13.1–13.7）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w13-2-ipb-gop.jpg" src="media/w13-2-ipb-gop.mp4"></video><figcaption><b>2・I、P、B 與 GOP</b>動作估計、殘差與跳轉（13.8–13.15）</figcaption></figure>
+      <figure><video controls playsinline preload="none" poster="media/w13-3-codec-container.jpg" src="media/w13-3-codec-container.mp4"></video><figcaption><b>3・Codec、Encoder、Container 是三層</b>Mux、Demux 與 ffprobe（13.16–13.24）</figcaption></figure>
+    </div>
+  </section>
+
+  <div class="part"><b>時間與空間</b><span>13.1–13.7：影格、fps、解析度、資料量與 Bitrate</span></div>
+
+  <section class="bench" id="rate">
+    <div class="bench-head"><span class="eyebrow">實驗 1・13.1、13.4–13.6</span><h2>資料量計算器：原始影片 vs 壓縮後</h2>
+      <p class="q">原始資料量 ＝ 寬 × 高 × 每個 Pixel 的 Bytes × fps × 秒數。壓縮後的檔案大小主要看總 Bitrate：File Size ≈ Total Bitrate × Duration ÷ 8。預設值就是講義 13.5、13.6 的例子。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">解析度</div><div class="seg" id="rRes"></div>
+        <div class="lab">fps</div><div class="seg" id="rFps"></div>
+        <div class="lab">每個 Pixel</div><div class="seg" id="rPix"></div>
+        <label><span class="lab">長度<span class="mono" id="rDurV"></span></span><input type="range" id="rDur" min="1" max="600" step="1" value="60"></label>
+        <label><span class="lab">Video Bitrate<span class="mono" id="rVbV"></span></span><input type="range" id="rVb" min="0.5" max="50" step="0.5" value="8"></label>
+        <div class="lab">Audio Bitrate</div><div class="seg" id="rAb"></div>
+        <div class="try"><b>動手：</b>把解析度從 1080p 換成 4K，原始資料量變幾倍？如果 Video Bitrate 不變，壓縮後的檔案會變大嗎？這就是「4K 的 Pixel 是 4 倍，但壓縮後不一定 4 倍」。</div>
+      </div>
+      <div class="stage">
+        <div class="stats"><div class="stat"><div class="v" id="rFrames"></div><div class="k">影格數 T × f</div></div><div class="stat"><div class="v" id="rPx"></div><div class="k">每格 Pixel</div></div><div class="stat"><div class="v" id="rRawR"></div><div class="k">原始 Bit Rate</div></div></div>
+        <pre class="code" id="rCalc"></pre>
+        <div class="stats"><div class="stat"><div class="v" id="rRaw"></div><div class="k">原始資料量</div></div><div class="stat"><div class="v acc" id="rComp"></div><div class="k">壓縮後約</div></div><div class="stat"><div class="v acc" id="rRatio"></div><div class="k">小了幾倍</div></div></div>
+        <canvas id="rCv" width="1200" height="260"></canvas><p class="cap">三種解析度的 Pixel 數，面積按比例畫</p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="fps">
+    <div class="bench-head"><span class="eyebrow">實驗 2・13.2–13.3</span><h2>fps 是時間取樣密度；CFR 和 VFR</h2>
+      <p class="q">同一顆快速移動的球，用不同 fps 取樣：每一格只記錄那一瞬間的位置。手機錄影常是 VFR（可變 frame rate），平均 30 fps 不代表每一秒都剛好 30 格，ffprobe 會分別顯示 <code>r_frame_rate</code> 和 <code>avg_frame_rate</code>。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">fps</div><div class="seg" id="fFps"></div>
+        <label class="chk"><input type="checkbox" id="fVfr">VFR：模擬手機在暗處或忙碌時掉格、間隔不固定</label>
+        <label class="chk"><input type="checkbox" id="fTrail" checked>顯示取樣軌跡</label>
+        <div class="try"><b>動手：</b>12 fps 和 60 fps 的軌跡差在哪？fps 越高越好嗎？想想檔案大小和用途：講課錄影需要 60 fps 嗎？</div>
+      </div>
+      <div class="stage"><canvas id="fCv" width="1200" height="300"></canvas>
+        <canvas id="fTl" width="1200" height="110"></canvas><p class="cap">下方是最近 1 秒每一格的時間點（橘色），灰色刻度是理想的固定間隔</p>
+        <div class="stats"><div class="stat"><div class="v" id="fR"></div><div class="k">r_frame_rate</div></div><div class="stat"><div class="v acc" id="fAvg"></div><div class="k">avg_frame_rate（最近 1 秒）</div></div></div></div>
+    </div>
+  </section>
+
+  <div class="part"><b>壓縮怎麼做到</b><span>13.8–13.15：YUV、幀內壓縮、動作估計、I／P／B 與 GOP</span></div>
+
+  <section class="bench" id="yuv">
+    <div class="bench-head"><span class="eyebrow">實驗 3・13.10</span><h2>YUV 與 Chroma Subsampling</h2>
+      <p class="q">影片常把顏色拆成亮度 Y 和兩個色差 Cb、Cr。人眼對亮度細節比較敏感，所以色差可以降低解析度：4:2:0 是每 2×2 個 Pixel 共用一組 Cb、Cr。<code>yuv420p</code> 是 Pixel Format，不是解析度，也不是 Codec。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">取樣方式</div><div class="seg" id="ySub"></div>
+        <div class="lab">顯示</div><div class="seg" id="yView"></div>
+        <div class="try"><b>動手：</b>切到 4:2:0，整張圖看得出差別嗎？再看右邊放大的紅字邊緣。切到 Cb、Cr 通道，它們看起來比 Y 模糊很多嗎？</div>
+      </div>
+      <div class="stage"><div class="pair2"><canvas id="yCv" width="480" height="272"></canvas><canvas id="yZm" width="272" height="272"></canvas></div>
+        <p class="cap">左：整張畫面（點一下可移動右邊的放大區）　右：放大 4 倍</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="yBpp"></div><div class="k">每個 Pixel 平均 Bytes</div></div><div class="stat"><div class="v" id="yFrame"></div><div class="k">一格 1080p 的原始大小</div></div><div class="stat"><div class="v" id="yPsnr"></div><div class="k">和原圖的 PSNR</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="intra">
+    <div class="bench-head"><span class="eyebrow">實驗 4・13.8–13.9</span><h2>幀內壓縮：轉換、量化、丟掉小係數</h2>
+      <p class="q">把畫面切成 8×8 的小方塊，用 DCT 轉成「頻率係數」：左上角是整塊的平均亮度，越往右下越是細節。量化時把係數除以一個步長再四捨五入，小係數就變成 0，像 13 4 2 1 0.5 → 13 4 0 0 0。真正丟資訊的就是這一步。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">品質（量化強度）<span class="mono" id="qV"></span></span><input type="range" id="q" min="1" max="100" step="1" value="50"></label>
+        <div class="lab">顯示</div><div class="seg" id="qView"></div>
+        <p class="mono muted" id="qBlk" style="font-size:.85rem"></p>
+        <div class="tablewrap"><table class="coef" id="qCoef"></table></div>
+        <div class="try"><b>動手：</b>品質降到 10，哪裡最先出現方塊感？天空、牆面這種平坦區域，和葉子、文字這種細節區域，哪一種的係數比較多是 0？點左圖選另一個方塊比較。</div>
+      </div>
+      <div class="stage"><canvas id="qCv" width="480" height="272"></canvas><p class="cap">只處理亮度 Y。點一下畫面可以選要看的 8×8 方塊（橘框）。</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="qZero"></div><div class="k">變成 0 的係數</div></div><div class="stat"><div class="v" id="qPsnr"></div><div class="k">PSNR</div></div><div class="stat"><div class="v" id="qBits"></div><div class="k">剩下的非零係數</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="motion">
+    <div class="bench-head"><span class="eyebrow">實驗 5・13.11、13.14</span><h2>幀間壓縮：動作估計、Motion Vector 與殘差</h2>
+      <p class="q">編碼器在前一格（參考畫面）裡找最像的區塊，記下位移 Motion Vector，再只編碼預測不準的差異（Residual）。解碼時：預測 ＋ 殘差 ＝ 重建畫面。殘差越小，越好壓縮。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">畫面</div><div class="seg" id="mScene"></div>
+        <label><span class="lab">搜尋範圍（±Pixel）<span class="mono" id="mRngV"></span></span><input type="range" id="mRng" min="0" max="12" step="2" value="8"></label>
+        <div class="lab">顯示</div><div class="seg" id="mView"></div>
+        <div class="try"><b>動手：</b>講課畫面的殘差幾乎是黑的，代表很好壓縮。換成「鏡頭平移」：搜尋範圍 0 和 8 差多少？換成「紙花」：為什麼動作估計也救不了？</div>
+      </div>
+      <div class="stage"><canvas id="mCv" width="480" height="272"></canvas><p class="cap" id="mCap"></p>
+        <div class="stats"><div class="stat"><div class="v" id="mE0"></div><div class="k">殘差：直接相減</div></div><div class="stat"><div class="v acc" id="mE1"></div><div class="k">殘差：動作補償後</div></div><div class="stat"><div class="v acc" id="mRed"></div><div class="k">減少</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="bench" id="gop">
+    <div class="bench-head"><span class="eyebrow">實驗 6・13.12–13.13、13.15</span><h2>I、P、B 與 GOP：跳轉和剪切為什麼會卡</h2>
+      <p class="q">I 自己就能解碼；P 用之前解好的參考畫面預測；B 可以同時參考前、後的參考畫面。點任一格，看要「跳到這裡」得先解碼哪些格。下面的剪切滑桿說明 <code>-c copy</code> 為什麼只能從 I 開始。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <label><span class="lab">GOP 長度<span class="mono" id="gLenV"></span></span><input type="range" id="gLen" min="4" max="30" step="1" value="12"></label>
+        <label><span class="lab">連續 B-frame 數<span class="mono" id="gBV"></span></span><input type="range" id="gB" min="0" max="3" step="1" value="2"></label>
+        <label><span class="lab">想從第幾格開始剪<span class="mono" id="gCutV"></span></span><input type="range" id="gCut" min="0" max="35" step="1" value="17"></label>
+        <pre class="code" id="gCode"></pre>
+        <div class="try"><b>動手：</b>GOP 從 4 調到 30：點最後一格，要先解碼幾格？長 GOP 壓縮效率高，但跳轉、剪輯、出錯時要恢復都比較辛苦。</div>
+      </div>
+      <div class="stage"><div class="gopbox"><div class="glab">顯示順序</div><div class="grow" id="gDisp"></div><div class="glab">解碼順序</div><div class="grow" id="gDec"></div></div>
+        <p class="cap">高度是示意的資料量（I 最大、B 最小）。點一格看相依關係：<span class="lgI">要先解碼</span>　<span class="lgS">你選的格</span></p>
+        <p id="gInfo"></p>
+        <p id="gCutInfo" class="muted"></p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="encode">
+    <div class="bench-head"><span class="eyebrow">實驗 7・13.7、13.14、13.18–13.20</span><h2>真的編碼一次：用瀏覽器內建的編碼器</h2>
+      <p class="q">這個實驗用瀏覽器的 WebCodecs，把 3 秒、640×360 的畫面真的編碼成 H.264、VP8、VP9 或 AV1，再解碼回來給你看。每一格壓縮後多大、哪一格是 Key Frame，都是編碼器實際輸出的數字。一次只改一個變因，結果會記錄在下方表格。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">畫面</div><div class="seg" id="eScene"></div>
+        <div class="lab">Codec</div><div class="seg" id="eCodec"></div>
+        <label><span class="lab">Bitrate<span class="mono" id="eBrV"></span></span><input type="range" id="eBr" min="0" max="100" step="1" value="60"></label>
+        <label><span class="lab">Keyframe 間隔（GOP）<span class="mono" id="eGopV"></span></span><input type="range" id="eGop" min="5" max="90" step="5" value="30"></label>
+        <div class="lab">Bitrate 模式</div><div class="seg" id="eMode"></div>
+        <button class="primary" id="eRun">編碼 3 秒</button>
+        <p id="eInfo" class="muted" style="font-size:.86rem"></p>
+        <div class="try"><b>動手：</b>先預測：同樣 300 kbps，講課畫面和紙花畫面誰比較糊？再只把 Codec 從 H.264 換成 AV1，看同樣 Bitrate 下畫質差多少。</div>
+      </div>
+      <div class="stage">
+        <canvas id="eBars" width="1200" height="220"></canvas><p class="cap">每一格壓縮後的大小：<span class="lgS">Key Frame</span>　其他是 Delta Frame。瀏覽器編碼器通常不產生 B-frame。</p>
+        <div class="stats"><div class="stat"><div class="v acc" id="eSize"></div><div class="k">總大小</div></div><div class="stat"><div class="v" id="eKbps"></div><div class="k">實際 Bitrate</div></div><div class="stat"><div class="v" id="eKD"></div><div class="k">Key 平均 ／ Delta 平均</div></div><div class="stat"><div class="v" id="ePsnr"></div><div class="k">平均 PSNR</div></div><div class="stat"><div class="v" id="eTime"></div><div class="k">編碼時間</div></div></div>
+        <label><span class="lab">看第幾格<span class="mono" id="eFrV"></span></span><input type="range" id="eFr" min="0" max="89" step="1" value="45"></label>
+        <div class="pair2"><figure><canvas id="eOrig" width="640" height="360"></canvas><figcaption>原始畫面</figcaption></figure><figure><canvas id="eDec" width="640" height="360"></canvas><figcaption id="eDecCap">解碼後</figcaption></figure></div>
+      </div>
+    </div>
+    <div class="tablewrap" style="margin-top:20px"><table class="tb" id="eLog"></table></div>
+    <div class="row" style="margin-top:10px"><button id="eCopy">複製實驗紀錄（Markdown）</button><button class="ghost" id="eClear">清空紀錄</button></div>
+  </section>
+
+  <div class="part"><b>Codec、Encoder、Container</b><span>13.16–13.25：封裝、ffprobe、控制變因實驗</span></div>
+
+  <section class="bench" id="probe">
+    <div class="bench-head"><span class="eyebrow">實驗 8・13.16–13.17、13.22–13.24</span><h2>ffprobe 解讀器：做一張影片的技術身分證</h2>
+      <p class="q">不要看副檔名或播放器猜格式。用講義 13.23 的指令拿到 JSON，貼到這裡，就會拆出 Container 裡有哪些 Stream，並整理成 Video Technical Card。</p></div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="lab">範例</div><div class="seg" id="pPre"></div>
+        <label>檔名（看看副檔名和內容是否一致）<input type="text" id="pName" value="input.mp4"></label>
+        <label>ffprobe 輸出（JSON）<textarea id="pJson" class="mono" style="min-height:260px;font-size:.8rem"></textarea></label>
+        <pre class="code">ffprobe -v error \
+  -show_entries \
+  stream=index,codec_type,codec_name,width,height,pix_fmt,r_frame_rate,avg_frame_rate,bit_rate,sample_rate,channels:format=format_name,duration,size,bit_rate \
+  -of json \
+  input.mp4</pre>
+      </div>
+      <div class="stage"><div class="box" id="pBox"></div><ul class="tight" id="pNotes"></ul>
+        <div class="row" style="justify-content:space-between"><b>Video Technical Card</b><button id="pCopy">複製</button></div><pre class="code" id="pCard"></pre></div>
+    </div>
+  </section>
+
+  <section class="bench" id="cmd">
+    <div class="bench-head"><span class="eyebrow">實驗 9・13.19–13.21、13.25</span><h2>控制變因：FFmpeg 指令產生器</h2>
+      <p class="q">基準設定是講義 13.20 的指令：MP4 ＋ H.264（libx264）＋ AAC，CRF 23、preset medium。每改一個選項，下面會列出你改了哪些變因。改超過一個，就無法判斷差異來自哪裡。</p></div>
+    <div class="cols">
+      <div class="ctrl form">
+        <label>Encoder<select id="cEnc"><option value="libx264">libx264（H.264）</option><option value="libx265">libx265（H.265／HEVC）</option><option value="libsvtav1">libsvtav1（AV1）</option><option value="libvpx-vp9">libvpx-vp9（VP9）</option></select></label>
+        <label><span class="lab">CRF<span class="mono" id="cCrfV"></span></span><input type="range" id="cCrf" min="0" max="51" step="1" value="23"></label>
+        <label>Preset<select id="cPre"></select></label>
+        <label>解析度<select id="cScale"><option value="">維持原尺寸</option><option value="1280:720">1280×720</option><option value="854:480">854×480</option></select></label>
+        <label>fps<select id="cFps"><option value="">維持原 fps</option><option value="24">24</option><option value="30">30</option><option value="60">60</option></select></label>
+        <label>音訊<select id="cAud"><option value="aac128">AAC 128k</option><option value="copy">直接複製（-c:a copy）</option><option value="aac96">AAC 96k</option></select></label>
+        <button class="ghost" id="cReset">回到基準</button>
+      </div>
+      <div class="stage"><pre class="code" id="cOut"></pre><div id="cDiff"></div>
+        <div class="tablewrap"><table class="tb"><tr><th>CRF</th><th>File Size</th><th>Encode Time</th><th>Visual Quality</th><th>Artifact</th></tr><tr><td>18</td><td></td><td></td><td></td><td></td></tr><tr><td>23</td><td></td><td></td><td></td><td></td></tr><tr><td>28</td><td></td><td></td><td></td><td></td></tr></table></div>
+        <p class="cap">講義實驗 A 的紀錄表。Colab 會自動跑這三個版本並填入大小、時間與 PSNR／SSIM。</p></div>
+    </div>
+  </section>
+
+  <section class="bench" id="tools">
+    <div class="bench-head"><span class="eyebrow">延伸・開源工具箱</span><h2>這一章可以搭配的開源工具</h2>
+      <p class="q">FFmpeg 是核心。下面這些工具都是開源的，各自補上講義的一塊：看結構、量品質、找場景、無損剪切、圖形介面轉檔。Colab 會實際用到前四個。</p></div>
+    <div class="tgrid" id="tGrid"></div>
+  </section>
+
+  <section class="bench" id="check">
+    <div class="bench-head"><span class="eyebrow">檢核・13.27–13.28</span><h2>做完實驗，檢查一下</h2>
+      <p class="q">點選答案，會立刻告訴你對不對和原因。</p></div>
+    <div class="qz" id="qz"></div>
+    <p class="muted" style="margin-top:12px" id="qzScore"></p>
+  </section>
+</main>
+
+<footer><div class="wrap" style="display:grid;gap:12px">
+  <div class="links">
+    <a href="https://hackmd.io/YHLQNX54SGey5O_O5c4g1g" target="_blank" rel="noopener">講義：第 13 章｜影片的時間結構、編碼與容器</a>
+    <a href="https://colab.research.google.com/github/willismax/MediaSystem-Python-Course/blob/main/course-115-v2/colab/W13_%E5%BD%B1%E7%89%87%E7%B7%A8%E7%A2%BC%E8%88%87%E5%AE%B9%E5%99%A8.ipynb" target="_blank" rel="noopener">Colab：W13 影片編碼與容器</a>
+    <a href="../w12/">上一週：W12 語音 AI 實驗室</a>
+  </div>
+  <p>頁面上的畫面都是程式即時畫出來的；實驗 7 用你的瀏覽器內建編碼器，不同瀏覽器支援的 Codec 不一樣。動畫原始檔（HyperFrames）在 repo 的 <code>course-115-v2/animations/w13/</code>。</p>
+</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SR=22050;
+let AC=null;function ctx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+/* Playback: render to a WAV and play it with an <audio> element, which phones play even with the
+   silent switch on (iOS mutes Web Audio in that case). Web Audio is the fallback. */
+let cur=null,url=null;const AEL=new Audio();AEL.preload='auto';AEL.setAttribute('playsinline','');
+function wavBlob(d,sr){const n=d.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+ for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,d[i]))*32767),true);return new Blob([b],{type:'audio/wav'})}
+function playWebAudio(d,sr){const ac=ctx();if(!ac)return;if(cur){try{cur.stop()}catch(e){}}const b=ac.createBuffer(1,d.length,sr);b.getChannelData(0).set(d);const s=ac.createBufferSource();s.buffer=b;s.connect(ac.destination);s.start();cur=s}
+function play(y,sr=SR){const d=new Float32Array(y.length);for(let i=0;i<y.length;i++)d[i]=.9*Math.max(-1,Math.min(1,y[i]));
+ const n=Math.min(300,d.length>>2);for(let i=0;i<n;i++){d[i]*=i/n;d[d.length-1-i]*=i/n}
+ if(cur){try{cur.stop()}catch(e){}cur=null}
+ try{AEL.pause();if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(wavBlob(d,sr));AEL.src=url;AEL.currentTime=0;const p=AEL.play();if(p&&p.catch)p.catch(()=>playWebAudio(d,sr))}catch(e){playWebAudio(d,sr)}}
+function rng(seed){return()=>{let t=(seed+=0x6D2B79F5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const tone=(f,sec,a=.3,sr=SR)=>Float32Array.from({length:Math.round(sr*sec)},(_,i)=>a*Math.sin(2*Math.PI*f*i/sr));
+function harm(f,sec,amps,decay=0,a=.3){const n=Math.round(SR*sec),y=new Float32Array(n);let m=0;for(let i=0;i<n;i++){const t=i/SR;let s=0;amps.forEach((A,k)=>s+=A*Math.sin(2*Math.PI*f*(k+1)*t));if(decay)s*=Math.exp(-t*decay);y[i]=s;m=Math.max(m,Math.abs(s))}for(let i=0;i<n;i++)y[i]*=a/m;return y}
+function clap(sec=.4,a=.6,seed=3){const r=rng(seed),n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>a*gauss(r)*Math.exp(-i/SR*45))}
+function sweep(f0,f1,sec,a=.3){const n=Math.round(SR*sec);return Float32Array.from({length:n},(_,i)=>{const t=i/SR;return a*Math.sin(2*Math.PI*(f0*t+(f1-f0)*t*t/(2*sec)))})}
+const cat=(...a)=>{const n=a.reduce((s,x)=>s+x.length,0),y=new Float32Array(n);let o=0;a.forEach(x=>{y.set(x,o);o+=x.length});return y};
+const add=(...a)=>{const n=Math.max(...a.map(x=>x.length)),y=new Float32Array(n);a.forEach(x=>{for(let i=0;i<x.length;i++)y[i]+=x[i]});return y};
+const sil=s=>new Float32Array(Math.round(SR*s));
+
+/* FFT (radix-2, in place) */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+ for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],xr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,xi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+xr;im[i+k]=ui+xi;re[i+k+len/2]=ur-xr;im[i+k+len/2]=ui-xi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+const hann=n=>Float32Array.from({length:n},(_,i)=>.5-.5*Math.cos(2*Math.PI*i/(n-1)));
+function spectrum(y,N=16384){const n=Math.min(N,1<<Math.floor(Math.log2(y.length))),re=new Float32Array(N),im=new Float32Array(N),off=0;for(let i=0;i<Math.min(y.length,N);i++)re[i]=y[i];fft(re,im);return Float32Array.from({length:N/2},(_,k)=>Math.hypot(re[k],im[k]))}
+function stft(y,nfft,hop,sr=SR){const w=hann(nfft),frames=[];for(let s=0;s+nfft<=y.length;s+=hop){const re=new Float32Array(nfft),im=new Float32Array(nfft);for(let i=0;i<nfft;i++)re[i]=y[s+i]*w[i];fft(re,im);frames.push(Float32Array.from({length:nfft/2},(_,k)=>Math.hypot(re[k],im[k])))}return frames}
+
+/* drawing */
+function cv(id){const c=$(id),g=c.getContext('2d');return[c,g]}
+function clear(g,c){g.fillStyle=css('--sunk');g.fillRect(0,0,c.width,c.height)}
+function drawWave(id,y,{x0=0,x1=y.length,col=css('--fg'),lw=3,clearIt=true,yScale=1,dots=null}={}){const[c,g]=cv(id);if(clearIt){clear(g,c);g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.moveTo(0,c.height/2);g.lineTo(c.width,c.height/2);g.stroke()}
+ const n=x1-x0,H=c.height/2-14;g.strokeStyle=col;g.lineWidth=lw;g.beginPath();
+ if(n>c.width*2){for(let px=0;px<c.width;px++){let mn=1,mx=-1;const a=x0+Math.floor(px/c.width*n),b=x0+Math.floor((px+1)/c.width*n);for(let i=a;i<b;i++){mn=Math.min(mn,y[i]);mx=Math.max(mx,y[i])}g.moveTo(px,c.height/2-mx*H*yScale);g.lineTo(px,c.height/2-mn*H*yScale)}}
+ else for(let i=0;i<n;i++){const X=i/(n-1)*c.width,Y=c.height/2-y[x0+i]*H*yScale;i?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke()}
+function drawSpec(id,y,fmax=4000){const[c,g]=cv(id);clear(g,c);const N=16384,S=spectrum(y,N),bin=SR/N,kmax=Math.min(S.length,Math.floor(fmax/bin));let m=0;for(let k=1;k<kmax;k++)m=Math.max(m,S[k]);
+ g.strokeStyle=css('--accent');g.lineWidth=2;g.beginPath();for(let k=0;k<kmax;k++){const X=k/kmax*c.width,Y=c.height-14-S[k]/m*(c.height-30);k?g.lineTo(X,Y):g.moveTo(X,Y)}g.stroke();
+ g.fillStyle=css('--muted');g.font='22px JetBrains Mono, monospace';for(let f=0;f<=fmax;f+=fmax/4)g.fillText(f+'',f/fmax*c.width+(f?-40:4),c.height-18<20?20:24)}
+function cmap(v){const c0=css('--sunk'),c1=css('--accent'),c2=css('--fg');const h=s=>{s=s.replace('#','');return[0,2,4].map(i=>parseInt(s.slice(i,i+2),16))};const a=h(c0),b=h(c1),d=h(c2);return v<.7?a.map((x,i)=>x+(b[i]-x)*v/.7):b.map((x,i)=>x+(d[i]-x)*(v-.7)/.3)}
+function drawSg(id,y,nfft,hop,fmax,sr=SR){const[c,g]=cv(id);const F=stft(y,nfft,hop,sr);if(!F.length){clear(g,c);return}const kmax=Math.min(nfft/2,Math.ceil(fmax/(sr/nfft)));let m=1e-12;F.forEach(f=>{for(let k=0;k<kmax;k++)m=Math.max(m,f[k])});
+ const im=g.createImageData(F.length,kmax);const lut=[];for(let i=0;i<=255;i++)lut.push(cmap(i/255));
+ F.forEach((f,x)=>{for(let k=0;k<kmax;k++){const db=20*Math.log10(f[k]/m+1e-12),v=Math.max(0,Math.min(1,(db+60)/60)),col=lut[Math.round(v*255)],o=((kmax-1-k)*F.length+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255}});
+ const tmp=document.createElement('canvas');tmp.width=F.length;tmp.height=kmax;tmp.getContext('2d').putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(tmp,0,0,c.width,c.height);
+ g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(fmax+' Hz',8,26);g.fillText('0',8,c.height-10)}
+function seg(id,opts,val,cb,fmt=v=>v){const el=$(id);el.innerHTML=opts.map(o=>`<button data-v="${o}">${fmt(o)}</button>`).join('');const set=v=>{el.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)));cb(v)};el.addEventListener('click',e=>{const b=e.target.closest('button');if(b)set(isNaN(+b.dataset.v)?b.dataset.v:+b.dataset.v)});set(val);return set}
+
+/* ===================== W13 ===================== */
+const SW=480,SH=272;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const fmtB=b=>b>=1e9?(b/1e9).toFixed(2)+' GB':b>=1e6?(b/1e6).toFixed(2)+' MB':b>=1e3?(b/1e3).toFixed(1)+' KB':Math.round(b)+' B';
+const fmtN=n=>Math.round(n).toLocaleString('en-US');
+function segSet(id,v){$(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)))}
+
+/* ---- scene renderer: a classroom frame (smooth sky, slide with coloured text, textured plant) ---- */
+const LEAVES=(()=>{const r=rng(17),a=[];for(let i=0;i<150;i++)a.push([420+r()*55,175+r()*70,3+r()*6,2+r()*3,r()*3.14,`hsl(${95+r()*50},${45+r()*30}%,${22+r()*28}%)`]);return a})();
+const CONF=(()=>{const r=rng(29),a=[];for(let i=0;i<320;i++)a.push([r()*900,r()*272,40+r()*90,r()*6.28,1+r()*4,`hsl(${Math.floor(r()*360)},85%,${50+r()*20}%)`]);return a})();
+function drawScene(g,W,H,t,kind='lecture'){const s=W/SW;g.save();g.setTransform(s,0,0,s,0,0);
+ const pan=kind==='pan'?-t*60:kind==='confetti'?-t*90:0;g.translate(pan,0);
+ g.fillStyle='#d8cfbf';g.fillRect(-20,0,1000,SH);
+ const sky=g.createLinearGradient(0,20,0,120);sky.addColorStop(0,'#6fa8de');sky.addColorStop(1,'#d9eaf8');g.fillStyle=sky;g.fillRect(20,20,130,100);
+ g.strokeStyle='#7d6b55';g.lineWidth=5;g.strokeRect(20,20,130,100);g.beginPath();g.moveTo(85,20);g.lineTo(85,120);g.stroke();
+ g.fillStyle='#fbfbf7';g.fillRect(170,16,232,156);g.strokeStyle='#2b2b2b';g.lineWidth=2;g.strokeRect(170,16,232,156);
+ g.fillStyle='#d62828';g.font='900 24px "Noto Sans TC",sans-serif';g.fillText('影片壓縮',184,48);
+ g.fillStyle='#1d4ed8';g.font='500 15px "Noto Sans TC",sans-serif';g.fillText('I・P・B 與 GOP',184,74);
+ g.fillStyle='#222';g.fillText('YUV 4:2:0　Bitrate',184,96);
+ [['#f97316',38],['#16a34a',24],['#7c3aed',46],['#0891b2',30]].forEach(([c,h],i)=>{g.fillStyle=c;g.fillRect(196+i*44,162-h,28,h)});
+ g.fillStyle='#8d7b62';g.fillRect(-20,224,1000,60);g.strokeStyle='#7a6950';g.lineWidth=1;for(let x=-20;x<1000;x+=46){g.beginPath();g.moveTo(x,224);g.lineTo(x+18,272);g.stroke()}
+ g.fillStyle='#9a4a24';g.fillRect(426,236,42,30);LEAVES.forEach(([x,y,a,b,r,c])=>{g.fillStyle=c;g.beginPath();g.ellipse(x,y,a,b,r,0,7);g.fill()});
+ g.fillStyle='#f4efe6';g.fillRect(520,30,170,150);g.strokeStyle='#333';g.strokeRect(520,30,170,150);for(let i=0;i<10;i++)for(let j=0;j<8;j++)if((i+j)%2){g.fillStyle='#2f2f2f';g.fillRect(530+i*15,60+j*13,15,13)}
+ g.fillStyle='#b91c1c';g.font='900 22px "JetBrains Mono",monospace';g.fillText('W13',570,52);
+ const lx=118+6*Math.sin(t*2.2);g.strokeStyle='#e0b08a';g.lineWidth=5;g.beginPath();g.moveTo(lx+16,182);const px=190+((t*60)%190);g.lineTo(lx+40,160);g.stroke();
+ g.fillStyle='#1e3a8a';g.beginPath();g.roundRect(lx-22,166,44,62,10);g.fill();g.fillStyle='#e0b08a';g.beginPath();g.arc(lx,150,14,0,7);g.fill();g.fillStyle='#2b1d14';g.beginPath();g.arc(lx,145,14,Math.PI,0);g.fill();
+ g.fillStyle='#ef4444';g.beginPath();g.arc(px,132,5,0,7);g.fill();
+ if(kind==='confetti')CONF.forEach(([x,y0,v,r,sz,c])=>{const y=(y0+t*v)%SH;g.save();g.translate(x,y);g.rotate(r+t*sz*2);g.fillStyle=c;g.fillRect(-sz,-sz*1.6,sz*2,sz*3.2);g.restore()});
+ g.restore()}
+function sceneData(t,kind,W=SW,H=SH){const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');drawScene(g,W,H,t,kind);return g.getImageData(0,0,W,H)}
+function toY(im){const d=im.data,n=im.width*im.height,Y=new Float32Array(n);for(let i=0;i<n;i++)Y[i]=.299*d[4*i]+.587*d[4*i+1]+.114*d[4*i+2];return Y}
+function psnr(a,b,n,stride=1){let s=0,c=0;for(let i=0;i<n;i+=stride){const e=a[i]-b[i];s+=e*e;c++}const m=s/c;return m<=1e-9?Infinity:10*Math.log10(255*255/m)}
+const fP=v=>v===Infinity?'∞（完全一樣）':v.toFixed(1)+' dB';
+
+/* ===== 1 data rate ===== */
+const RES={'720p':[1280,720],'1080p':[1920,1080],'4K':[3840,2160]};let rRes='1080p',rFps=30,rPix=3,rAb=128;
+function rateUpd(){const[w,h]=RES[rRes],T=+$('#rDur').value,vb=+$('#rVb').value,px=w*h,bps=px*rPix*rFps,raw=bps*T,tot=vb+rAb/1000,comp=tot*1e6*T/8;
+ $('#rDurV').textContent=T+' s';$('#rVbV').textContent=vb+' Mbps';$('#rFrames').textContent=fmtN(T*rFps);$('#rPx').textContent=fmtN(px);$('#rRawR').textContent=(bps*8/1e6).toFixed(0)+' Mbps';
+ $('#rRaw').textContent=fmtB(raw);$('#rComp').textContent=fmtB(comp);$('#rRatio').textContent='× '+(raw/comp).toFixed(0);
+ $('#rCalc').textContent=`原始：${w} × ${h} × ${rPix} B × ${rFps} fps = ${fmtN(bps)} B/s ≈ ${(bps/1e6).toFixed(1)} MB/s ≈ ${(bps*8/1e6).toFixed(0)} Mbps\n　　　× ${T} s ≈ ${fmtB(raw)}\n壓縮：(${vb} + ${(rAb/1000).toFixed(3)}) Mbps × ${T} s ÷ 8 ≈ ${(comp/1e6).toFixed(2)} MB`;
+ const[c,g]=cv('#rCv');clear(g,c);const k=Math.sqrt((c.height-50)*(c.height-50)*16/9/(3840*2160))*1;let x=20;Object.entries(RES).forEach(([n,[w2,h2]])=>{const W=w2*k*.98,H=h2*k*.98;g.fillStyle=n===rRes?css('--accent'):css('--line');g.globalAlpha=n===rRes?.85:.6;g.fillRect(x,c.height-30-H,W,H);g.globalAlpha=1;g.fillStyle=css('--fg');g.font='22px JetBrains Mono, monospace';g.fillText(`${n}  ${fmtN(w2*h2)} px`,x,c.height-6);x+=W+36})}
+seg('#rRes',Object.keys(RES),'1080p',v=>{rRes=v;rateUpd()});seg('#rFps',[24,30,60],30,v=>{rFps=v;rateUpd()},v=>v+' fps');
+seg('#rPix',[3,1.5],3,v=>{rPix=v;rateUpd()},v=>v===3?'RGB8（3 B）':'yuv420p（1.5 B）');seg('#rAb',[64,128,192,320],128,v=>{rAb=v;rateUpd()},v=>v+'k');
+['#rDur','#rVb'].forEach(s=>$(s).addEventListener('input',rateUpd));
+
+/* ===== 2 fps / VFR ===== */
+let fpsV=30,fVis=false,fStart=performance.now(),fSamples=[],fNext=0,fR=rng(4);
+function fReset(){fStart=performance.now();fSamples=[];fNext=0;fR=rng(4)}
+function fLoop(now){requestAnimationFrame(fLoop);if(!fVis)return;const t=(now-fStart)/1000,vfr=$('#fVfr').checked;
+ while(fNext<=t){fSamples.push(fNext);let dt=1/fpsV;if(vfr){dt*=1+.5*(fR()-.35);if(fR()<.08)dt*=2}fNext+=dt}if(fSamples.length>400)fSamples.splice(0,fSamples.length-400);
+ const pos=tt=>[300+130*Math.cos(2*Math.PI*.8*tt),150+110*Math.sin(2*Math.PI*.8*tt)];const[c,g]=cv('#fCv');clear(g,c);
+ g.strokeStyle=css('--line');g.lineWidth=2;g.beginPath();g.arc(300,150,120,0,7);g.stroke();g.beginPath();g.arc(860,150,120,0,7);g.stroke();
+ g.font='22px "Noto Sans TC",sans-serif';g.fillStyle=css('--muted');g.fillText(`影片裡看到的（${fpsV} fps${vfr?'，VFR':''}）`,160,290);g.fillText('真實、連續的動作',760,290);
+ const last=fSamples[fSamples.length-1]||0;if($('#fTrail').checked){fSamples.filter(s=>s>t-.6).forEach(s=>{const[x,y]=pos(s);g.globalAlpha=.25;g.fillStyle=css('--accent');g.beginPath();g.arc(x-10,y,12,0,7);g.fill()});g.globalAlpha=1}
+ const[x,y]=pos(last);g.fillStyle=css('--accent');g.beginPath();g.arc(x-10,y,18,0,7);g.fill();const[x2,y2]=pos(t);g.fillStyle=css('--fg');g.beginPath();g.arc(x2+550,y2,18,0,7);g.fill();
+ const[c2,g2]=cv('#fTl');clear(g2,c2);const X=s=>(s-(t-1))*c2.width;g2.strokeStyle=css('--line');g2.lineWidth=2;for(let k=Math.ceil((t-1)*fpsV);k/fpsV<=t;k++){g2.beginPath();g2.moveTo(X(k/fpsV),70);g2.lineTo(X(k/fpsV),100);g2.stroke()}
+ g2.strokeStyle=css('--accent');g2.lineWidth=3;fSamples.filter(s=>s>t-1).forEach(s=>{g2.beginPath();g2.moveTo(X(s),10);g2.lineTo(X(s),60);g2.stroke()});
+ const win=fSamples.filter(s=>s>t-3).length/Math.min(3,Math.max(t,.001));$('#fR').textContent=fpsV+'/1';$('#fAvg').textContent=(t<1?'—':win.toFixed(1)+' fps')}
+seg('#fFps',[12,24,30,60],30,v=>{fpsV=v;fReset()},v=>v+' fps');$('#fVfr').addEventListener('input',fReset);
+new IntersectionObserver(es=>es.forEach(e=>fVis=e.isIntersecting)).observe($('#fCv'));requestAnimationFrame(fLoop);
+
+/* ===== 3 YUV ===== */
+let ySub='420',yView='rgb',yC=[200,40];const SUBS={'444':[1,1],'422':[2,1],'420':[2,2],'411':[4,1]};
+let BASE=null,BASE_Y=null;
+function yuvUpd(){if(!BASE)return;const W=SW,H=SH,d=BASE.data,n=W*H,Y=new Float32Array(n),Cb=new Float32Array(n),Cr=new Float32Array(n);
+ for(let i=0;i<n;i++){const r=d[4*i],g=d[4*i+1],b=d[4*i+2];Y[i]=.299*r+.587*g+.114*b;Cb[i]=128-.168736*r-.331264*g+.5*b;Cr[i]=128+.5*r-.418688*g-.081312*b}
+ const[h,v]=SUBS[ySub],cb=new Float32Array(n),cr=new Float32Array(n);
+ for(let y=0;y<H;y+=v)for(let x=0;x<W;x+=h){let sb=0,sr=0,k=0;for(let j=0;j<v&&y+j<H;j++)for(let i=0;i<h&&x+i<W;i++){const p=(y+j)*W+x+i;sb+=Cb[p];sr+=Cr[p];k++}sb/=k;sr/=k;for(let j=0;j<v&&y+j<H;j++)for(let i=0;i<h&&x+i<W;i++){const p=(y+j)*W+x+i;cb[p]=sb;cr[p]=sr}}
+ const out=new ImageData(W,H),o=out.data,rec=new Float32Array(n*3),org=new Float32Array(n*3);
+ for(let i=0;i<n;i++){let R=Y[i]+1.402*(cr[i]-128),G=Y[i]-.344136*(cb[i]-128)-.714136*(cr[i]-128),B=Y[i]+1.772*(cb[i]-128);rec[3*i]=R;rec[3*i+1]=G;rec[3*i+2]=B;org[3*i]=d[4*i];org[3*i+1]=d[4*i+1];org[3*i+2]=d[4*i+2];
+  if(yView==='Y'){R=G=B=Y[i]}else if(yView==='Cb'){R=G=B=128+(cb[i]-128)*2}else if(yView==='Cr'){R=G=B=128+(cr[i]-128)*2}
+  o[4*i]=R;o[4*i+1]=G;o[4*i+2]=B;o[4*i+3]=255}
+ const[c,g]=cv('#yCv');g.putImageData(out,0,0);const zx=Math.max(0,Math.min(W-68,yC[0]-34)),zy=Math.max(0,Math.min(H-68,yC[1]-34));g.strokeStyle='#ff7a1a';g.lineWidth=2;g.strokeRect(zx,zy,68,68);
+ const[c2,g2]=cv('#yZm');g2.imageSmoothingEnabled=false;g2.drawImage(c,zx+1,zy+1,66,66,0,0,272,272);
+ const bpp=1+2/(h*v);$('#yBpp').textContent=bpp+' B';$('#yFrame').textContent=fmtB(1920*1080*bpp);$('#yPsnr').textContent=fP(psnr(org,rec,n*3))}
+seg('#ySub',['444','422','420','411'],'420',v=>{ySub=v;yuvUpd()},v=>v.split('').join(':'));seg('#yView',['rgb','Y','Cb','Cr'],'rgb',v=>{yView=v;yuvUpd()},v=>v==='rgb'?'合成後':v);
+$('#yCv').addEventListener('click',e=>{const r=e.target.getBoundingClientRect();yC=[(e.clientX-r.left)/r.width*SW,(e.clientY-r.top)/r.height*SH];yuvUpd()});
+
+/* ===== 4 DCT + quantization ===== */
+const QT=[16,11,10,16,24,40,51,61,12,12,14,19,26,58,60,55,14,13,16,24,40,57,69,56,14,17,22,29,51,87,80,62,18,22,37,56,68,109,103,77,24,35,55,64,81,104,113,92,49,64,78,87,103,121,120,101,72,92,95,98,112,100,103,99];
+const DC=(()=>{const C=new Float32Array(64);for(let u=0;u<8;u++)for(let x=0;x<8;x++)C[u*8+x]=(u?Math.sqrt(2/8):Math.sqrt(1/8))*Math.cos((2*x+1)*u*Math.PI/16);return C})();
+let qView='rec',qSel=[24,4],qCache=null;
+function qtab(q){const s=q<50?5000/q:200-2*q;return QT.map(v=>Math.max(1,Math.min(255,Math.floor((v*s+50)/100))))}
+function dct8(b,o){const t=new Float32Array(64);for(let u=0;u<8;u++)for(let x=0;x<8;x++){let s=0;for(let y=0;y<8;y++)s+=DC[u*8+y]*b[y*8+x];t[u*8+x]=s}for(let u=0;u<8;u++)for(let v=0;v<8;v++){let s=0;for(let x=0;x<8;x++)s+=t[u*8+x]*DC[v*8+x];o[u*8+v]=s}}
+function idct8(F,o){const t=new Float32Array(64);for(let y=0;y<8;y++)for(let v=0;v<8;v++){let s=0;for(let u=0;u<8;u++)s+=DC[u*8+y]*F[u*8+v];t[y*8+v]=s}for(let y=0;y<8;y++)for(let x=0;x<8;x++){let s=0;for(let v=0;v<8;v++)s+=t[y*8+v]*DC[v*8+x];o[y*8+x]=s}}
+function intraUpd(){if(!BASE_Y)return;const q=+$('#q').value,Q=qtab(q),W=SW,H=SH,Y=BASE_Y,R=new Float32Array(W*H),b=new Float32Array(64),F=new Float32Array(64),o=new Float32Array(64);let zero=0,tot=0,selF=null,selQ=null;
+ $('#qV').textContent=q;for(let by=0;by<H/8;by++)for(let bx=0;bx<W/8;bx++){for(let y=0;y<8;y++)for(let x=0;x<8;x++)b[y*8+x]=Y[(by*8+y)*W+bx*8+x]-128;dct8(b,F);const qq=new Float32Array(64);
+  for(let k=0;k<64;k++){qq[k]=Math.round(F[k]/Q[k]);if(!qq[k])zero++;tot++;F[k]=qq[k]*Q[k]}
+  if(bx===qSel[0]&&by===qSel[1]){selQ=qq;selF=new Float32Array(64);for(let y=0;y<8;y++)for(let x=0;x<8;x++)b[y*8+x]=Y[(by*8+y)*W+bx*8+x]-128;dct8(b,selF)}
+  idct8(F,o);for(let y=0;y<8;y++)for(let x=0;x<8;x++)R[(by*8+y)*W+bx*8+x]=Math.max(0,Math.min(255,o[y*8+x]+128))}
+ const out=new ImageData(W,H),d=out.data;for(let i=0;i<W*H;i++){const v=qView==='rec'?R[i]:qView==='err'?Math.min(255,Math.abs(R[i]-Y[i])*6):Y[i];d[4*i]=d[4*i+1]=d[4*i+2]=v;d[4*i+3]=255}
+ const[c,g]=cv('#qCv');g.putImageData(out,0,0);g.strokeStyle='#ff7a1a';g.lineWidth=2;g.strokeRect(qSel[0]*8-.5,qSel[1]*8-.5,9,9);
+ $('#qZero').textContent=(zero/tot*100).toFixed(1)+'%';$('#qPsnr').textContent=fP(psnr(Y,R,W*H));$('#qBits').textContent=fmtN(tot-zero)+' 個';
+ if(selF){const z=selQ.filter(v=>!v).length;$('#qBlk').textContent=`方塊 (${qSel[0]}, ${qSel[1]})：64 個係數有 ${z} 個變成 0。格子裡是原始係數，劃掉的被量化成 0`;
+  $('#qCoef').innerHTML=Array.from({length:8},(_,u)=>'<tr>'+Array.from({length:8},(_,v)=>{const k=u*8+v;return`<td class="${selQ[k]?'nz':'z'}">${Math.round(selF[k])}</td>`}).join('')+'</tr>').join('')}}
+seg('#qView',['rec','err','orig'],'rec',v=>{qView=v;intraUpd()},v=>({rec:'壓縮後',err:'誤差（放大 6 倍）',orig:'原圖'})[v]);$('#q').addEventListener('input',intraUpd);
+$('#qCv').addEventListener('click',e=>{const r=e.target.getBoundingClientRect();qSel=[Math.min(SW/8-1,Math.floor((e.clientX-r.left)/r.width*SW/8)),Math.min(SH/8-1,Math.floor((e.clientY-r.top)/r.height*SH/8))];intraUpd()});
+
+/* ===== 5 motion estimation ===== */
+let mScene='lecture',mView='mv';const M_DT=.1;
+function motionUpd(){const W=SW,H=SH,A=toY(sceneData(.5,mScene)),Bim=sceneData(.5+M_DT,mScene),B=toY(Bim),R=+$('#mRng').value,bs=16;$('#mRngV').textContent='±'+R;
+ const vec=[],P=new Float32Array(W*H);let e0=0,e1=0;
+ for(let by=0;by+bs<=H;by+=bs)for(let bx=0;bx+bs<=W;bx+=bs){let best=Infinity,bd=[0,0];for(let dy=-R;dy<=R;dy+=1)for(let dx=-R;dx<=R;dx+=1){const sx=bx+dx,sy=by+dy;if(sx<0||sy<0||sx+bs>W||sy+bs>H)continue;let s=0;for(let y=0;y<bs;y++){const rb=(by+y)*W+bx,ra=(sy+y)*W+sx;for(let x=0;x<bs;x++)s+=Math.abs(B[rb+x]-A[ra+x])}if(s<best-1e-6||(Math.abs(s-best)<=1e-6&&Math.abs(dx)+Math.abs(dy)<Math.abs(bd[0])+Math.abs(bd[1]))){best=s;bd=[dx,dy]}}
+  vec.push([bx,by,bd[0],bd[1]]);for(let y=0;y<bs;y++)for(let x=0;x<bs;x++)P[(by+y)*W+bx+x]=A[(by+bd[1]+y)*W+bx+bd[0]+x]}
+ const Hh=Math.floor(H/bs)*bs;for(let i=0;i<W*Hh;i++){e0+=Math.abs(B[i]-A[i]);e1+=Math.abs(B[i]-P[i])}e0/=W*Hh;e1/=W*Hh;
+ const[c,g]=cv('#mCv');if(mView==='mv')g.putImageData(Bim,0,0);else{const out=new ImageData(W,H),d=out.data;for(let i=0;i<W*H;i++){const v=i<W*Hh?Math.min(255,Math.abs(B[i]-(mView==='r0'?A[i]:P[i]))*3):0;d[4*i]=d[4*i+1]=d[4*i+2]=v;d[4*i+3]=255}g.putImageData(out,0,0)}
+ if(mView==='mv'){g.strokeStyle='#ff7a1a';g.fillStyle='#ff7a1a';g.lineWidth=1.6;vec.forEach(([x,y,dx,dy])=>{const cx=x+8,cy=y+8;if(!dx&&!dy){g.globalAlpha=.35;g.fillRect(cx-1,cy-1,2,2);g.globalAlpha=1;return}const ex=cx-dx*1.6,ey=cy-dy*1.6;g.beginPath();g.moveTo(cx,cy);g.lineTo(ex,ey);g.stroke();g.beginPath();g.arc(ex,ey,2,0,7);g.fill()})}
+ $('#mE0').textContent=e0.toFixed(2);$('#mE1').textContent=e1.toFixed(2);$('#mRed').textContent=e0>0?((1-e1/e0)*100).toFixed(0)+'%':'—';
+ $('#mCap').textContent=({mv:'目前這一格，橘色箭頭指向參考畫面裡最像的位置（Motion Vector，放大 1.6 倍畫）',r0:'直接和前一格相減的殘差（亮的地方是差異，放大 3 倍）',r1:'用 Motion Vector 預測後的殘差（放大 3 倍）：剩下的才需要編碼'})[mView]+`。兩格相差 ${M_DT} 秒。數字是平均每個 Pixel 的差異。`}
+seg('#mScene',['lecture','pan','confetti'],'lecture',v=>{mScene=v;motionUpd()},v=>({lecture:'講課（小動作）',pan:'鏡頭平移',confetti:'紙花＋平移'})[v]);
+seg('#mView',['mv','r0','r1'],'mv',v=>{mView=v;motionUpd()},v=>({mv:'Motion Vector',r0:'殘差：直接相減',r1:'殘差：動作補償'})[v]);$('#mRng').addEventListener('change',motionUpd);$('#mRng').addEventListener('input',()=>$('#mRngV').textContent='±'+$('#mRng').value);
+
+/* ===== 6 GOP ===== */
+const GN=36;let gSel=null;
+function gTypes(){const G=+$('#gLen').value,b=+$('#gB').value;return Array.from({length:GN},(_,i)=>{const p=i%G;if(!p)return'I';const last=G-1;if(b&&p%(b+1)!==0&&!(i===GN-1))return'B';return'P'})}
+function gAnch(T,k,dir){for(let j=k+dir;j>=0&&j<T.length;j+=dir)if(T[j]!=='B')return j;return null}
+function gDeps(T,k){if(T[k]==='I')return[];if(T[k]==='P')return[gAnch(T,k,-1)].filter(v=>v!==null);return[gAnch(T,k,-1),gAnch(T,k,1)].filter(v=>v!==null)}
+function gClosure(T,k){const s=new Set,st=[k];while(st.length){const x=st.pop();gDeps(T,x).forEach(d=>{if(!s.has(d)){s.add(d);st.push(d)}})}return s}
+function gopUpd(){const T=gTypes(),G=+$('#gLen').value,b=+$('#gB').value,cut=+$('#gCut').value;$('#gLenV').textContent=G+' 格';$('#gBV').textContent=b;$('#gCutV').textContent=`第 ${cut} 格（${(cut/30).toFixed(2)} s）`;
+ const need=gSel!==null?gClosure(T,gSel):new Set,H={I:100,P:46,B:22};
+ const cell=(i)=>`<button class="gf g${T[i]}${i===gSel?' sel':''}${need.has(i)?' need':''}${i===cut?' cut':''}" data-i="${i}" title="第 ${i} 格"><i style="height:${H[T[i]]}%"></i><b>${T[i]}</b><small>${i}</small></button>`;
+ $('#gDisp').innerHTML=T.map((_,i)=>cell(i)).join('');
+ const dec=[];T.forEach((t,i)=>{if(t!=='B'){dec.push(i);for(let j=dec.length>1?dec[dec.length-2]+1:0;j<i;j++)if(T[j]==='B'&&!dec.includes(j))dec.push(j)}});T.forEach((t,i)=>{if(!dec.includes(i))dec.push(i)});
+ $('#gDec').innerHTML=dec.map(i=>cell(i)).join('');
+ $('#gInfo').innerHTML=gSel===null?'點上排任一格，看看要跳到那裡得先解碼哪些格。':`跳到第 ${gSel} 格（${T[gSel]}）：要先解碼 <b class="acc">${need.size}</b> 格（${[...need].sort((a,b)=>a-b).join('、')||'不用'}）。${T[gSel]==='B'?'B 參考了後面的格，所以解碼順序要先把後面的參考畫面解出來。':''}`;
+ let I0=0;for(let j=cut;j>=0;j--)if(T[j]==='I'){I0=j;break}
+ $('#gCutInfo').innerHTML=`想從第 ${cut} 格開始剪：<code>-c copy</code> 只能從前一個 I（第 ${I0} 格）開始，${cut-I0?`會多出 ${cut-I0} 格（${((cut-I0)/30).toFixed(2)} s）`:'剛好就是 I，不會多'}；要精準從第 ${cut} 格開始，就要重新編碼。`;
+ $('#gCode').textContent=`ffmpeg -i input.mp4 -c:v libx264 -g ${G} -bf ${b} out.mp4\nffmpeg -ss ${(cut/30).toFixed(2)} -i out.mp4 -t 5 -c copy clip_copy.mp4\n# 實際會從第 ${I0} 格（${(I0/30).toFixed(2)} s）附近開始`}
+['#gLen','#gB','#gCut'].forEach(s=>$(s).addEventListener('input',()=>{gSel=null;gopUpd()}));
+document.addEventListener('click',e=>{const b=e.target.closest('.gf');if(!b)return;const i=+b.dataset.i;gSel=gSel===i?null:i;gopUpd()});
+
+/* ===== 7 WebCodecs ===== */
+const ECOD=[['H.264','avc1.42001f'],['VP8','vp8'],['VP9','vp09.00.10.08'],['AV1','av01.0.04M.08']];const EW=640,EH=360,EN=90;
+let eScene='lecture',eCodec=null,eMode='variable',eRes=null,eLog=[],eBusy=false;
+const ebr=()=>Math.round(50e3*Math.pow(100,+$('#eBr').value/100)/1000)*1000;
+function eLbl(){$('#eBrV').textContent=(ebr()/1000).toFixed(0)+' kbps';$('#eGopV').textContent=$('#eGop').value+' 格';$('#eFrV').textContent=`第 ${$('#eFr').value} 格`}
+async function eInit(){if(!('VideoEncoder' in window)){$('#eInfo').textContent='這個瀏覽器不支援 WebCodecs（VideoEncoder）。請改用最新版的 Chrome、Edge 或 Safari，或直接用 Colab 做編碼實驗。';$('#eRun').disabled=true;seg('#eCodec',['—'],'—',()=>{},()=>'不支援');return}
+ const ok=[];for(const[n,c]of ECOD){try{const r=await VideoEncoder.isConfigSupported({codec:c,width:EW,height:EH,bitrate:8e5,framerate:30});if(r.supported)ok.push(n)}catch(e){}}
+ if(!ok.length){$('#eInfo').textContent='這個瀏覽器沒有可用的影片編碼器。';$('#eRun').disabled=true;return}
+ seg('#eCodec',ok,ok[0],v=>{eCodec=v});$('#eInfo').textContent=`這個瀏覽器支援：${ok.join('、')}。`+(ok.length<4?`沒列出的 Codec 這裡不支援。`:'')}
+async function eRun(){if(eBusy||!eCodec)return;eBusy=true;$('#eRun').disabled=true;$('#eInfo').textContent='編碼中…';
+ const codec=ECOD.find(c=>c[0]===eCodec)[1],br=ebr(),gop=+$('#eGop').value,src=document.createElement('canvas');src.width=EW;src.height=EH;const sg=src.getContext('2d');const chunks=[];let cfg=null,err=null;
+ try{const t0=performance.now();const enc=new VideoEncoder({output:(ch,meta)=>{const d=new Uint8Array(ch.byteLength);ch.copyTo(d);chunks.push({type:ch.type,ts:ch.timestamp,data:d});if(meta&&meta.decoderConfig)cfg=meta.decoderConfig},error:e=>err=e});
+  enc.configure({codec,width:EW,height:EH,bitrate:br,framerate:30,bitrateMode:eMode,latencyMode:'quality'});
+  for(let i=0;i<EN;i++){drawScene(sg,EW,EH,i/30,eScene);const vf=new VideoFrame(src,{timestamp:Math.round(i*1e6/30),duration:Math.round(1e6/30)});enc.encode(vf,{keyFrame:i%gop===0});vf.close();while(enc.encodeQueueSize>4)await new Promise(r=>setTimeout(r,1))}
+  await enc.flush();enc.close();const ms=performance.now()-t0;if(err)throw err;
+  $('#eInfo').textContent='解碼中…';const bm=[];const dec=new VideoDecoder({output:f=>{bm.push(createImageBitmap(f).then(b=>{const r={ts:f.timestamp,b};f.close();return r}))},error:e=>err=e});dec.configure(cfg);
+  chunks.forEach(c=>dec.decode(new EncodedVideoChunk({type:c.type,timestamp:c.ts,data:c.data})));await dec.flush();dec.close();if(err)throw err;
+  const frames=(await Promise.all(bm)).sort((a,b)=>a.ts-b.ts).map(r=>r.b);
+  const a=document.createElement('canvas');a.width=EW;a.height=EH;const ag=a.getContext('2d',{willReadFrequently:true}),bb=document.createElement('canvas');bb.width=EW;bb.height=EH;const bg=bb.getContext('2d',{willReadFrequently:true});let ps=0,pc=0;
+  for(let i=5;i<frames.length;i+=10){drawScene(ag,EW,EH,i/30,eScene);bg.drawImage(frames[i],0,0);const x=ag.getImageData(0,0,EW,EH).data,y=bg.getImageData(0,0,EW,EH).data;const p=psnr(x,y,x.length,4);if(isFinite(p)){ps+=p;pc++}}
+  const size=chunks.reduce((s,c)=>s+c.data.length,0),keys=chunks.filter(c=>c.type==='key'),dl=chunks.filter(c=>c.type!=='key'),avg=l=>l.length?l.reduce((s,c)=>s+c.data.length,0)/l.length:0;
+  eRes={chunks,frames,size,kbps:size*8/3/1000,ka:avg(keys),da:avg(dl),nk:keys.length,psnr:pc?ps/pc:Infinity,ms};
+  eLog.push({scene:eScene,codec:eCodec,br,gop,mode:eMode,size,kbps:eRes.kbps,nk:keys.length,ka:eRes.ka,da:eRes.da,psnr:eRes.psnr,ms});$('#eInfo').textContent=`完成：${chunks.length} 格，其中 ${keys.length} 格是 Key Frame。`;eDraw();eLogDraw()}
+ catch(e){$('#eInfo').textContent='編碼失敗：'+(e&&e.message||e)+'。請換一個 Codec 或調整 Bitrate 再試。'}
+ eBusy=false;$('#eRun').disabled=false}
+function eDraw(){eLbl();const[c,g]=cv('#eBars');clear(g,c);if(!eRes){g.fillStyle=css('--muted');g.font='24px "Noto Sans TC",sans-serif';g.fillText('按「編碼 3 秒」開始',20,60);return}
+ const ch=eRes.chunks,mx=Math.max(...ch.map(x=>x.data.length)),bw=c.width/ch.length;ch.forEach((x,i)=>{const h=x.data.length/mx*(c.height-30);g.fillStyle=x.type==='key'?css('--accent'):css('--fg');g.globalAlpha=x.type==='key'?1:.7;g.fillRect(i*bw+1,c.height-h,Math.max(1,bw-2),h)});g.globalAlpha=1;
+ g.fillStyle=css('--muted');g.font='20px JetBrains Mono, monospace';g.fillText('最大 '+fmtB(mx),8,22);
+ $('#eSize').textContent=fmtB(eRes.size);$('#eKbps').textContent=eRes.kbps.toFixed(0)+' kbps';$('#eKD').textContent=fmtB(eRes.ka)+' ／ '+fmtB(eRes.da);$('#ePsnr').textContent=fP(eRes.psnr);$('#eTime').textContent=Math.round(eRes.ms)+' ms';
+ const i=+$('#eFr').value,[c1,g1]=cv('#eOrig');drawScene(g1,EW,EH,i/30,eScene);const[c2,g2]=cv('#eDec');if(eRes.frames[i])g2.drawImage(eRes.frames[i],0,0);$('#eDecCap').textContent=`解碼後（${eRes.chunks[i]?eRes.chunks[i].type==='key'?'Key Frame':'Delta Frame':''}，${eRes.chunks[i]?fmtB(eRes.chunks[i].data.length):''}）`}
+const ESC={lecture:'講課',confetti:'紙花＋平移'};
+function eLogDraw(){if(!eLog.length){$('#eLog').innerHTML='';return}const keys=['scene','codec','br','gop','mode'];
+ $('#eLog').innerHTML='<tr><th>#</th><th>畫面</th><th>Codec</th><th>目標 Bitrate</th><th>GOP</th><th>模式</th><th>大小</th><th>實際 kbps</th><th>Key 數</th><th>Key／Delta 平均</th><th>PSNR</th><th>時間</th><th>和上一列比</th></tr>'+eLog.map((r,i)=>{const p=eLog[i-1],ch=p?keys.filter(k=>p[k]!==r[k]):[],bad=ch.length>1;
+  return`<tr${bad?' class="bad"':''}><td>${i+1}</td><td>${ESC[r.scene]}</td><td>${r.codec}</td><td class="num">${r.br/1000}k</td><td class="num">${r.gop}</td><td>${r.mode}</td><td class="num">${fmtB(r.size)}</td><td class="num">${r.kbps.toFixed(0)}</td><td class="num">${r.nk}</td><td class="num">${fmtB(r.ka)}／${fmtB(r.da)}</td><td class="num">${isFinite(r.psnr)?r.psnr.toFixed(1):'∞'}</td><td class="num">${Math.round(r.ms)} ms</td><td>${p?(ch.length?`改了 ${ch.length} 個${bad?'：無法比較':''}`:'沒改'):'基準'}</td></tr>`}).join('')}
+seg('#eScene',['lecture','confetti'],'lecture',v=>{eScene=v;eDraw()},v=>ESC[v]);seg('#eMode',['variable','constant'],'variable',v=>{eMode=v},v=>v==='variable'?'VBR':'CBR');
+['#eBr','#eGop'].forEach(s=>$(s).addEventListener('input',eLbl));$('#eFr').addEventListener('input',eDraw);$('#eRun').onclick=eRun;$('#eClear').onclick=()=>{eLog=[];eLogDraw()};
+$('#eCopy').onclick=()=>{const md=['| # | 畫面 | Codec | 目標 Bitrate | GOP | 模式 | 大小 | 實際 kbps | Key 數 | PSNR | 時間 |','|---|---|---|---|---|---|---|---|---|---|---|',...eLog.map((r,i)=>`| ${i+1} | ${ESC[r.scene]} | ${r.codec} | ${r.br/1000}k | ${r.gop} | ${r.mode} | ${fmtB(r.size)} | ${r.kbps.toFixed(0)} | ${r.nk} | ${isFinite(r.psnr)?r.psnr.toFixed(1):'∞'} | ${Math.round(r.ms)} ms |`)].join('\n');copyText(md,$('#eCopy'))};
+
+/* ===== 8 ffprobe card ===== */
+const PROBE={note:['input.mp4',{streams:[{index:0,codec_name:'h264',codec_type:'video',width:1920,height:1080,pix_fmt:'yuv420p',r_frame_rate:'30/1',avg_frame_rate:'30/1',bit_rate:'8371514'},{index:1,codec_name:'aac',codec_type:'audio',sample_rate:'48000',channels:2,bit_rate:'128000'}],format:{format_name:'mov,mp4,m4a,3gp,3g2,mj2',duration:'60.200000',size:'63963136',bit_rate:'8500084'}}],
+ phone:['IMG_0421.MOV',{streams:[{index:0,codec_name:'hevc',codec_type:'video',width:1920,height:1080,pix_fmt:'yuv420p10le',r_frame_rate:'30/1',avg_frame_rate:'26917/900',bit_rate:'7842311'},{index:1,codec_name:'aac',codec_type:'audio',sample_rate:'44100',channels:2,bit_rate:'159000'},{index:2,codec_type:'data'}],format:{format_name:'mov,mp4,m4a,3gp,3g2,mj2',duration:'18.033333',size:'18047119',bit_rate:'8006159'}}],
+ webm:['screen.mp4',{streams:[{index:0,codec_name:'vp9',codec_type:'video',width:1280,height:720,pix_fmt:'yuv420p',r_frame_rate:'30/1',avg_frame_rate:'30/1'},{index:1,codec_name:'opus',codec_type:'audio',sample_rate:'48000',channels:1}],format:{format_name:'matroska,webm',duration:'42.501000',size:'5312840',bit_rate:'1000045'}}]};
+const CN={h264:'H.264 / AVC',hevc:'H.265 / HEVC',av1:'AV1',vp9:'VP9',vp8:'VP8',mpeg4:'MPEG-4 Part 2',aac:'AAC',mp3:'MP3',opus:'Opus',flac:'FLAC'};
+const frac=s=>{if(!s||s==='0/0')return NaN;const[a,b]=String(s).split('/').map(Number);return b?a/b:a};
+function probeUpd(){const notes=[],name=$('#pName').value.trim();let j;try{j=JSON.parse($('#pJson').value)}catch(e){$('#pBox').innerHTML='';$('#pNotes').innerHTML=`<li class="warn">JSON 格式錯誤：${esc(e.message)}</li>`;$('#pCard').textContent='';return}
+ const S=j.streams||[],F=j.format||{},v=S.find(s=>s.codec_type==='video'),a=S.find(s=>s.codec_type==='audio');
+ const fam=(F.format_name||'').includes('mp4')?'MP4／MOV 家族（mov,mp4…）':(F.format_name||'').includes('matroska')?'Matroska／WebM':(F.format_name||'未知');
+ $('#pBox').innerHTML=`<div class="ctn"><b>Container：${esc(fam)}</b><small>format_name = ${esc(F.format_name||'N/A')}</small>${S.map(s=>`<div class="st st-${esc(s.codec_type||'x')}"><b>#${s.index} ${esc(s.codec_type||'?')}</b><span>${esc(CN[s.codec_name]||s.codec_name||'—')}</span></div>`).join('')}<div class="st st-meta"><b>Metadata</b><span>duration、size、bit_rate…</span></div></div>`;
+ const ext=(name.split('.').pop()||'').toLowerCase();if(ext==='mp4'&&!(F.format_name||'').includes('mp4'))notes.push(`檔名是 .${ext}，但 format_name 是 ${F.format_name}：副檔名不代表真正的 Container，改副檔名也不會轉檔。`);
+ if(v&&v.codec_name!=='h264'&&ext==='mp4')notes.push(`這是 .mp4，但 Video Codec 是 ${CN[v.codec_name]||v.codec_name}：MP4 不保證是 H.264。`);
+ if(v){const r=frac(v.r_frame_rate),av=frac(v.avg_frame_rate);if(isFinite(r)&&isFinite(av)&&Math.abs(r-av)/r>.005)notes.push(`r_frame_rate ${v.r_frame_rate} 和 avg_frame_rate ${v.avg_frame_rate}（約 ${av.toFixed(2)} fps）不一樣：很可能是 VFR。`);
+  if(v.pix_fmt&&v.pix_fmt!=='yuv420p')notes.push(`pix_fmt 是 ${v.pix_fmt}${/10le/.test(v.pix_fmt)?'（10-bit）':''}：有些舊裝置或平台只支援 yuv420p。`);if(!v.bit_rate)notes.push('Video Stream 沒有 bit_rate：有些 Container（例如 WebM）不記錄，不代表檔案壞掉。')}
+ if(S.some(s=>s.codec_type==='data'))notes.push('有 data stream：手機常放時間碼或感測器資料，不影響播放。');
+ $('#pNotes').innerHTML=notes.map(n=>`<li>${esc(n)}</li>`).join('')||'<li>沒有發現需要注意的地方。</li>';
+ const fr=v?frac(v.avg_frame_rate||v.r_frame_rate):NaN,mb=x=>x?(x/1e6).toFixed(1):'N/A',ch=a?({1:'Mono',2:'Stereo',6:'5.1'})[a.channels]||a.channels:'—';
+ $('#pCard').textContent=`## Video Technical Card\n\nContainer: ${fam.split('（')[0]}\nVideo Codec: ${v?(CN[v.codec_name]||v.codec_name):'—'}\nResolution: ${v?`${v.width} × ${v.height}`:'—'}\nFrame Rate: ${isFinite(fr)?(Number.isInteger(+fr.toFixed(2))?fr.toFixed(0):fr.toFixed(2))+' fps':'N/A'}${v&&v.r_frame_rate!==v.avg_frame_rate?'（avg，可能是 VFR）':''}\nPixel Format: ${v&&v.pix_fmt||'N/A'}\nVideo Bitrate: ${v&&v.bit_rate?mb(+v.bit_rate)+' Mbps':'N/A'}\nAudio Codec: ${a?(CN[a.codec_name]||a.codec_name):'—'}\nAudio Sample Rate: ${a&&a.sample_rate?a.sample_rate+' Hz':'—'}\nChannels: ${ch}\nAudio Bitrate: ${a&&a.bit_rate?Math.round(a.bit_rate/1000)+' kbps':'N/A'}\nDuration: ${F.duration?(+F.duration).toFixed(1)+' s':'N/A'}\nFile Size: ${F.size?(F.size/1e6).toFixed(0)+' MB':'N/A'}`}
+seg('#pPre',['note','phone','webm'],'note',v=>{$('#pName').value=PROBE[v][0];$('#pJson').value=JSON.stringify(PROBE[v][1],null,2);probeUpd()},v=>({note:'講義範例',phone:'手機錄影',webm:'副檔名不符'})[v]);
+['#pJson','#pName'].forEach(s=>$(s).addEventListener('input',probeUpd));$('#pCopy').onclick=()=>copyText($('#pCard').textContent,$('#pCopy'));
+
+/* ===== 9 control-variable command builder ===== */
+const ENC={'libx264':{crf:[0,51,23],pre:['ultrafast','superfast','veryfast','faster','fast','medium','slow','slower','veryslow'],dp:'medium'},'libx265':{crf:[0,51,28],pre:['ultrafast','superfast','veryfast','faster','fast','medium','slow','slower','veryslow'],dp:'medium'},'libsvtav1':{crf:[0,63,35],pre:['12','10','8','6','4','2'],dp:'8'},'libvpx-vp9':{crf:[0,63,31],pre:['0','1','2','4'],dp:'1'}};
+const BASE_CMD={enc:'libx264',crf:23,pre:'medium',scale:'',fps:'',aud:'aac128'};
+function cmdPre(){const e=ENC[$('#cEnc').value];$('#cPre').innerHTML=e.pre.map(p=>`<option>${p}</option>`).join('');$('#cPre').value=e.dp;const r=$('#cCrf');r.min=e.crf[0];r.max=e.crf[1]}
+function cmdUpd(){const enc=$('#cEnc').value,crf=+$('#cCrf').value,pre=$('#cPre').value,scale=$('#cScale').value,fps=$('#cFps').value,aud=$('#cAud').value;$('#cCrfV').textContent=crf;
+ const vf=[scale&&`scale=${scale}`,fps&&`fps=${fps}`].filter(Boolean).join(','),pf=enc==='libvpx-vp9'?`-b:v 0 -deadline good -cpu-used ${pre}`:`-preset ${pre}`;
+ const ac=aud==='copy'?'-c:a copy':`-c:a aac -b:a ${aud==='aac96'?'96k':'128k'}`,ext=enc==='libvpx-vp9'&&aud!=='copy'?'webm':'mp4',ac2=enc==='libvpx-vp9'&&aud!=='copy'?'-c:a libopus -b:a 128k':ac;
+ $('#cOut').textContent=['ffmpeg -i input.mp4 \\',`  -c:v ${enc} \\`,`  -crf ${crf} \\`,`  ${pf} \\`,vf&&`  -vf "${vf}" \\`,`  ${ac2} \\`,`  output.${ext}`].filter(Boolean).join('\n');
+ const cur={enc,crf,pre,scale,fps,aud},lab={enc:'Encoder／Codec',crf:'CRF',pre:'Preset',scale:'解析度',fps:'fps',aud:'音訊'},ch=Object.keys(cur).filter(k=>String(cur[k])!==String(BASE_CMD[k]));
+ let h=ch.length?`<p>和基準相比，改了 <b class="${ch.length>1?'warn':'acc'}">${ch.length}</b> 個變因：${ch.map(k=>lab[k]).join('、')}。</p>`:'<p>這就是基準設定。</p>';
+ if(ch.length>1)h+=`<p class="warn">一次改了 ${ch.length} 個變因，結果不同時就無法判斷是哪一個造成的。${ch.includes('enc')&&ch.includes('pre')?'換 Encoder 時 preset 名稱本來就不同，這種情況要另外說明。':''}</p>`;
+ if(ch.includes('enc'))h+='<p class="muted">注意：不同 Codec 的 CRF 數值不能直接比較（x264 的 23 和 SVT-AV1 的 23 意義不同）。比較 Codec 時要固定的是「品質目標」，常用 VMAF 或 PSNR 對齊。</p>';
+ if(ext==='webm')h+='<p class="muted">VP9 常搭配 WebM 與 Opus，所以這裡容器和音訊也跟著換了：這也是變因。</p>';
+ $('#cDiff').innerHTML=h}
+$('#cEnc').addEventListener('change',()=>{cmdPre();$('#cCrf').value=ENC[$('#cEnc').value].crf[2];cmdUpd()});['#cCrf','#cPre','#cScale','#cFps','#cAud'].forEach(s=>$(s).addEventListener('input',cmdUpd));
+$('#cReset').onclick=()=>{$('#cEnc').value='libx264';cmdPre();$('#cCrf').value=23;$('#cPre').value='medium';$('#cScale').value='';$('#cFps').value='';$('#cAud').value='aac128';cmdUpd()};
+
+/* ===== 10 tools ===== */
+const TOOLS=[['FFmpeg／ffprobe','LGPL 2.1+（部分元件 GPL）','整章的核心：轉檔、重新編碼、Mux／Demux、ffprobe 看結構。Colab 每個實驗都用它。','13.15–13.25','https://ffmpeg.org/'],
+ ['PyAV','BSD-3','FFmpeg 的 Python 介面。可以逐格讀出 I／P／B（pict_type）和每個封包的大小，把 GOP 結構畫出來。','13.12–13.13','https://github.com/PyAV-Org/PyAV'],
+ ['VMAF（Netflix）','BSD-2-Clause-Patent','用「原始 vs 壓縮後」預測人眼看起來的品質（0–100），透過 FFmpeg 的 libvmaf 濾鏡使用。CRF 實驗不用只靠眼睛。','13.7、13.20、13.25','https://github.com/Netflix/vmaf'],
+ ['PySceneDetect','BSD-3','自動找出影片裡的場景切換點。可以用來比較靜態和高動態場景，也銜接下週的時間軸與分鏡。','13.14、第 14 章','https://www.scenedetect.com/'],
+ ['LosslessCut','GPL-2.0','用 -c copy 無損剪切的圖形工具，會標出 Keyframe。親手體驗「起點會對齊到前一個 Keyframe」。','13.15','https://github.com/mifi/lossless-cut'],
+ ['MediaInfo','BSD-2-Clause','圖形介面版的技術身分證：拖進檔案就列出 Container、Codec、Bitrate、Pixel Format。和 ffprobe 結果互相對照。','13.22–13.24','https://mediaarea.net/MediaInfo'],
+ ['HandBrake','GPL-2.0','圖形介面轉檔工具。它的 RF 就是 x264／x265 的 CRF，也能選 Preset 和 Codec，適合沒有命令列經驗的同學。','13.18–13.21','https://handbrake.fr/'],
+ ['WebCodecs（瀏覽器 API）','Web 標準','本頁實驗 7 用的就是它：直接呼叫瀏覽器內建的 H.264、VP9、AV1 編碼器，看每一格的大小和 Key Frame。','13.7、13.18','https://developer.mozilla.org/docs/Web/API/WebCodecs_API']];
+$('#tGrid').innerHTML=TOOLS.map(([n,l,d,s,u])=>`<a class="tcard" href="${u}" target="_blank" rel="noopener"><div class="row" style="justify-content:space-between"><b>${n}</b><span class="pill">${l}</span></div><p>${d}</p><small class="muted">對應：${s}</small></a>`).join('');
+
+/* ===== quiz ===== */
+const QZ=[
+ ['60 秒、30 fps 的影片大約有幾格？',['90','1,800','300','3,600'],1,'Frames ≈ T × f ＝ 60 × 30 ＝ 1,800。'],
+ ['4K 的 Pixel 數是 1080p 的 4 倍，壓縮後的檔案也一定是 4 倍嗎？',['一定是','不一定：還要看 Bitrate、Codec、內容複雜度','一定是 2 倍','一定一樣大'],1,'Resolution 決定 Pixel 數，但壓縮後大小主要由 Bitrate 和內容決定。'],
+ ['Bitrate 和畫質的關係是？',['Bitrate 就是畫質','Bitrate 是資料預算；畫質還受 Codec、Preset、內容等影響','Bitrate 越低越好','兩者無關'],1,'同樣 Bitrate，講課畫面可能很清楚，紙花畫面卻滿是方塊。'],
+ ['有損壓縮裡，主要在哪一步真正丟掉細節？',['Prediction','Transform','Quantization','Entropy Coding'],2,'量化把小係數變成 0，丟掉的就回不來了。Transform 和 Entropy Coding 本身是可逆的。'],
+ ['yuv420p 是什麼？',['一種解析度','一種 Codec','一種 Pixel Format','一種 Container'],2,'它描述 Pixel 怎麼存：YUV、4:2:0 色度取樣、planar。'],
+ ['B-frame 等於前後兩格的平均嗎？',['是','不是：它用動作補償從前後參考畫面預測，再加殘差','B-frame 不參考任何格','B-frame 只參考前一格'],1,'B 可以參考前、後的參考畫面，實際是 Motion-compensated Prediction。'],
+ ['為什麼 -c copy 不能任意精確剪切？',['因為會重新編碼','因為起點必須是能獨立解碼的位置（Keyframe），其他格依賴參考畫面','因為只支援 MKV','因為會變成黑畫面'],1,'Stream Copy 不重新編碼，所以只能從 Random Access Point 開始。'],
+ ['副檔名是 .mp4 的影片，Video Codec 一定是 H.264 嗎？',['一定','不一定，MP4 是 Container，裡面可以是 H.265、AV1 等','.mp4 一定是 H.265','副檔名決定 Codec'],1,'用 ffprobe 看 codec_name，不要看副檔名。'],
+ ['libx264 的 Preset 從 medium 改成 slow，主要影響？',['畫質等級','編碼速度與壓縮效率的取捨','解析度','音訊品質'],1,'Preset 決定編碼器花多少時間找更好的預測與編碼決策。'],
+ ['同時改了 Resolution、Codec 和 CRF，檔案變小了，能說是 Codec 比較好嗎？',['可以','不能：同時改了多個變因，無法判斷差異來自哪一個','只要畫質一樣就可以','只要時間一樣就可以'],1,'控制變因：一次只改一個主要變因。']];
+$('#qz').innerHTML=QZ.map(([q,o],i)=>`<div class="qcard"><p>${i+1}．${q}</p><div class="opts">${o.map((t,j)=>`<button data-q="${i}" data-j="${j}">${t}</button>`).join('')}</div><p class="fb" id="qf${i}"></p></div>`).join('');
+const qDone={};$('#qz').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.q,j=+b.dataset.j,[,,ans,why]=QZ[i];
+ b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('right','wrong'));b.classList.add(j===ans?'right':'wrong');$('#qf'+i).textContent=(j===ans?'答對。':'再想想。')+why;if(j===ans)qDone[i]=1;$('#qzScore').textContent=`答對 ${Object.keys(qDone).length}／${QZ.length} 題`});
+
+function copyText(t,btn){const done=()=>{const o=btn.textContent;btn.textContent='已複製';setTimeout(()=>btn.textContent=o,1200)};
+ try{navigator.clipboard.writeText(t).then(done,fallback)}catch(e){fallback()}
+ function fallback(){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){}ta.remove()}}
+
+/* theme toggle */
+const root=document.documentElement,darkQ=matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkQ.matches;
+function themeLabel(){$('#themeBtn').textContent=isDark()?'☀ 淺色':'☾ 深色'}
+try{const t=localStorage.getItem('w13-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+$('#themeBtn').onclick=()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('w13-theme',t)}catch(e){}themeLabel()};
+darkQ.addEventListener('change',themeLabel);themeLabel();
+
+/* nav + redraw */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-40% 0px -55% 0px'});
+document.querySelectorAll('section.bench').forEach(s=>io.observe(s));
+const redraw=()=>{rateUpd();eDraw()};darkQ.addEventListener('change',redraw);new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function imgInit(){BASE=sceneData(0,'lecture');BASE_Y=toY(BASE);yuvUpd();intraUpd();motionUpd()}
+cmdPre();cmdUpd();gopUpd();rateUpd();eLbl();eDraw();eInit();
+(document.fonts&&document.fonts.ready?Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]):Promise.resolve()).then(imgInit);
+if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+const vids=[...document.querySelectorAll('#animGrid video')];
+Promise.all(vids.map(v=>fetch(v.getAttribute('src'),{method:'HEAD'}).then(r=>r.ok).catch(()=>true).then(ok=>{if(!ok)v.closest('figure').hidden=true;return ok}))).then(oks=>{if(!oks.some(Boolean)){$('#anim').hidden=true;const a=document.querySelector('#nav a[href="#anim"]');if(a){a.hidden=true;if(a.nextElementSibling)a.nextElementSibling.hidden=true}}});
+})();
+</script>
+
+</body>
+</html>

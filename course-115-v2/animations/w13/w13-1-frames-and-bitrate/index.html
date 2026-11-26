@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W13-1 影片 = 影格 × 時間</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w13-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 28px; line-height: 50px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      b { font-weight: 900; }
+      #title { position: absolute; left: 64px; top: 230px; font-size: 72px; font-weight: 900; white-space: nowrap; }
+      #sub { position: absolute; left: 68px; top: 340px; font-size: 28px; color: var(--muted); }
+
+      /* 1 影格沿時間軸排開 */
+      .fr { position: absolute; top: 164px; width: 92px; height: 84px; border-radius: 8px; background: #232321; border: 1.5px solid var(--line); overflow: hidden; }
+      .fr .ball { position: absolute; top: 34px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); }
+      .fr .gnd { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; background: #2b2a27; }
+      .fr .idx { position: absolute; right: 6px; top: 3px; font-family: var(--mono); font-size: 14px; color: var(--muted); }
+      #axis { position: absolute; left: 0; top: 0; }
+      .tick { position: absolute; top: 290px; font-family: var(--mono); font-size: 20px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+      .fpsTag { position: absolute; left: 110px; top: 334px; font-size: 26px; white-space: nowrap; }
+
+      /* 2 一格多大 */
+      #frameBig { position: absolute; left: 92px; top: 196px; width: 384px; height: 216px; border: 2px solid var(--text); border-radius: 4px; background:
+        linear-gradient(#2a2925 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(90deg, #2a2925 1px, transparent 1px) 0 0 / 24px 24px, #1b1b1a; }
+      .dimW { position: absolute; left: 92px; top: 160px; width: 384px; text-align: center; font-family: var(--mono); font-size: 22px; color: var(--muted); }
+      .dimH { position: absolute; left: 30px; top: 290px; width: 56px; text-align: center; font-family: var(--mono); font-size: 22px; color: var(--muted); }
+      #pix { position: absolute; left: 92px; top: 196px; width: 24px; height: 24px; border: 2px solid var(--accent); }
+      .rgb { position: absolute; top: 456px; display: flex; gap: 10px; left: 92px; }
+      .rgb div { width: 118px; height: 76px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 30px; color: #121212; line-height: 1.1; }
+      .rgb div small { font-size: 15px; font-weight: 500; }
+      .rgbCap { position: absolute; left: 92px; top: 546px; width: 374px; text-align: center; font-size: 22px; color: var(--muted); }
+      .eqs { position: absolute; left: 540px; top: 176px; width: 680px; }
+      .eq { display: flex; align-items: baseline; justify-content: space-between; font-family: var(--mono); font-size: 27px; line-height: 40px; padding: 14px 22px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 14px; white-space: nowrap; }
+      .eq .op { color: var(--muted); }
+      .eq .res b { font-family: var(--mono); font-weight: 700; }
+      .eq .u { font-family: var(--sans); font-size: 22px; color: var(--muted); margin-left: 6px; }
+      .eq.hi { border-color: var(--accent); }
+      .eqnote { position: absolute; left: 562px; top: 588px; font-size: 20px; color: var(--muted); }
+
+      /* 3 壓縮比 */
+      .barRow { position: absolute; left: 64px; right: 64px; }
+      .barRow .lab { font-size: 28px; font-weight: 900; margin-bottom: 10px; display: flex; align-items: baseline; gap: 18px; white-space: nowrap; }
+      .barRow .lab .mono { font-size: 23px; font-weight: 500; color: var(--muted); }
+      .bar { height: 44px; border-radius: 8px; transform-origin: left center; }
+      .barRow .val { position: absolute; right: 0; top: 0; font-family: var(--mono); font-weight: 700; font-size: 30px; }
+      #ratio { position: absolute; left: 64px; right: 64px; top: 474px; height: 150px; display: flex; align-items: center; gap: 36px; padding: 0 36px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 18px; white-space: nowrap; }
+      #ratio .calc { font-family: var(--mono); font-size: 30px; color: var(--muted); }
+      #ratio .big { font-size: 64px; font-weight: 900; color: var(--accent); }
+
+      /* 4 結語 */
+      #endT { position: absolute; left: 64px; top: 150px; font-size: 54px; font-weight: 900; white-space: nowrap; }
+      #endS { position: absolute; left: 68px; top: 232px; font-size: 26px; color: var(--muted); }
+      .cmp { position: absolute; top: 300px; width: 560px; height: 270px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 24px 28px; }
+      .cmp .t { font-size: 30px; font-weight: 900; display: flex; align-items: baseline; gap: 14px; }
+      .cmp .t .mono { font-size: 22px; color: var(--muted); font-weight: 500; }
+      .cmp .scr { margin-top: 16px; height: 120px; border-radius: 8px; position: relative; overflow: hidden; background: #232321; }
+      .cmp .cap { margin-top: 14px; font-size: 24px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w13-1" data-start="0" data-duration="42" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="42" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W13</span><span class="num">1 / 3</span></div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <h1 id="title">影片 = <span class="acc">影格</span> × <span class="acc">時間</span></h1>
+        <p id="sub">一張張靜態畫面，依固定節奏快速播放</p>
+      </div>
+
+      <!-- 1 影格沿時間軸 -->
+      <div id="s1" class="scene clip" data-start="4.2" data-duration="9.6" data-track-index="1">
+        <div class="head" id="s1h"><span class="badge">1</span><span>影格一張張沿著時間排開</span></div>
+        <div id="frames"></div>
+        <svg id="axis" width="1280" height="720"><line id="axLine" x1="110" y1="272" x2="1150" y2="272" stroke="#9c988f" stroke-width="2" /><path id="axHead" d="M1150 264 L1166 272 L1150 280 Z" fill="#9c988f" /></svg>
+        <div id="ticks"></div>
+        <div class="fpsTag" id="fpsTag">每秒 <b class="acc mono">30</b> 格 = <b class="mono">30 fps</b><span class="note" style="margin-left:12px">（相鄰兩格相差 1/30 秒）</span></div>
+        <div class="card" id="s1c" style="top:420px">
+          <div class="row"><b>影格數 ≈ T × f</b><span class="note">T = 片長（秒），f = 影格率（fps）</span></div>
+          <div class="row"><span class="mono">60 s × 30 fps =</span><b class="mono acc" id="n1800" style="font-size:40px">0</b><b>格</b><span class="note">一分鐘的影片，就是 1,800 張圖</span></div>
+        </div>
+      </div>
+
+      <!-- 2 一格未壓縮多大 -->
+      <div id="s2" class="scene clip" data-start="13.8" data-duration="11.4" data-track-index="1">
+        <div class="head" id="s2h"><span class="badge">2</span><span>1080p 不壓縮，每秒有多少資料</span></div>
+        <div class="dimW" id="dimW">1920</div>
+        <div class="dimH" id="dimH">1080</div>
+        <div id="frameBig"></div>
+        <div id="pix"></div>
+        <div class="rgb" id="rgb">
+          <div style="background:#ff6b5e">R<small>1 byte</small></div>
+          <div style="background:#5fc48a">G<small>1 byte</small></div>
+          <div style="background:#6ea8ff">B<small>1 byte</small></div>
+        </div>
+        <div class="rgbCap" id="rgbCap">每個像素 3 bytes（RGB，每色 8 bit）</div>
+        <div class="eqs">
+          <div class="eq" id="e1"><span><span class="op"></span>1920 × 1080</span><span class="res">= <b id="v1">0</b><span class="u">像素／格</span></span></div>
+          <div class="eq" id="e2"><span><span class="op">× </span>3 bytes</span><span class="res">= <b id="v2">0</b><span class="u">B／格</span></span></div>
+          <div class="eq" id="e3"><span><span class="op">× </span>30 fps</span><span class="res">= <b id="v3">0</b><span class="u">B／秒</span></span></div>
+          <div class="eq hi" id="e4"><span class="acc">≈ <b>186.6</b> MB/s</span><span class="res">× 8 bit ≈ <b class="acc" id="v4">0</b> <span class="acc">Mbps</span></span></div>
+        </div>
+        <div class="eqnote" id="eqnote">1 MB = 1,000,000 B，1 byte = 8 bit</div>
+      </div>
+
+      <!-- 3 壓縮比 -->
+      <div id="s3" class="scene clip" data-start="25.2" data-duration="10.2" data-track-index="1">
+        <div class="head" id="s3h"><span class="badge">3</span><span>同樣一分鐘：未壓縮 vs. MP4</span></div>
+        <div class="barRow" id="b1" style="top:172px">
+          <div class="lab"><span>未壓縮</span><span class="mono">186.624 MB/s × 60 s</span></div>
+          <div class="bar" id="bar1" style="width:860px;background:#ff6b5e"></div>
+          <div class="val bad" style="top:58px">≈ 11,197 MB</div>
+        </div>
+        <div class="barRow" id="b2" style="top:322px">
+          <div class="lab"><span>MP4</span><span class="mono">(視訊 8 + 音訊 0.128) Mbps × 60 s ÷ 8</span></div>
+          <div class="bar" id="bar2" style="width:4.7px;background:#5fc48a"></div>
+          <div class="val good" style="top:58px">≈ 60.96 MB</div>
+        </div>
+        <div id="ratio">
+          <span class="calc">11,197 MB ÷ 60.96 MB ≈ 184</span>
+          <span class="big">小了約 180 倍</span>
+        </div>
+        <div class="note" id="s3n" style="position:absolute;left:64px;top:640px">未壓縮一分鐘 ≈ 11.2 GB；條狀長度依實際比例繪製</div>
+      </div>
+
+      <!-- 4 結語 -->
+      <div id="s4" class="scene clip" data-start="35.4" data-duration="6.6" data-track-index="1">
+        <h2 id="endT"><span class="acc">Bitrate</span> 是資料預算，不是畫質本身</h2>
+        <p id="endS">每秒能用多少 bit；同樣的預算，畫面內容不同，結果就不同</p>
+        <div class="cmp" id="cA" style="left:64px">
+          <div class="t"><span>簡報錄影</span><span class="mono">8 Mbps</span></div>
+          <div class="scr" id="scrA"></div>
+          <div class="cap good">畫面少變化 → 很清楚</div>
+        </div>
+        <div class="cmp" id="cB" style="left:656px">
+          <div class="t"><span>球賽、快速運動</span><span class="mono">8 Mbps</span></div>
+          <div class="scr" id="scrB"></div>
+          <div class="cap bad">每格都在變 → 可能出現馬賽克</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+        function count(node, t, a, b, dur, digits, unit, comma) {
+          tl.to(node, { numText: { from: a, to: b, digits: digits, suffix: unit || "", comma: !!comma }, duration: dur, ease: "power2.out" }, t);
+        }
+
+        /* ---------- 1：10 張影格，球每格往右移 ---------- */
+        var F = document.getElementById("frames");
+        var frames = [];
+        var X0 = 110, STEP = 104;
+        for (var i = 0; i < 10; i++) {
+          var f = document.createElement("div");
+          f.className = "fr";
+          f.style.left = (X0 + i * STEP) + "px";
+          f.innerHTML = '<div class="gnd"></div><div class="ball" style="left:' + (6 + i * 6) + 'px"></div><span class="idx">#' + (i + 1) + "</span>";
+          F.appendChild(f); frames.push(f);
+        }
+        var T = document.getElementById("ticks");
+        var tickLabels = { 0: "0 s", 3: "0.1 s", 6: "0.2 s", 9: "0.3 s" };
+        var ticks = [];
+        for (var k in tickLabels) {
+          var tk = document.createElement("div");
+          tk.className = "tick"; tk.textContent = tickLabels[k];
+          tk.style.left = (X0 + k * STEP + 46) + "px";
+          T.appendChild(tk); ticks.push(tk);
+        }
+
+        /* ---------- 4：示意畫面 ---------- */
+        var A = document.getElementById("scrA");
+        A.innerHTML = '<div style="position:absolute;left:24px;top:22px;width:220px;height:16px;border-radius:4px;background:#f2f0ea"></div>' +
+          '<div style="position:absolute;left:24px;top:54px;width:380px;height:10px;border-radius:4px;background:#9c988f"></div>' +
+          '<div style="position:absolute;left:24px;top:76px;width:330px;height:10px;border-radius:4px;background:#9c988f"></div>' +
+          '<div style="position:absolute;left:24px;top:98px;width:260px;height:10px;border-radius:4px;background:#9c988f"></div>';
+        var B = document.getElementById("scrB");
+        var rnd = W13.seeded(7);
+        var html = "";
+        for (var y = 0; y < 6; y++) for (var x = 0; x < 25; x++) {
+          var g = Math.floor(40 + rnd() * 70);
+          var col = rnd() < 0.18 ? "rgba(255,122,26," + (0.35 + rnd() * 0.4).toFixed(2) + ")" : "rgb(" + g + "," + (g + 8) + "," + g + ")";
+          html += '<div style="position:absolute;left:' + (x * 20.4) + "px;top:" + (y * 20) + "px;width:20.4px;height:20px;background:" + col + '"></div>';
+        }
+        B.innerHTML = html;
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.2, "#sub", 0.6);
+        out(3.8, ["#title", "#sub"], 0.35);
+
+        // 1（4.2–13.8）：先疊成一疊，再沿時間軸攤開
+        inn(4.4, "#s1h", 0.6);
+        frames.forEach(function (f, i) {
+          tl.fromTo(f, { opacity: 0, x: -i * STEP + i * 5, y: -i * 4 }, { opacity: 1, duration: 0.15 }, 5.0 + i * 0.08);
+        });
+        tl.to(frames, { x: 0, y: 0, duration: 1.1, ease: "power2.inOut", stagger: 0.06 }, 6.2);
+        tl.fromTo("#axLine", { attr: { x2: 110 } }, { attr: { x2: 1150 }, duration: 1.0, ease: "power2.out" }, 6.2);
+        tl.fromTo("#axHead", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 7.0);
+        tl.fromTo(ticks, { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.12 }, 7.2);
+        inn(7.9, "#fpsTag", 0.5);
+        inn(9.0, "#s1c", 0.6);
+        count(document.getElementById("n1800"), 9.6, 0, 1800, 1.0, 0, "", true);
+        out(13.4, "#s1 > *", 0.35);
+
+        // 2（13.8–25.2）
+        inn(14.0, "#s2h", 0.6);
+        inn(14.6, ["#frameBig", "#dimW", "#dimH"], 0.6);
+        tl.fromTo("#pix", { opacity: 0, scale: 3 }, { opacity: 1, scale: 1, duration: 0.5, transformOrigin: "0 0" }, 15.2);
+        inn(15.6, "#e1", 0.5);
+        count(document.getElementById("v1"), 15.8, 0, 2073600, 0.9, 0, "", true);
+        inn(16.9, "#rgb", 0.5);
+        inn(17.2, "#rgbCap", 0.5);
+        inn(17.6, "#e2", 0.5);
+        count(document.getElementById("v2"), 17.8, 0, 6220800, 0.9, 0, "", true);
+        inn(19.2, "#e3", 0.5);
+        count(document.getElementById("v3"), 19.4, 0, 186624000, 1.0, 0, "", true);
+        inn(21.0, "#e4", 0.6);
+        count(document.getElementById("v4"), 21.2, 0, 1493, 0.9, 0, "", true);
+        inn(21.8, "#eqnote", 0.5);
+        out(24.8, "#s2 > *", 0.35);
+
+        // 3（25.2–35.4）
+        inn(25.4, "#s3h", 0.6);
+        inn(26.0, "#b1", 0.5);
+        tl.fromTo("#bar1", { scaleX: 0 }, { scaleX: 1, duration: 1.2, ease: "power2.out" }, 26.2);
+        inn(27.8, "#b2", 0.5);
+        tl.fromTo("#bar2", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power2.out" }, 28.0);
+        inn(29.6, "#ratio", 0.6);
+        inn(30.6, "#s3n", 0.5);
+        out(35.0, "#s3 > *", 0.35);
+
+        // 4（35.4–42）
+        inn(35.6, "#endT", 0.7);
+        inn(36.4, "#endS", 0.6);
+        inn(37.2, "#cA", 0.5);
+        inn(37.9, "#cB", 0.5);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w13-1"] = tl;
+      })();
+    </script>
+  </body>
+</html>

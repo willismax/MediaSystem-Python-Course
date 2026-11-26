@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>W13-2 I、P、B 與 GOP</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/w13-common.js"></script>
+    <style>
+      @font-face { font-family: "Noto Sans TC"; font-weight: 500; src: url("assets/fonts/NotoSansTC-500-subset.woff2") format("woff2"); }
+      @font-face { font-family: "Noto Sans TC"; font-weight: 900; src: url("assets/fonts/NotoSansTC-900-subset.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+      :root {
+        --bg: #121212; --surface: #1b1b1a; --line: #33322f; --text: #f2f0ea;
+        --muted: #9c988f; --accent: #ff7a1a; --good: #5fc48a; --bad: #ff6b5e;
+        --sans: "Noto Sans TC", sans-serif;
+        --mono: "JetBrains Mono", "Noto Sans TC", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 1280px; height: 720px; font-family: var(--sans); font-weight: 500; color: var(--text); }
+      .scene { position: absolute; inset: 0; }
+      #bg { background: var(--bg); }
+      .corner { position: absolute; left: 40px; top: 26px; display: flex; gap: 10px; align-items: center; font-size: 18px; color: var(--muted); letter-spacing: 0.04em; }
+      .corner .num { font-family: var(--mono); font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 8px; font-size: 16px; line-height: 24px; }
+      .head { position: absolute; left: 64px; top: 72px; display: flex; align-items: center; gap: 18px; font-size: 40px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+      .badge { width: 52px; height: 52px; border-radius: 12px; background: var(--accent); color: #121212; font-family: var(--mono); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+      .card { position: absolute; left: 64px; right: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 28px; }
+      .row { display: flex; align-items: baseline; gap: 16px; font-size: 28px; line-height: 48px; white-space: nowrap; }
+      .note { font-size: 20px; color: var(--muted); }
+      code, .mono { font-family: var(--mono); font-weight: 500; }
+      .good { color: var(--good); } .bad { color: var(--bad); } .acc { color: var(--accent); } .muted { color: var(--muted); }
+      b { font-weight: 900; }
+      #title { position: absolute; left: 64px; top: 230px; font-size: 72px; font-weight: 900; white-space: nowrap; }
+      #sub { position: absolute; left: 68px; top: 340px; font-size: 28px; color: var(--muted); }
+
+      /* 1 兩種冗餘 */
+      .pane { position: absolute; top: 160px; width: 560px; height: 420px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 20px 26px; }
+      .pane .t { display: flex; align-items: baseline; gap: 14px; font-size: 32px; font-weight: 900; white-space: nowrap; }
+      .pane .t .note { font-weight: 500; }
+      .pane .cap { position: absolute; left: 26px; right: 26px; bottom: 20px; font-size: 24px; line-height: 1.45; }
+      .pane .cap .note { font-size: 20px; }
+      .pane svg { position: absolute; left: 26px; top: 76px; }
+
+      /* 2 動態估計 */
+      .mframe { position: absolute; top: 156px; width: 440px; height: 236px; border-radius: 10px; border: 1.5px solid var(--line); background: #1b1b1a; overflow: hidden; }
+      .mlab { position: absolute; top: 400px; font-size: 22px; color: var(--muted); white-space: nowrap; }
+      #mvsvg { position: absolute; left: 0; top: 0; pointer-events: none; }
+      .eqrow { position: absolute; left: 64px; right: 64px; top: 452px; display: flex; align-items: center; gap: 22px; white-space: nowrap; }
+      .blk { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      .blk .sq { width: 104px; height: 104px; border-radius: 10px; border: 2px solid var(--accent); position: relative; overflow: hidden; background: #232321; }
+      .blk span { font-size: 22px; }
+      .op { font-family: var(--mono); font-size: 44px; font-weight: 700; color: var(--muted); }
+      .eqnote { flex: 1; font-size: 24px; line-height: 1.5; padding-left: 18px; white-space: normal; }
+
+      /* 3 I P B */
+      .kind { position: absolute; top: 160px; width: 360px; height: 360px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 22px 24px; }
+      .kind .k { display: flex; align-items: baseline; gap: 14px; }
+      .kind .L { font-family: var(--mono); font-weight: 700; font-size: 60px; line-height: 1; }
+      .kind .n { font-size: 28px; font-weight: 900; }
+      .kind svg { display: block; margin: 16px 0 10px; }
+      .kind ul { list-style: none; font-size: 23px; line-height: 1.5; }
+      .kind li { padding-left: 18px; position: relative; }
+      .kind li::before { content: ""; position: absolute; left: 0; top: 15px; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+
+      /* 4 GOP */
+      .gbar { position: absolute; width: 96px; border-radius: 6px 6px 0 0; transform-origin: bottom center; }
+      .gbox { position: absolute; top: 348px; width: 96px; height: 72px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 38px; }
+      .gbox.I { border-color: var(--accent); color: var(--accent); }
+      .gbox.P { border-color: var(--text); }
+      .gbox.B { color: var(--muted); }
+      .gidx { position: absolute; top: 424px; width: 96px; text-align: center; font-family: var(--mono); font-size: 16px; color: var(--muted); }
+      #base { position: absolute; left: 96px; top: 344px; width: 1088px; height: 2px; background: var(--line); }
+      #shi { position: absolute; right: 96px; top: 82px; font-size: 22px; color: var(--muted); border: 1.5px solid var(--line); border-radius: 18px; padding: 0 14px; line-height: 34px; }
+      #brk { position: absolute; left: 0; top: 0; }
+      #brkLab { position: absolute; left: 106px; top: 474px; width: 948px; text-align: center; font-size: 26px; white-space: nowrap; }
+      #ph { position: absolute; top: 150px; width: 0; height: 192px; border-left: 3px solid var(--accent); }
+      #ph::before { content: ""; position: absolute; left: -12px; top: -2px; border: 10px solid transparent; border-top: 14px solid var(--accent); border-left-width: 10.5px; border-right-width: 10.5px; }
+      #phLab { position: absolute; top: 148px; font-size: 24px; font-weight: 900; color: var(--accent); white-space: nowrap; }
+      #rap { position: absolute; top: 300px; font-size: 20px; font-weight: 900; color: #121212; background: var(--accent); border-radius: 6px; padding: 0 8px; line-height: 30px; white-space: nowrap; }
+      #chain { position: absolute; left: 0; top: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="w13-2" data-start="0" data-duration="45" data-width="1280" data-height="720">
+      <div id="bg" class="scene clip" data-start="0" data-duration="45" data-track-index="0">
+        <div class="corner"><span>多媒體系統 W13</span><span class="num">2 / 3</span></div>
+      </div>
+
+      <div id="s0" class="scene clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <h1 id="title"><span class="acc">I、P、B</span> 與 GOP</h1>
+        <p id="sub">壓縮的祕密：畫面裡、畫面之間，大部分都很像</p>
+      </div>
+
+      <!-- 1 空間 vs 時間冗餘 -->
+      <div id="s1" class="scene clip" data-start="4.2" data-duration="8" data-track-index="1">
+        <div class="head" id="s1h"><span class="badge">1</span><span>可以省的，是重複的部分</span></div>
+        <div class="pane" id="pA" style="left:64px">
+          <div class="t">空間冗餘<span class="note">同一格畫面裡</span></div>
+          <svg id="skySvg" width="508" height="230"></svg>
+          <div class="cap">天空的像素都很像<br /><span class="note">不必每個像素都完整記一次</span></div>
+        </div>
+        <div class="pane" id="pB" style="left:656px">
+          <div class="t">時間冗餘<span class="note">相鄰影格之間</span></div>
+          <svg id="lecSvg" width="508" height="230"></svg>
+          <div class="cap">講者幾乎沒動，背景完全一樣<br /><span class="note">只要記下「變了的地方」</span></div>
+        </div>
+      </div>
+
+      <!-- 2 動態估計 -->
+      <div id="s2" class="scene clip" data-start="12.2" data-duration="10" data-track-index="1">
+        <div class="head" id="s2h"><span class="badge">2</span><span>動態估計：找區塊搬到哪，再補差異</span></div>
+        <div class="mframe" id="mRef" style="left:104px"></div>
+        <div class="mframe" id="mCur" style="left:736px"></div>
+        <div class="mlab" id="mRefL" style="left:104px">參考影格（已解碼）</div>
+        <div class="mlab" id="mCurL" style="left:736px">目前要編碼的影格</div>
+        <svg id="mvsvg" width="1280" height="720"></svg>
+        <div class="eqrow" id="eqrow">
+          <div class="blk" id="bk1"><div class="sq" id="sqP"></div><span>預測區塊</span></div>
+          <div class="op" id="op1">+</div>
+          <div class="blk" id="bk2"><div class="sq" id="sqR" style="border-color:#9c988f"></div><span>殘差</span></div>
+          <div class="op" id="op2">=</div>
+          <div class="blk" id="bk3"><div class="sq" id="sqC" style="border-color:#5fc48a"></div><span>重建區塊</span></div>
+          <div class="eqnote" id="eqnote">只存 <b class="acc">移動向量 + 殘差</b><br /><span class="note">通常比整塊像素小很多</span></div>
+        </div>
+      </div>
+
+      <!-- 3 I P B -->
+      <div id="s3" class="scene clip" data-start="22.2" data-duration="8.2" data-track-index="1">
+        <div class="head" id="s3h"><span class="badge">3</span><span>三種影格：I、P、B</span></div>
+        <div class="kind" id="kI" style="left:64px">
+          <div class="k"><span class="L acc">I</span><span class="n">自己就能解碼</span></div>
+          <svg id="dI" width="310" height="64"></svg>
+          <ul><li>不參考其他影格</li><li>可當作播放起點</li><li><b>資料量最大</b></li></ul>
+        </div>
+        <div class="kind" id="kP" style="left:460px">
+          <div class="k"><span class="L">P</span><span class="n">參考前面</span></div>
+          <svg id="dP" width="310" height="64"></svg>
+          <ul><li>參考之前已解碼的影格</li><li>不一定只是前一格，<br />可以有多個參考</li><li>比 I 小</li></ul>
+        </div>
+        <div class="kind" id="kB" style="left:856px">
+          <div class="k"><span class="L muted">B</span><span class="n">前、後都能參考</span></div>
+          <svg id="dB" width="310" height="64"></svg>
+          <ul><li>可參考之前與之後的影格</li><li>每個區塊各自挑參考，<br />不是簡單取平均</li><li>通常最小</li></ul>
+        </div>
+        <div class="card" id="s3c" style="top:546px">
+          <div class="row"><span>B 要用到「後面」的影格 → <b class="acc">解碼順序 ≠ 播放順序</b></span></div>
+        </div>
+      </div>
+
+      <!-- 4 GOP 與跳播 -->
+      <div id="s4" class="scene clip" data-start="30.4" data-duration="14.6" data-track-index="1">
+        <div class="head" id="s4h"><span class="badge">4</span><span>GOP：從一個 I 到下一個 I</span></div>
+        <div id="shi">每格大小：示意</div>
+        <div id="bars"></div>
+        <div id="base"></div>
+        <div id="boxes"></div>
+        <svg id="brk" width="1280" height="720"><path id="brkP" d="M108 452 L108 464 L1052 464 L1052 452" fill="none" stroke="#9c988f" stroke-width="2" /></svg>
+        <div id="brkLab">一個 <b class="acc">GOP</b>（這裡是 9 格）</div>
+        <svg id="chain" width="1280" height="720"></svg>
+        <div id="ph"></div>
+        <div id="phLab">從第 7 格開始播？</div>
+        <div id="rap">隨機存取點</div>
+        <div class="card" id="s4c" style="top:500px">
+          <div class="row" id="c1"><span>跳到中間 → 解碼器要從<b class="acc">前一個 I</b> 開始，一路解到目標</span></div>
+          <div class="row" id="c2"><code class="acc">-c copy</code><span>剪接只能對齊關鍵格（I）</span><span class="muted">｜</span><span>要剪在任意一格 → <b>重新編碼</b></span></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+        var el = W13.el;
+        var C = { text: "#f2f0ea", muted: "#9c988f", acc: "#ff7a1a", good: "#5fc48a", bad: "#ff6b5e", line: "#33322f", surf: "#1b1b1a" };
+        function inn(t, sel, dur, extra) {
+          var from = Object.assign({ opacity: 0, y: 14 }, (extra && extra.from) || {});
+          var to = Object.assign({ opacity: 1, y: 0, duration: dur || 0.6, ease: "power3.out" }, (extra && extra.to) || {});
+          tl.fromTo(sel, from, to, t);
+        }
+        function out(t, sel, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.35, ease: "power2.in" }, t); }
+
+        /* ---------- 1A：天空方塊 ---------- */
+        var rnd = W13.seeded(13);
+        var sky = document.getElementById("skySvg");
+        var skyHi = [];
+        for (var y = 0; y < 6; y++) for (var x = 0; x < 12; x++) {
+          var isSky = y < 4;
+          var j = Math.floor(rnd() * 10);
+          var fill = isSky ? "rgb(" + (62 + j) + "," + (98 + j) + "," + (140 + j) + ")" : "rgb(" + (58 + j * 2) + "," + (54 + j * 2) + "," + (44 + j) + ")";
+          var r = el("rect", { x: 14 + x * 40, y: 6 + y * 36, width: 39, height: 35, fill: fill }, sky);
+          if (isSky && x >= 2 && x <= 9 && y >= 1 && y <= 2) skyHi.push(r);
+        }
+        var skyBox = el("rect", { x: 94, y: 42, width: 320, height: 72, fill: "none", stroke: C.acc, "stroke-width": 3, rx: 4 }, sky);
+
+        /* ---------- 1B：講者兩格 ---------- */
+        var lec = document.getElementById("lecSvg");
+        function lecturer(ox, dx, label) {
+          var g = el("g", {}, lec);
+          el("rect", { x: ox, y: 10, width: 236, height: 180, rx: 8, fill: "#232321", stroke: C.line, "stroke-width": 1.5 }, g);
+          el("rect", { x: ox + 18, y: 28, width: 120, height: 70, rx: 4, fill: "#2f3a33" }, g);
+          el("rect", { x: ox + 30, y: 44, width: 70, height: 6, rx: 3, fill: "#9c988f" }, g);
+          el("rect", { x: ox + 30, y: 60, width: 90, height: 6, rx: 3, fill: "#9c988f" }, g);
+          el("circle", { cx: ox + 176 + dx, cy: 78, r: 18, fill: "#e6b38a" }, g);
+          el("path", { d: "M" + (ox + 146 + dx) + " 190 Q" + (ox + 148 + dx) + " 104 " + (ox + 176 + dx) + " 104 Q" + (ox + 204 + dx) + " 104 " + (ox + 206 + dx) + " 190 Z", fill: "#ff7a1a" }, g);
+          el("text", { x: ox + 118, y: 222, "text-anchor": "middle", fill: C.muted, "font-size": 20, "font-family": "JetBrains Mono" }, g, label);
+          return g;
+        }
+        var lecA = lecturer(6, 0, "t");
+        var lecB = lecturer(262, 5, "t + 1/30 s");
+        var lecDiff = el("rect", { x: 262 + 140, y: 52, width: 78, height: 140, rx: 6, fill: "none", stroke: C.acc, "stroke-width": 3, "stroke-dasharray": "8 6" }, lec);
+
+        /* ---------- 2：參考影格／目前影格 ---------- */
+        function scene(id, bx, by, ghost) {
+          var host = document.getElementById(id);
+          var s = el("svg", { width: 440, height: 236 }, host);
+          for (var i = 0; i < 11; i++) el("line", { x1: i * 40, y1: 0, x2: i * 40, y2: 236, stroke: "#26261f", "stroke-width": 1 }, s);
+          for (var k = 0; k < 6; k++) el("line", { x1: 0, y1: k * 40, x2: 440, y2: k * 40, stroke: "#26261f", "stroke-width": 1 }, s);
+          el("rect", { x: 0, y: 190, width: 440, height: 46, fill: "#2b2a27" }, s);
+          var g = el("g", { transform: "translate(" + bx + "," + by + ")" }, s);
+          el("circle", { cx: 40, cy: 40, r: 30, fill: "#ff7a1a" }, g);
+          el("path", { d: "M14 30 Q40 52 66 30", stroke: "#121212", "stroke-width": 5, fill: "none" }, g);
+          el("circle", { cx: 30, cy: 26, r: 6, fill: "#ffd2a8" }, g);
+          return s;
+        }
+        var sRef = scene("mRef", 80, 80);
+        var sCur = scene("mCur", 240, 40);
+        var refBlk = el("rect", { x: 80, y: 80, width: 80, height: 80, fill: "none", stroke: C.acc, "stroke-width": 3, "stroke-dasharray": "7 5" }, sRef);
+        var ghost = el("rect", { x: 80, y: 80, width: 80, height: 80, fill: "none", stroke: C.muted, "stroke-width": 2, "stroke-dasharray": "6 6" }, sCur);
+        var curBlk = el("rect", { x: 240, y: 40, width: 80, height: 80, fill: "none", stroke: C.acc, "stroke-width": 3 }, sCur);
+        /* 跨兩張影格的箭頭：參考區塊 → 目前位置 */
+        var mv = document.getElementById("mvsvg");
+        var defs = el("defs", {}, mv);
+        var mk = el("marker", { id: "ah", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+        el("path", { d: "M0 0 L10 5 L0 10 Z", fill: C.acc }, mk);
+        var mvIn = el("path", { d: "M856 276 L966 236", stroke: C.acc, "stroke-width": 4, fill: "none", "marker-end": "url(#ah)" }, mv);
+        var mvLab = el("text", { x: 920, y: 312, fill: C.acc, "font-size": 22, "font-weight": 900, "font-family": "Noto Sans TC" }, mv, "移動向量");
+        var mvLink = el("path", { d: "M552 290 C 610 320, 670 320, 808 290", stroke: C.muted, "stroke-width": 2, "stroke-dasharray": "6 6", fill: "none", "marker-end": "url(#ah)" }, mv);
+        var mvLink2 = el("text", { x: 640, y: 212, "text-anchor": "middle", fill: C.muted, "font-size": 20, "font-family": "Noto Sans TC" }, mv);
+        el("tspan", { x: 640, dy: 0 }, mvLink2, "在參考影格");
+        el("tspan", { x: 640, dy: 26 }, mvLink2, "找最像的區塊");
+
+        /* 等式方塊 */
+        function ball(host, extra) {
+          var s = el("svg", { width: 104, height: 104 }, document.getElementById(host));
+          el("rect", { x: 0, y: 0, width: 104, height: 104, fill: "#1b1b1a" }, s);
+          var g = el("g", { transform: "translate(12,12)" }, s);
+          el("circle", { cx: 40, cy: 40, r: 30, fill: "#ff7a1a" }, g);
+          el("path", { d: "M14 30 Q40 52 66 30", stroke: "#121212", "stroke-width": 5, fill: "none" }, g);
+          el("circle", { cx: 30, cy: 26, r: 6, fill: "#ffd2a8" }, g);
+          if (extra) el("circle", { cx: 62, cy: 60, r: 7, fill: "#ffd2a8" }, g);
+        }
+        ball("sqP", false);
+        ball("sqC", true);
+        var rs = el("svg", { width: 104, height: 104 }, document.getElementById("sqR"));
+        el("rect", { x: 0, y: 0, width: 104, height: 104, fill: "#161615" }, rs);
+        el("circle", { cx: 74, cy: 72, r: 7, fill: "#9c988f" }, rs);
+        el("text", { x: 52, y: 34, "text-anchor": "middle", fill: "#7a776f", "font-size": 18, "font-family": "Noto Sans TC" }, rs, "大多 ≈ 0");
+
+        /* ---------- 3：小示意圖 ---------- */
+        function mini(id, kind) {
+          var s = document.getElementById(id);
+          var d = el("defs", {}, s);
+          var m = el("marker", { id: "a" + id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, d);
+          el("path", { d: "M0 0 L10 5 L0 10 Z", fill: C.muted }, m);
+          function box(x, t, on) {
+            el("rect", { x: x, y: 14, width: 52, height: 40, rx: 6, fill: on ? "rgba(255,122,26,0.14)" : C.surf, stroke: on ? C.acc : C.line, "stroke-width": 2 }, s);
+            el("text", { x: x + 26, y: 42, "text-anchor": "middle", fill: on ? C.acc : C.muted, "font-size": 20, "font-weight": 700, "font-family": "JetBrains Mono" }, s, t);
+          }
+          function arc(x1, x2) {
+            el("path", { d: "M" + x1 + " 14 Q" + (x1 + x2) / 2 + " -8 " + x2 + " 12", fill: "none", stroke: C.muted, "stroke-width": 2, "marker-end": "url(#a" + id + ")" }, s);
+          }
+          if (kind === "I") { box(129, "I", true); }
+          if (kind === "P") { box(10, "I", false); box(90, "P", false); box(170, "P", true); arc(36, 192); arc(116, 194); }
+          if (kind === "B") { box(30, "I", false); box(129, "B", true); box(228, "P", false); arc(56, 150); arc(254, 160); }
+        }
+        mini("dI", "I"); mini("dP", "P"); mini("dB", "B");
+
+        /* ---------- 4：GOP ---------- */
+        var pat = "IBBPBBPBBI".split("");
+        var H = { I: 150, P: 70, B: 30 };
+        var GX = 106, GS = 106;
+        var bars = [], boxes = [], idx = [];
+        var BR = document.getElementById("bars"), BX = document.getElementById("boxes");
+        pat.forEach(function (t, i) {
+          var b = document.createElement("div");
+          b.className = "gbar";
+          b.style.left = (GX + i * GS) + "px"; b.style.top = (344 - H[t]) + "px"; b.style.height = H[t] + "px";
+          b.style.background = t === "I" ? C.acc : t === "P" ? "#c9c5bb" : "#5a5852";
+          BR.appendChild(b); bars.push(b);
+          var bx = document.createElement("div");
+          bx.className = "gbox " + t; bx.textContent = t;
+          bx.style.left = (GX + i * GS) + "px";
+          BX.appendChild(bx); boxes.push(bx);
+          var ix = document.createElement("div");
+          ix.className = "gidx"; ix.textContent = "#" + (i + 1);
+          ix.style.left = (GX + i * GS) + "px";
+          BX.appendChild(ix); idx.push(ix);
+        });
+        var target = 6; /* 第 7 格（P） */
+        var tx = GX + target * GS + 48;
+        document.getElementById("ph").style.left = tx + "px";
+        document.getElementById("phLab").style.left = (tx + 16) + "px";
+        document.getElementById("rap").style.left = (GX - 6) + "px";
+        document.getElementById("rap").style.top = "150px";
+        /* 解碼鏈：I(#1) → P(#4) → P(#7)，畫在方塊下方 */
+        var ch = document.getElementById("chain");
+        var cd = el("defs", {}, ch);
+        var cm = el("marker", { id: "ca", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, cd);
+        el("path", { d: "M0 0 L10 5 L0 10 Z", fill: C.acc }, cm);
+        function carc(a, b) {
+          var x1 = GX + a * GS + 48, x2 = GX + b * GS + 48;
+          return el("path", { d: "M" + x1 + " 446 Q" + (x1 + x2) / 2 + " 494 " + (x2 - 4) + " 448", fill: "none", stroke: C.acc, "stroke-width": 3, "marker-end": "url(#ca)" }, ch);
+        }
+        var arcs = [carc(0, 3), carc(3, 6)];
+        arcs.forEach(function (p) { var L = p.getTotalLength(); p.setAttribute("stroke-dasharray", L); p.setAttribute("stroke-dashoffset", L); });
+
+        /* ---------- 時間軸 ---------- */
+        inn(0.3, "#title", 0.8, { from: { y: 0, filter: "blur(8px)" }, to: { filter: "blur(0px)" } });
+        inn(1.2, "#sub", 0.6);
+        out(3.8, ["#title", "#sub"], 0.35);
+
+        // 1（4.2–12.2）
+        inn(4.4, "#s1h", 0.6);
+        inn(5.0, "#pA", 0.6);
+        tl.fromTo(skyBox, { opacity: 0 }, { opacity: 1, duration: 0.4 }, 6.0);
+        inn(7.2, "#pB", 0.6);
+        tl.fromTo(lecDiff, { opacity: 0 }, { opacity: 1, duration: 0.4 }, 8.4);
+        out(11.8, "#s1 > *", 0.35);
+
+        // 2（12.2–22.2）
+        inn(12.4, "#s2h", 0.6);
+        inn(13.0, ["#mRef", "#mRefL"], 0.5);
+        inn(13.5, ["#mCur", "#mCurL"], 0.5);
+        tl.fromTo(curBlk, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 14.3);
+        tl.fromTo([mvLink, mvLink2], { opacity: 0 }, { opacity: 1, duration: 0.4 }, 14.9);
+        tl.fromTo(refBlk, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 15.2);
+        tl.fromTo(ghost, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 15.8);
+        tl.fromTo(mvIn, { opacity: 0 }, { opacity: 1, duration: 0.4 }, 16.1);
+        tl.fromTo(mvLab, { opacity: 0 }, { opacity: 1, duration: 0.4 }, 16.3);
+        tl.set("#eqrow", { opacity: 1 }, 0);
+        inn(17.2, "#bk1", 0.5);
+        inn(17.8, ["#op1", "#bk2"], 0.5);
+        inn(18.5, ["#op2", "#bk3"], 0.5);
+        inn(19.3, "#eqnote", 0.5);
+        out(21.8, "#s2 > *", 0.35);
+
+        // 3（22.2–30.4）
+        inn(22.4, "#s3h", 0.6);
+        inn(23.0, "#kI", 0.5);
+        inn(24.2, "#kP", 0.5);
+        inn(25.4, "#kB", 0.5);
+        inn(27.0, "#s3c", 0.5);
+        out(30.0, "#s3 > *", 0.35);
+
+        // 4（30.4–45）
+        inn(30.6, "#s4h", 0.6);
+        tl.fromTo("#base", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 31.0);
+        tl.fromTo(boxes.concat(idx), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.05 }, 31.1);
+        tl.fromTo(bars, { scaleY: 0 }, { scaleY: 1, duration: 0.5, stagger: 0.08, ease: "power2.out" }, 32.0);
+        inn(32.6, "#shi", 0.4);
+        tl.fromTo("#brkP", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 33.6);
+        inn(33.8, "#brkLab", 0.5);
+        out(36.0, ["#brkP", "#brkLab"], 0.3);
+        tl.fromTo("#ph", { opacity: 0, x: -(target * GS) }, { opacity: 1, x: 0, duration: 1.0, ease: "power2.inOut" }, 36.3);
+        tl.fromTo("#phLab", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 37.2);
+        tl.to([0, 3, 6].map(function (i) { return boxes[i]; }), { backgroundColor: "rgba(255,122,26,0.16)", borderColor: C.acc, color: C.acc, duration: 0.3, stagger: 0.35 }, 38.0);
+        tl.to([1, 2, 4, 5, 7, 8, 9].map(function (i) { return boxes[i]; }), { opacity: 0.35, duration: 0.4 }, 38.0);
+        tl.set(arcs, { opacity: 0 }, 0);
+        tl.fromTo(arcs[0], { opacity: 0 }, { opacity: 1, duration: 0.3 }, 38.2);
+        tl.fromTo(arcs[1], { opacity: 0 }, { opacity: 1, duration: 0.3 }, 38.6);
+        tl.to(arcs[0], { attr: { "stroke-dashoffset": 0 }, duration: 0.5 }, 38.2);
+        tl.to(arcs[1], { attr: { "stroke-dashoffset": 0 }, duration: 0.5 }, 38.6);
+        tl.fromTo("#rap", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4 }, 38.9);
+        tl.set(["#c1", "#c2"], { opacity: 0 }, 0);
+        inn(39.4, "#s4c", 0.5);
+        inn(39.5, "#c1", 0.5);
+        inn(40.9, "#c2", 0.5);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["w13-2"] = tl;
+      })();
+    </script>
+  </body>
+</html>
